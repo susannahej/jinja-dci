@@ -106,7 +106,7 @@ WTrtBinOp:
   P,E,h,sh \<turnstile> {V:T; e} : T'"
 
 | WTrtSeq:
-  "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1:Void;  P,E,h,sh \<turnstile> e\<^sub>2:T\<^sub>2 \<rbrakk>
+  "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1:T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:T\<^sub>2 \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 : T\<^sub>2"
 
 | WTrtCond:
@@ -115,7 +115,7 @@ WTrtBinOp:
   \<Longrightarrow> P,E,h,sh \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 : T"
 
 | WTrtWhile:
-  "\<lbrakk> P,E,h,sh \<turnstile> e : Boolean;  P,E,h,sh \<turnstile> c:Void \<rbrakk>
+  "\<lbrakk> P,E,h,sh \<turnstile> e : Boolean;  P,E,h,sh \<turnstile> c:T \<rbrakk>
   \<Longrightarrow>  P,E,h,sh \<turnstile> while(e) c : Void"
 
 | WTrtThrow:
@@ -217,7 +217,7 @@ apply (auto elim: WTrt.cases)
 done
 (*>*)
 
-lemma [iff]: "P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 : T\<^sub>2 = (P,E,h,sh \<turnstile> e\<^sub>1:Void \<and> P,E,h,sh \<turnstile> e\<^sub>2:T\<^sub>2)"
+lemma [iff]: "P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 : T\<^sub>2 = (\<exists>T\<^sub>1. P,E,h,sh \<turnstile> e\<^sub>1:T\<^sub>1 \<and> P,E,h,sh \<turnstile> e\<^sub>2:T\<^sub>2)"
 (*<*)
 apply(rule iffI)
 apply (auto elim: WTrt.cases)

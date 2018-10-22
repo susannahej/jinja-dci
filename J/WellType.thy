@@ -46,7 +46,7 @@ WTBinOp:
   \<Longrightarrow> P,E \<turnstile> e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2 :: T"
 *)
 | WTBinOpEq:
-  "\<lbrakk> P,E \<turnstile> e\<^sub>1 :: T\<^sub>1;  P,E \<turnstile> e\<^sub>2 :: T\<^sub>2; P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1; T\<^sub>1 \<noteq> Void; T\<^sub>2 \<noteq> Void \<rbrakk>
+  "\<lbrakk> P,E \<turnstile> e\<^sub>1 :: T\<^sub>1;  P,E \<turnstile> e\<^sub>2 :: T\<^sub>2; P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<rbrakk>
   \<Longrightarrow> P,E \<turnstile> e\<^sub>1 \<guillemotleft>Eq\<guillemotright> e\<^sub>2 :: Boolean"
 
 | WTBinOpAdd:
@@ -88,7 +88,7 @@ WTBinOp:
   \<Longrightarrow>  P,E \<turnstile> {V:T; e} :: T'"
 
 | WTSeq:
-  "\<lbrakk> P,E \<turnstile> e\<^sub>1::Void;  P,E \<turnstile> e\<^sub>2::T\<^sub>2 \<rbrakk>
+  "\<lbrakk> P,E \<turnstile> e\<^sub>1::T\<^sub>1;  P,E \<turnstile> e\<^sub>2::T\<^sub>2 \<rbrakk>
   \<Longrightarrow>  P,E \<turnstile> e\<^sub>1;;e\<^sub>2 :: T\<^sub>2"
 
 | WTCond:
@@ -97,7 +97,7 @@ WTBinOp:
   \<Longrightarrow> P,E \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 :: T"
 
 | WTWhile:
-  "\<lbrakk> P,E \<turnstile> e :: Boolean;  P,E \<turnstile> c::Void \<rbrakk>
+  "\<lbrakk> P,E \<turnstile> e :: Boolean;  P,E \<turnstile> c::T \<rbrakk>
   \<Longrightarrow> P,E \<turnstile> while (e) c :: Void"
 
 | WTThrow:
@@ -114,7 +114,7 @@ WTBinOp:
   "P,E \<turnstile> [] [::] []"
 
 | WTCons:
-  "\<lbrakk> P,E \<turnstile> e :: T; T \<noteq> Void; P,E \<turnstile> es [::] Ts \<rbrakk>
+  "\<lbrakk> P,E \<turnstile> e :: T; P,E \<turnstile> es [::] Ts \<rbrakk>
   \<Longrightarrow>  P,E \<turnstile> e#es [::] T#Ts"
 
 (*<*)
@@ -141,7 +141,7 @@ apply (auto elim: WTs.cases)
 done
 (*>*)
 
-lemma [iff]: "(P,E \<turnstile> e#es [::] T#Ts) = (P,E \<turnstile> e :: T \<and> T \<noteq> Void \<and> P,E \<turnstile> es [::] Ts)"
+lemma [iff]: "(P,E \<turnstile> e#es [::] T#Ts) = (P,E \<turnstile> e :: T \<and> P,E \<turnstile> es [::] Ts)"
 (*<*)
 apply(rule iffI)
 apply (auto elim: WTs.cases)
@@ -149,7 +149,7 @@ done
 (*>*)
 
 lemma [iff]: "(P,E \<turnstile> (e#es) [::] Ts) =
-  (\<exists>U Us. Ts = U#Us \<and> P,E \<turnstile> e :: U \<and> U \<noteq> Void \<and> P,E \<turnstile> es [::] Us)"
+  (\<exists>U Us. Ts = U#Us \<and> P,E \<turnstile> e :: U \<and> P,E \<turnstile> es [::] Us)"
 (*<*)
 apply(rule iffI)
 apply (auto elim: WTs.cases)
@@ -187,7 +187,7 @@ apply (auto elim: WT.cases)
 done
 (*>*)
 
-lemma [iff]: "P,E \<turnstile> e\<^sub>1;;e\<^sub>2 :: T\<^sub>2 = (P,E \<turnstile> e\<^sub>1::Void \<and> P,E \<turnstile> e\<^sub>2::T\<^sub>2)"
+lemma [iff]: "P,E \<turnstile> e\<^sub>1;;e\<^sub>2 :: T\<^sub>2 = (\<exists>T\<^sub>1. P,E \<turnstile> e\<^sub>1::T\<^sub>1 \<and> P,E \<turnstile> e\<^sub>2::T\<^sub>2)"
 (*<*)
 apply(rule iffI)
 apply (auto elim: WT.cases)

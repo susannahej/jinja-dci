@@ -783,100 +783,100 @@ next
 next
   case (exec_step_ind_InitThrow_Other ics' a P h stk loc C\<^sub>0 M\<^sub>0 pc ics stk' loc' C' m' pc' frs' sh)
   then show ?case by(cases ics; cases ics', auto)
+next
+  case (exec_step_ind_InitThrow_Init ics' a P h stk loc C\<^sub>0 M\<^sub>0 pc ics stk' loc' C' pc' frs' sh)
+  then show ?case by(cases ics'; cases ics, auto)
+next
+  case (exec_step_ind_InitThrow_Called a P h stk loc C\<^sub>0 M\<^sub>0 pc ics stk' loc' C' m' pc' frs' sh ics')
+  then show ?case by(cases ics', auto)
 (***)
 next
   case (exec_step_ind_Load n P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Store n P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Push v P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_NewOOM_Called h C P stk loc C\<^sub>0 M\<^sub>0 pc frs sh ics')
-  then show ?case using assms by(cases ics', auto)
+  then show ?case by(cases ics', auto)
 next
   case (exec_step_ind_New_Called h a C P stk loc C\<^sub>0 M\<^sub>0 pc frs sh ics')
-  then show ?case using assms by(cases ics', auto)
+  then show ?case by(cases ics', auto)
 next
   case (exec_step_ind_Getfield_Null stk F C P h loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Getstatic_NoField P C F D h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Putfield_Null stk F C P h loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Putstatic_NoField P C F D h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Checkcast P C h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Checkcast_Error P C h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Invoke_Null stk n M P h loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Invoke_NoMethod r stk n C h P M loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Invoke_Static r stk n C h D b Ts T mxs mxl\<^sub>0 ins xt P M m loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Invokestatic_NoMethod D b Ts T mxs mxl\<^sub>0 ins xt P C M n h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Invokestatic_NonStatic D b Ts T mxs mxl\<^sub>0 ins xt P C M m n h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Return_Last_Init P h stk\<^sub>0 loc\<^sub>0 C\<^sub>0 M\<^sub>0 pc sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Return_Init D b Ts T m P C\<^sub>0 M\<^sub>0 h stk\<^sub>0 loc\<^sub>0 pc stk' loc' C' m' pc' ics' frs' sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Pop P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_IAdd P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_IfFalse_False stk i P h loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_CmpEq P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Goto i P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Throw stk a P h loc C\<^sub>0 M\<^sub>0 pc ics frs sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Init_None_Called sh C ics P h stk loc C\<^sub>0 M\<^sub>0 pc frs)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Init_Done sh C sfs P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Init_Processing sh C sfs P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_Init_Prepared_Object sh C sfs sh' P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs)
-  then show ?case using assms by(cases ics, auto)
-next
-  case (exec_step_ind_InitThrow_Init ics' a P h stk loc C\<^sub>0 M\<^sub>0 pc ics stk' loc' C' pc' frs' sh m')
-  then show ?case using assms by(cases ics, auto)
-next
-  case (exec_step_ind_InitThrow_Called a P h stk loc C\<^sub>0 M\<^sub>0 pc ics stk' loc' C' m' pc' frs' sh ics')
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 next
   case (exec_step_ind_InitThrow_Last a P h stk loc C\<^sub>0 M\<^sub>0 pc ics sh)
-  then show ?case using assms by(cases ics, auto)
+  then show ?case by(cases ics, auto)
 qed
 
 lemma exec_step_ind_equiv:

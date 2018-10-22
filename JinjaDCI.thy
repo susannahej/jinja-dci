@@ -2,7 +2,7 @@ theory JinjaDCI
 imports
   "J/Equivalence"
   "J/Annotate"
-  "Compiler/Compiler"
+  "Compiler/TypeComp"
 begin
 
 end

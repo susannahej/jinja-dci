@@ -50,7 +50,7 @@ where
   \<Longrightarrow> P,E,h,sh \<turnstile> e\<^sub>1 \<guillemotleft>Eq\<guillemotright> e\<^sub>2 :' Boolean"
 | "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1 :' Integer;  P,E,h,sh \<turnstile> e\<^sub>2 :' Integer \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> e\<^sub>1 \<guillemotleft>Add\<guillemotright> e\<^sub>2 :' Integer"
-| "\<lbrakk> P,E,h,sh \<turnstile> Var V :' T;  P,E,h,sh \<turnstile> e :' T';  P \<turnstile> T' \<le> T (* V \<noteq> This*) \<rbrakk>
+| "\<lbrakk> P,E,h,sh \<turnstile> Var V :' T;  P,E,h,sh \<turnstile> e :' T';  P \<turnstile> T' \<le> T \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> V:=e :' Void"
 | "\<lbrakk> P,E,h,sh \<turnstile> e :' Class C; P \<turnstile> C has F,NonStatic:T in D \<rbrakk> \<Longrightarrow> P,E,h,sh \<turnstile> e\<bullet>F{D} :' T"
 | "P,E,h,sh \<turnstile> e :' NT \<Longrightarrow> P,E,h,sh \<turnstile> e\<bullet>F{D} :' T"
@@ -75,7 +75,7 @@ where
 | "\<lbrakk> typeof\<^bsub>h\<^esub> v = Some T\<^sub>1; P \<turnstile> T\<^sub>1 \<le> T; P,E(V\<mapsto>T),h,sh \<turnstile> e\<^sub>2 :' T\<^sub>2 \<rbrakk>
   \<Longrightarrow>  P,E,h,sh \<turnstile> {V:T := Val v; e\<^sub>2} :' T\<^sub>2"
 | "\<lbrakk> P,E(V\<mapsto>T),h,sh \<turnstile> e :' T'; \<not> assigned V e \<rbrakk> \<Longrightarrow>  P,E,h,sh \<turnstile> {V:T; e} :' T'"
-| "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1:' Void;  P,E,h,sh \<turnstile> e\<^sub>2:'T\<^sub>2 \<rbrakk>  \<Longrightarrow>  P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 :' T\<^sub>2"
+| "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:'T\<^sub>2 \<rbrakk>  \<Longrightarrow>  P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 :' T\<^sub>2"
 | "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2;
     P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1;
     P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<longrightarrow> T = T\<^sub>2; P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<longrightarrow> T = T\<^sub>1 \<rbrakk>
@@ -86,7 +86,7 @@ where
  "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2; P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 :' T\<^sub>1"
 *)
-| "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> c:' Void \<rbrakk>
+| "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> c:' T \<rbrakk>
   \<Longrightarrow>  P,E,h,sh \<turnstile> while(e) c :' Void"
 | "\<lbrakk> P,E,h,sh \<turnstile> e :' T\<^sub>r; is_refT T\<^sub>r \<rbrakk>  \<Longrightarrow>  P,E,h,sh \<turnstile> throw e :' T"
 | "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1 :' T\<^sub>1;  P,E(V \<mapsto> Class C),h,sh \<turnstile> e\<^sub>2 :' T\<^sub>2; P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<rbrakk>
@@ -110,7 +110,7 @@ inductive_cases WTrt'_elim_cases[elim!]:
   "P,E,h,sh \<turnstile> V :=e :' T"
 (*>*)
 
-lemma [iff]: "P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 :' T\<^sub>2 = (P,E,h,sh \<turnstile> e\<^sub>1:' Void \<and> P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2)"
+lemma [iff]: "P,E,h,sh \<turnstile> e\<^sub>1;;e\<^sub>2 :' T\<^sub>2 = (\<exists>T\<^sub>1. P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1 \<and> P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2)"
 (*<*)
 apply(rule iffI)
 apply (auto elim: WTrt'.cases intro!:WTrt'_WTrts'.intros)

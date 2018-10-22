@@ -43,7 +43,7 @@ where
 
 | WTBinOp\<^sub>1:
   "\<lbrakk> P,E \<turnstile>\<^sub>1 e\<^sub>1 :: T\<^sub>1;  P,E \<turnstile>\<^sub>1 e\<^sub>2 :: T\<^sub>2;
-     case bop of Eq \<Rightarrow> (P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1) \<and> T\<^sub>1 \<noteq> Void \<and> T\<^sub>2 \<noteq> Void \<and> T = Boolean
+     case bop of Eq \<Rightarrow> (P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1) \<and> T = Boolean
                | Add \<Rightarrow> T\<^sub>1 = Integer \<and> T\<^sub>2 = Integer \<and> T = Integer \<rbrakk>
   \<Longrightarrow> P,E \<turnstile>\<^sub>1 e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2 :: T"
 
@@ -82,7 +82,7 @@ where
   \<Longrightarrow>  P,E \<turnstile>\<^sub>1 {i:T; e} :: T'"
 
 | WTSeq\<^sub>1:
-  "\<lbrakk> P,E \<turnstile>\<^sub>1 e\<^sub>1::Void;  P,E \<turnstile>\<^sub>1 e\<^sub>2::T\<^sub>2 \<rbrakk>
+  "\<lbrakk> P,E \<turnstile>\<^sub>1 e\<^sub>1::T\<^sub>1;  P,E \<turnstile>\<^sub>1 e\<^sub>2::T\<^sub>2 \<rbrakk>
   \<Longrightarrow>  P,E \<turnstile>\<^sub>1 e\<^sub>1;;e\<^sub>2 :: T\<^sub>2"
 
 | WTCond\<^sub>1:
@@ -91,7 +91,7 @@ where
   \<Longrightarrow> P,E \<turnstile>\<^sub>1 if (e) e\<^sub>1 else e\<^sub>2 :: T"
 
 | WTWhile\<^sub>1:
-  "\<lbrakk> P,E \<turnstile>\<^sub>1 e :: Boolean;  P,E \<turnstile>\<^sub>1 c::Void \<rbrakk>
+  "\<lbrakk> P,E \<turnstile>\<^sub>1 e :: Boolean;  P,E \<turnstile>\<^sub>1 c::T \<rbrakk>
   \<Longrightarrow> P,E \<turnstile>\<^sub>1 while (e) c :: Void"
 
 | WTThrow\<^sub>1:
@@ -106,7 +106,7 @@ where
   "P,E \<turnstile>\<^sub>1 [] [::] []"
 
 | WTCons\<^sub>1:
-  "\<lbrakk> P,E \<turnstile>\<^sub>1 e :: T; T \<noteq> Void; P,E \<turnstile>\<^sub>1 es [::] Ts \<rbrakk>
+  "\<lbrakk> P,E \<turnstile>\<^sub>1 e :: T; P,E \<turnstile>\<^sub>1 es [::] Ts \<rbrakk>
   \<Longrightarrow>  P,E \<turnstile>\<^sub>1 e#es [::] T#Ts"
 
 (*<*)
@@ -208,6 +208,10 @@ apply simp
 done
 (*>*)
 
+lemma WT\<^sub>1_nsub_RI: "P,E \<turnstile>\<^sub>1 e :: T \<Longrightarrow> \<not>sub_RI e"
+ and WTs\<^sub>1_nsub_RIs: "P,E \<turnstile>\<^sub>1 es [::] Ts \<Longrightarrow> \<not>sub_RIs es"
+proof(induct rule: WT\<^sub>1_WTs\<^sub>1.inducts) qed(simp_all)
+
 subsection{* Runtime Well-Typedness *}
 
 inductive
@@ -295,7 +299,7 @@ where
   P,E,h,sh \<turnstile>\<^sub>1 {i:T; e} : T'"
 
 | WTrtSeq\<^sub>1:
-  "\<lbrakk> P,E,h,sh \<turnstile>\<^sub>1 e\<^sub>1:Void;  P,E,h,sh \<turnstile>\<^sub>1 e\<^sub>2:T\<^sub>2 \<rbrakk>
+  "\<lbrakk> P,E,h,sh \<turnstile>\<^sub>1 e\<^sub>1:T\<^sub>1;  P,E,h,sh \<turnstile>\<^sub>1 e\<^sub>2:T\<^sub>2 \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile>\<^sub>1 e\<^sub>1;;e\<^sub>2 : T\<^sub>2"
 
 | WTrtCond\<^sub>1:
@@ -304,7 +308,7 @@ where
   \<Longrightarrow> P,E,h,sh \<turnstile>\<^sub>1 if (e) e\<^sub>1 else e\<^sub>2 : T"
 
 | WTrtWhile\<^sub>1:
-  "\<lbrakk> P,E,h,sh \<turnstile>\<^sub>1 e : Boolean;  P,E,h,sh \<turnstile>\<^sub>1 c:Void \<rbrakk>
+  "\<lbrakk> P,E,h,sh \<turnstile>\<^sub>1 e : Boolean;  P,E,h,sh \<turnstile>\<^sub>1 c:T \<rbrakk>
   \<Longrightarrow>  P,E,h,sh \<turnstile>\<^sub>1 while(e) c : Void"
 
 | WTrtThrow\<^sub>1:

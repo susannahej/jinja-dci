@@ -131,22 +131,24 @@ lemma assumes comp[simp]: "J2JVM P\<^sub>0 = P" and "P \<turnstile> C sees M,b:T
 shows J2JVM_method_instrs_nmt: "instrs_of P C M \<noteq> []"
 using J2JVM_method_instrs[OF assms] by clarsimp
 
-(* HERE: currently unused *)
+(* HERE: currently unused *) (*
  lemma
 assumes comp[simp]: "J2JVM P\<^sub>0 = P" and "P \<turnstile> C sees M,b:Ts \<rightarrow> T = m in D" and "wf_J_prog P\<^sub>0"
 shows J2JVM_method_instr_len_gt1: "1 < length (instrs_of P C M)"
-using wf_J2JVM_method_instrs[OF assms] compE\<^sub>2_nsub_RI_nmt by clarsimp
+using wf_J2JVM_method_instrs[OF assms] compE\<^sub>2_nsub_RI_nmt (* <- use TypeComp.compE\<^sub>2_not_Nil *) by clarsimp *)
 
 lemma assumes comp: "J2JVM P\<^sub>0 = P" and "P \<turnstile> C sees M,b:Ts \<rightarrow> T = m in D"
   and "n < length (instrs_of P C M)" and "instrs_of P C M ! n \<noteq> Return"
 shows J2JVM_method_instrs_nRet_Suc: "Suc n < length (instrs_of P C M)"
 using J2JVM_method_instrs[OF assms(1,2)] assms(3,4) by(auto simp: nth_append split: if_split_asm)
 
-(* HERE: MOVE? *)
+(*
+(* HERE: MOVE? *) --- used, but need to decide where to put this relative to TypeComp, for compE\<^sub>2_not_Nil
 lemma assumes "P \<turnstile> C sees M,b:Ts \<rightarrow> T = m in D" and comp: "J2JVM P\<^sub>0 = P" and "wf_J_prog P\<^sub>0"
 shows J2JVM_method_instrs_nReturn0: "instrs_of P C M ! 0 \<noteq> Return"
 using wf_J2JVM_method_instrs[OF assms(2,1,3)] compE\<^sub>2_nsub_RI_nmt compE\<^sub>2_nRet
   by (metis length_greater_0_conv nth_append nth_mem)
+*)
 
 (* HERE: MOVE *)
 (*** error handling lemmas ***)

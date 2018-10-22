@@ -110,7 +110,7 @@ primrec max_stack :: "expr\<^sub>1 \<Rightarrow> nat"
 | "max_stack (e\<^sub>1\<bullet>F{D} := e\<^sub>2) = max (max_stack e\<^sub>1) (max_stack e\<^sub>2) + 1"
 | "max_stack (C\<bullet>\<^sub>sF{D} := e\<^sub>2) = max_stack e\<^sub>2"
 | "max_stack (e\<bullet>M(es)) = max (max_stack e) (max_stacks es) + 1"
-| "max_stack (C\<bullet>\<^sub>sM(es)) = max_stacks es"
+| "max_stack (C\<bullet>\<^sub>sM(es)) = max_stacks es + 1"
 | "max_stack ({i:T; e}) = max_stack e"
 | "max_stack (e\<^sub>1;;e\<^sub>2) = max (max_stack e\<^sub>1) (max_stack e\<^sub>2)"
 | "max_stack (if (e) e\<^sub>1 else e\<^sub>2) =
@@ -122,10 +122,11 @@ primrec max_stack :: "expr\<^sub>1 \<Rightarrow> nat"
 | "max_stacks [] = 0"
 | "max_stacks (e#es) = max (max_stack e) (1 + max_stacks es)"
 
-(* HERE: SCall might return 0 - might end up fixing, depending on use of max_stacks *)
-(*lemma max_stack1: "1 \<le> max_stack e"
-(*<*)by(induct e) (simp_all add:max_def)(*>*)*)
+lemma max_stack1': "\<not>sub_RI e \<Longrightarrow> 1 \<le> max_stack e"
+(*<*)by(induct e) (simp_all add:max_def)(*>*)
 
+lemma compE\<^sub>2_not_Nil': "\<not>sub_RI e \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
+(*<*)by(induct e) auto(*>*)
 
 definition compMb\<^sub>2 :: "staticb \<Rightarrow> expr\<^sub>1 \<Rightarrow> jvm_method"
 where
@@ -151,9 +152,9 @@ lemma compMb\<^sub>2 [simp]:
 
 
 (* HERE: MOVE ! ! *)
-lemma compE\<^sub>2_nsub_RI_nmt: "\<not>sub_RI e \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
+(*lemma compE\<^sub>2_nsub_RI_nmt: "\<not>sub_RI e \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
  and "\<not>sub_RIs es \<Longrightarrow> es \<noteq> [] \<Longrightarrow> compEs\<^sub>2 es \<noteq> []"
- by(induct rule: compE\<^sub>2.induct compEs\<^sub>2.induct, auto)
+ by(induct rule: compE\<^sub>2.induct compEs\<^sub>2.induct, auto) *)
 
 
 (* HERE: MOVE? *)
