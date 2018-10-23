@@ -102,11 +102,6 @@ definition preallocated :: "heap \<Rightarrow> bool"
 where
   "preallocated h \<equiv> \<forall>C \<in> sys_xcpts. \<exists>fs. h(addr_of_sys_xcpt C) = Some (C,fs)"
 
-
-(* HERE: MOVE? *)
-abbreviation classes_above_xcpts :: "'m prog \<Rightarrow> cname set" where
-"classes_above_xcpts P \<equiv> \<Union>x\<in>sys_xcpts. classes_above P x"
-
 subsection "System exceptions"
 
 lemma [simp]: "NullPointer \<in> sys_xcpts \<and> OutOfMemory \<in> sys_xcpts \<and> ClassCast \<in> sys_xcpts

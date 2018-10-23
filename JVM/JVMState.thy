@@ -66,12 +66,6 @@ fun init_status :: "frame \<Rightarrow> init_call_status" where
 fun ics_of :: "frame \<Rightarrow> init_call_status" where
  "ics_of fr = snd(snd(snd(snd(snd fr))))"
 
-
-(* HERE: MOVE? *)
-fun classes_above_frames :: "'m prog \<Rightarrow> frame list \<Rightarrow> cname set" where
-"classes_above_frames P ((stk,loc,C,M,pc,ics)#frs) = classes_above P C \<union> classes_above_frames P frs" |
-"classes_above_frames P [] = {}"
-
 subsection {* Runtime State *}
 
 type_synonym
