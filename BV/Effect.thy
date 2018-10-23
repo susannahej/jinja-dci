@@ -68,7 +68,7 @@ fun eff\<^sub>i :: "instr \<times> 'm prog \<times> ty\<^sub>i \<Rightarrow> ty\
 | eff\<^sub>i_Getfield:
     "eff\<^sub>i (Getfield F C, P, (T#ST, LT))    = (snd (snd (field P C F)) # ST, LT)"
 | eff\<^sub>i_Getstatic:
-    "eff\<^sub>i (Getstatic C F D, P, (ST, LT))    = (snd (snd (field P D F)) # ST, LT)"
+    "eff\<^sub>i (Getstatic C F D, P, (ST, LT))    = (snd (snd (field P C F)) # ST, LT)"
 | eff\<^sub>i_Putfield:
    "eff\<^sub>i (Putfield F C, P, (T\<^sub>1#T\<^sub>2#ST, LT)) = (ST,LT)"
 | eff\<^sub>i_Putstatic:
@@ -98,9 +98,19 @@ fun eff\<^sub>i :: "instr \<times> 'm prog \<times> ty\<^sub>i \<Rightarrow> ty\
 
 fun is_relevant_class :: "instr \<Rightarrow> 'm prog \<Rightarrow> cname \<Rightarrow> bool" where
   rel_Getfield:
-    "is_relevant_class (Getfield F D) = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C)" 
+    "is_relevant_class (Getfield F D)
+     = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C \<or> P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C
+            \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
+| rel_Getstatic:
+    "is_relevant_class (Getstatic C F D)
+     = (\<lambda>P C. P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Putfield:
-    "is_relevant_class (Putfield F D) = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C)" 
+    "is_relevant_class (Putfield F D)
+     = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C \<or> P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C
+            \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
+| rel_Putstatic:
+    "is_relevant_class (Putstatic C F D)
+     = (\<lambda>P C. P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Checkcast:
     "is_relevant_class (Checkcast D)  = (\<lambda>P C. P \<turnstile> ClassCast \<preceq>\<^sup>* C)" 
 | rel_New:
@@ -161,7 +171,7 @@ fun app\<^sub>i :: "instr \<times> 'm prog \<times> pc \<times> nat \<times> ty 
     (\<exists>T\<^sub>f. P \<turnstile> C sees F,NonStatic:T\<^sub>f in C \<and> P \<turnstile> T \<le> Class C)"
 | app\<^sub>i_Getstatic:
     "app\<^sub>i (Getstatic C F D, P, pc, mxs, T\<^sub>r, (ST, LT)) = 
-    (\<exists>T\<^sub>f. P \<turnstile> C sees F,Static:T\<^sub>f in D)"
+     (length ST < mxs \<and> (\<exists>T\<^sub>f. P \<turnstile> C sees F,Static:T\<^sub>f in D))"
 | app\<^sub>i_Putfield:
     "app\<^sub>i (Putfield F C, P, pc, mxs, T\<^sub>r, (T\<^sub>1#T\<^sub>2#ST, LT)) = 
     (\<exists>T\<^sub>f. P \<turnstile> C sees F,NonStatic:T\<^sub>f in C \<and> P \<turnstile> T\<^sub>2 \<le> (Class C) \<and> P \<turnstile> T\<^sub>1 \<le> T\<^sub>f)" 
@@ -202,7 +212,7 @@ fun app\<^sub>i :: "instr \<times> 'm prog \<times> pc \<times> nat \<times> ty 
                     P \<turnstile> rev (take n ST) [\<le>] Ts)))"
 | app\<^sub>i_Invokestatic:
     "app\<^sub>i (Invokestatic C M n, P, pc, mxs, T\<^sub>r, (ST,LT)) =
-    (n \<le> length ST \<and>
+    (length ST - n < mxs \<and> n \<le> length ST \<and>
       (\<exists>D Ts T m. P \<turnstile> C sees M,Static:Ts \<rightarrow> T = m in D \<and>
                     P \<turnstile> rev (take n ST) [\<le>] Ts))"
     
@@ -333,7 +343,7 @@ lemma appGetField[simp]:
 
 lemma appGetStatic[simp]:
 "app\<^sub>i (Getstatic C F D,P,pc,mxs,T\<^sub>r,s) = 
- (\<exists> vT ST LT. s = (ST, LT) \<and> P \<turnstile> C sees F,Static:vT in D)"
+ (\<exists> vT ST LT. s = (ST, LT) \<and> length ST < mxs \<and> P \<turnstile> C sees F,Static:vT in D)"
   by (rule length_cases2 [of _ s]) auto
 
 lemma appPutField[simp]:
