@@ -36,7 +36,7 @@ where
 |  exec_instr_New:
 "exec_instr (New C) P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh =
    (case (ics, sh C) of
-          (Called, _) \<Rightarrow>
+          (Called Cs, _) \<Rightarrow>
             (case new_Addr h of
                   None \<Rightarrow> (\<lfloor>addr_of_sys_xcpt OutOfMemory\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, No_ics)#frs, sh)
                 | Some a \<Rightarrow> (None, h(a\<mapsto>blank P C), (Addr a#stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, No_ics)#frs, sh)
@@ -46,7 +46,7 @@ where
                   None \<Rightarrow> (\<lfloor>addr_of_sys_xcpt OutOfMemory\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
                 | Some a \<Rightarrow> (None, h(a\<mapsto>blank P C), (Addr a#stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, ics)#frs, sh)
             )
-        | _ \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling C)#frs, sh)
+        | _ \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling C [])#frs, sh)
    )"
 
 | exec_instr_Getfield:
@@ -71,12 +71,12 @@ where
                              | Static \<Rightarrow> None
    in (case (xp', ics, sh D') of
             (Some a, _) \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-          | (_, Called, _) \<Rightarrow> let (sfs, i) = the(sh D');
+          | (_, Called Cs, _) \<Rightarrow> let (sfs, i) = the(sh D');
                                        v = the(sfs F)
                                     in (xp', h, (v#stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, No_ics)#frs, sh)
           | (_, _, Some (sfs, Done)) \<Rightarrow> let v = the (sfs F)
                                         in (xp', h, (v#stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, ics)#frs, sh)
-          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D')#frs, sh)
+          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D' [])#frs, sh)
       )
   )"
 
@@ -106,12 +106,12 @@ where
                              | Static \<Rightarrow> None
    in (case (xp', ics, sh D') of
             (Some a, _) \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-          | (_, Called, _)
+          | (_, Called Cs, _)
        \<Rightarrow> let (sfs, i) = the(sh D')
           in (xp', h, (tl stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, No_ics)#frs, sh(D':=Some ((sfs(F \<mapsto> hd stk)), i)))
           | (_, _, Some (sfs, Done))
        \<Rightarrow> (xp', h, (tl stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, ics)#frs, sh(D':=Some ((sfs(F \<mapsto> hd stk)), Done)))
-          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D')#frs, sh)
+          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D' [])#frs, sh)
       )
   )"
 
@@ -149,9 +149,9 @@ where
        f'  = ([],(rev ps)@(replicate mxl\<^sub>0 undefined),D,M,0,No_ics)
    in (case (xp', ics, sh D) of
             (Some a, _) \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-          | (_, Called, _) \<Rightarrow> (xp', h, f'#(stk, loc, C\<^sub>0, M\<^sub>0, pc, No_ics)#frs, sh)
+          | (_, Called Cs, _) \<Rightarrow> (xp', h, f'#(stk, loc, C\<^sub>0, M\<^sub>0, pc, No_ics)#frs, sh)
           | (_, _, Some (sfs, Done)) \<Rightarrow> (xp', h, f'#(stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D)#frs, sh)
+          | _ \<Rightarrow> (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D [])#frs, sh)
       )
   )"
 
@@ -164,7 +164,7 @@ where
                 in (None, h, [], sh')
        | (stk',loc',C',m',pc',ics')#frs'
             \<Rightarrow> let (D,b,Ts,T,(mxs,mxl\<^sub>0,ins,xt)) = method P C\<^sub>0 M\<^sub>0;
-                   offset = case b of NonStatic \<Rightarrow> 1 | Static \<Rightarrow> 0; (* whether there's a calling obj to remove from stk *)
+                   offset = case b of NonStatic \<Rightarrow> 1 | Static \<Rightarrow> 0;
                    (sh'', stk'', pc'') = (case M\<^sub>0 = clinit of True \<Rightarrow> (sh(C\<^sub>0:=Some(fst(the(sh C\<^sub>0)), Done)), stk', pc')
                                                 | _ \<Rightarrow> (sh, (hd stk\<^sub>0)#(drop (length Ts + offset) stk'), Suc pc')
                                         )
@@ -180,10 +180,8 @@ where
 
 | exec_instr_IfFalse:
 "exec_instr (IfFalse i) P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh =
-   (case hd stk of
-        Bool False \<Rightarrow> (None, h, (tl stk, loc, C\<^sub>0, M\<^sub>0, nat(int pc+i), ics)#frs, sh)
-      | _ \<Rightarrow> (None, h, (tl stk, loc, C\<^sub>0, M\<^sub>0, Suc pc, ics)#frs, sh)
-   )"
+  (let pc' = if hd stk = Bool False then nat(int pc+i) else pc+1
+   in (None, h, (tl stk, loc, C\<^sub>0, M\<^sub>0, pc', ics)#frs, sh))"
 
 | exec_instr_CmpEq:
 "exec_instr CmpEq P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh =
@@ -195,10 +193,14 @@ where
 
 | exec_instr_Throw:
 "exec_instr Throw P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh =
-   (case hd stk of
+  (let xp' = if hd stk = Null then \<lfloor>addr_of_sys_xcpt NullPointer\<rfloor>
+             else \<lfloor>the_Addr(hd stk)\<rfloor>
+   in (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh))"
+
+(*   (case hd stk of
         Addr a \<Rightarrow> (\<lfloor>a\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
       | _ \<Rightarrow> (\<lfloor>addr_of_sys_xcpt NullPointer\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-   )"
+   )" *)
 
 (** ******* **)
 
@@ -218,8 +220,8 @@ proof(cases i)
     case (Some a)
     then obtain sfs i where sfsi: "a = (sfs,i)" by(cases a)
     then show ?thesis using Some New assms
-    proof(cases i) qed(cases "M=clinit"; cases ics', auto)+
-  qed(cases "M=clinit"; cases ics', auto)
+    proof(cases i) qed(cases ics', auto)+
+  qed(cases ics', auto)
 next
   case (Getfield F1 C1)
   obtain D' b t where field: "field P C1 F1 = (D',b,t)" by(cases "field P C1 F1")
@@ -232,11 +234,11 @@ next
       proof(cases "fst(snd(field P C1 F1))")
         case Static
         then show ?thesis using exists nNull addr field Getfield assms
-          by auto (metis insert_iff option.inject staticb.simps(3) sys_xcpts_def)
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       next
         case NonStatic
         then show ?thesis using exists nNull addr field Getfield assms
-          by auto (metis option.distinct(1) staticb.simps(4))
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       qed
     qed(auto)
   qed(auto)
@@ -266,11 +268,11 @@ next
       proof(cases b)
         case Static
         then show ?thesis using exists nNull addr field Putfield assms
-          by auto (metis insert_iff option.inject staticb.simps(3) sys_xcpts_def)
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       next
         case NonStatic
         then show ?thesis using exists nNull addr field Putfield assms
-          by auto (metis option.distinct(1) staticb.simps(4))
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       qed
     qed(auto)
   qed(auto)
@@ -300,11 +302,11 @@ next
       proof(cases "fst(snd(method P ?C M))")
         case Static
         then show ?thesis using exists nNull Invoke assms
-          by auto (metis insert_iff option.inject staticb.simps(3) sys_xcpts_def)
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       next
         case NonStatic
         then show ?thesis using exists nNull Invoke assms
-          by auto (metis option.distinct(1) staticb.simps(4))
+         by(auto simp: sys_xcpts_def split_beta split: staticb.splits)
       qed
     qed(auto)
   qed(auto)
@@ -317,7 +319,8 @@ next
       case Static
       then obtain sfs i where "the(sh (fst(method P C1 M))) = (sfs, i)"
         by(cases "the(sh (fst(method P C1 M)))")
-      then show ?thesis using exists Static Invokestatic assms by(cases ics'; cases i, auto)
+      then show ?thesis using exists Static Invokestatic assms
+        by(auto split: init_call_status.splits init_state.splits)
     qed(auto)
   qed(auto)
 next
@@ -341,8 +344,8 @@ using assms
 proof(cases i)
   case (New C1)
   then obtain sfs i where sfsi: "the(sh C1) = (sfs,i)" by(cases "the(sh C1)")
-  then show ?thesis using preallocated_new[of h] sfsi New assms
-    by(cases "blank P C1", cases i; cases ics, auto dest: new_Addr_SomeD)
+  then show ?thesis using preallocated_new[of h] New assms
+    by(cases "blank P C1", auto dest: new_Addr_SomeD split: init_call_status.splits init_state.splits)
 next
   case (Getfield F1 C1) then show ?thesis using assms
     by(cases "the (h (the_Addr (hd stk)))", cases "field P C1 F1", auto)
@@ -350,7 +353,8 @@ next
   case (Getstatic C1 F1 D1)
   then obtain sfs i where sfsi: "the(sh (fst (field P D1 F1))) = (sfs, i)"
    by(cases "the(sh (fst (field P D1 F1)))")
-  then show ?thesis using Getstatic assms by(cases "field P D1 F1", cases i; cases ics, auto)
+  then show ?thesis using Getstatic assms
+   by(cases "field P D1 F1", auto split: init_call_status.splits init_state.splits)
 next
   case (Putfield F1 C1) then show ?thesis using preallocated_new preallocated_upd_obj assms
     by(cases "the (h (the_Addr (hd (tl stk))))", cases "field P C1 F1", auto, metis option.collapse)
@@ -358,7 +362,8 @@ next
   case (Putstatic C1 F1 D1)
   then obtain sfs i where sfsi: "the(sh (fst (field P D1 F1))) = (sfs, i)"
    by(cases "the(sh (fst (field P D1 F1)))")
-  then show ?thesis using Putstatic assms by(cases "field P D1 F1", cases i; cases ics, auto)
+  then show ?thesis using Putstatic assms
+   by(cases "field P D1 F1", auto split: init_call_status.splits init_state.splits)
 next
   case (Checkcast C1)
   then show ?thesis using assms
@@ -374,24 +379,21 @@ next
   case (Invokestatic C1 M n)
   show ?thesis
   proof(cases "sh (fst (method P C1 M))")
-    case None then show ?thesis using Invokestatic assms by(cases "method P C1 M", cases ics, auto)
+    case None then show ?thesis using Invokestatic assms
+     by(cases "method P C1 M", auto split: init_call_status.splits)
   next
     case (Some a)
     then obtain sfs i where sfsi: "a = (sfs, i)" by(cases a)
     then show ?thesis using Some Invokestatic assms
-    proof(cases i) qed(cases "method P C1 M", cases ics, auto)+
+    proof(cases i) qed(cases "method P C1 M", auto split: init_call_status.splits)+
   qed
 next
   case Return
-  then show ?thesis using assms by(cases "method P C\<^sub>0 M\<^sub>0", cases frs, (cases "M\<^sub>0=clinit", auto)+)
+  then show ?thesis using assms by(cases "method P C\<^sub>0 M\<^sub>0", auto simp: split_beta split: list.splits)
 next
-  case (IfFalse x17)
-  then show ?thesis using assms
-  proof(cases "hd stk")
-    case(Bool b) then show ?thesis using IfFalse assms by(cases b, auto)
-  qed(auto)
+  case (IfFalse x17) then show ?thesis using assms by(auto split: val.splits bool.splits)
 next
-  case Throw then show ?thesis using assms by(cases "hd stk", auto)
+  case Throw then show ?thesis using assms by(auto split: val.splits)
 qed(auto)
 
 end

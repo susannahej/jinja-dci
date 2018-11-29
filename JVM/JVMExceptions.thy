@@ -9,7 +9,7 @@
 
 section {* Exception handling in the JVM *}
 
-theory JVMExceptions imports "../Common/Exceptions" JVMInstructions (* "../Common/ClassesAbove" *)
+theory JVMExceptions imports "../Common/Exceptions" JVMInstructions
 begin
 
 definition matches_ex_entry :: "'m prog \<Rightarrow> cname \<Rightarrow> pc \<Rightarrow> ex_entry \<Rightarrow> bool"
@@ -39,21 +39,24 @@ where
          case match_ex_table P (cname_of h a) pc (ex_table_of P C M) of
            None \<Rightarrow> 
               (case M = clinit of
-                   True \<Rightarrow> (None, h, ([],loc,C,M,pc,Throwing a)#frs, sh)
+                   True \<Rightarrow> (case frs of (stk',loc',C',M',pc',ics')#frs'
+                                          \<Rightarrow> (case ics' of Called Cs \<Rightarrow> (None, h, (stk',loc',C',M',pc',Throwing (C#Cs) a)#frs', sh)
+                                                         | _ \<Rightarrow> (None, h, (stk',loc',C',M',pc',ics')#frs', sh) \<comment> \<open>this won't happen in wf code\<close>
+                                             )
+                                      | [] \<Rightarrow> (Some a, h, [], sh)
+                           )
                  | _ \<Rightarrow> find_handler P a h frs sh
               )
          | Some pc_d \<Rightarrow> (None, h, (Addr a # drop (size stk - snd pc_d) stk, loc, C, M, fst pc_d, No_ics)#frs, sh))"
 
 lemma find_handler_cases:
  "find_handler P a h frs sh = js
-   \<Longrightarrow> (\<exists>frs' sh'. frs' \<noteq> [] \<and> js = (None, h, frs', sh')) \<or> (\<exists>x sh'. js = (Some x, h, [], sh'))"
+   \<Longrightarrow> (\<exists>frs'. frs' \<noteq> [] \<and> js = (None, h, frs', sh)) \<or> (\<exists>x. js = (Some x, h, [], sh))"
 apply (cut_tac P = "\<lambda>P a h frs sh. \<forall>js. find_handler P a h frs sh = js \<longrightarrow>
-  (\<exists>frs' sh'. frs' \<noteq> [] \<and> js = (None, h, frs', sh')) \<or> (\<exists>x sh'. js = (Some x, h, [], sh'))"
+  (\<exists>frs'. frs' \<noteq> [] \<and> js = (None, h, frs', sh)) \<or> (\<exists>x. js = (Some x, h, [], sh))"
   and ?a0.0 = P and ?a1.0 = a and ?a2.0 = h and ?a3.0 = frs and ?a4.0 = sh
- in find_handler.induct, simp) apply (rename_tac P2 a2 h2 fr2 frs2 sh2)
- apply clarsimp apply (rename_tac stk2 loc2 C2 M2 pc2 ics2 frs2 sh2)
- apply (case_tac "M2 = clinit", simp+)
-done
+ in find_handler.induct)
+by(auto split: bool.splits list.splits init_call_status.splits)
 
 lemma find_handler_None:
  "find_handler P a h frs sh = (None, h, frs', sh') \<Longrightarrow> frs' \<noteq> []"
@@ -64,23 +67,67 @@ lemma find_handler_Some:
  by (drule find_handler_cases, clarsimp)
 
 lemma find_handler_Some_same_error_same_heap[simp]:
- "find_handler P a h frs sh = (Some x, h', frs', sh') \<Longrightarrow> x = a \<and> h = h'"
+ "find_handler P a h frs sh = (Some x, h', frs', sh') \<Longrightarrow> x = a \<and> h = h' \<and> sh = sh'"
 apply (cut_tac P = "\<lambda>P a h frs sh. find_handler P a h frs sh = (Some x, h', frs', sh') \<longrightarrow>
-   x = a \<and> h = h'"
+   x = a \<and> h = h' \<and> sh = sh'"
   and ?a0.0 = P and ?a1.0 = a and ?a2.0 = h and ?a3.0 = frs and ?a4.0 = sh
- in find_handler.induct, simp) apply (rename_tac P2 a2 h2 fr2 frs2 sh2)
- apply clarsimp apply (rename_tac stk2 loc2 C2 M2 pc2 ics2 frs2 sh2)
- apply (case_tac "M2 = clinit", simp+)
-done
+ in find_handler.induct)
+by(auto split: bool.splits list.splits init_call_status.splits)
 
+lemma find_handler_frames[simp]:
+"find_handler P a h frs sh = (xp',h',frs',sh') \<Longrightarrow> length frs' \<le> length frs"
+proof(induct frs)
+  case Nil then show ?case by simp
+next
+  case (Cons a frs)
+  then show ?case
+    by(auto simp: split_beta split: bool.splits list.splits init_call_status.splits)
+qed
+
+(* HERE: MOVE *)
+lemma find_handler_frs_tl_neq:
+ "ics_of f \<noteq> No_ics
+  \<Longrightarrow> (xp, h, f#frs, sh) \<noteq> find_handler P xa h' (f' # frs) sh'"
+proof(induct frs arbitrary: f f')
+  case Nil then show ?case by(auto simp: split_beta split: bool.splits)
+next
+  case (Cons a frs)
+  obtain xp1 h1 frs1 sh1 where fh: "find_handler P xa h' (a # frs) sh' = (xp1,h1,frs1,sh1)"
+   by(cases "find_handler P xa h' (a # frs) sh'")
+  then have "length frs1 \<le> length (a#frs)"
+    by(rule find_handler_frames[where P=P and a=xa and h=h' and frs="a#frs" and sh=sh'])
+  then have neq: "f#a#frs \<noteq> frs1" by(clarsimp dest: impossible_Cons)
+  then show ?case
+  proof(cases "find_handler P xa h' (f' # a # frs) sh' = find_handler P xa h' (a # frs) sh'")
+    case True then show ?thesis using neq fh by simp
+  next
+    case False
+    then show ?thesis using Cons.prems
+      by(auto simp: split_beta split: bool.splits init_call_status.splits list.splits)
+  qed
+qed
+
+lemma find_handler_heap[simp]:
+"find_handler P a h frs sh = (xp',h',frs',sh') \<Longrightarrow> h' = h"
+ by(auto dest: find_handler_cases)
 
 lemma find_handler_prealloc_pres:
 assumes "preallocated h"
-shows "find_handler P a h frs sh = (xp',h',frs',sh')
-  \<Longrightarrow> preallocated h'"
-using assms
-proof(induct frs)
-  case (Cons f frs) then show ?case using assms by(cases f, cases "curr_method f = clinit", auto)
+and fh: "find_handler P a h frs sh = (xp',h',frs',sh')"
+shows "preallocated h'"
+using assms find_handler_heap[OF fh] by simp
+
+lemma find_handler_sheap[simp]:
+"find_handler P a h frs sh = (xp',h',frs',sh') \<Longrightarrow> sh' = sh"
+ by(auto dest: find_handler_cases)
+
+lemma find_handler_sheap_no_effect:
+assumes "find_handler P a h frs sh = (xp',h',frs',sh')"
+shows "find_handler P a h frs sh1 = (xp',h',frs',sh1)"
+using assms proof(induct frs)
+  case (Cons f' frs')
+  then obtain stk' loc' C' M' pc' ics' where "f'=(stk',loc',C',M',pc',ics')" by(cases f')
+  with Cons show ?case by(auto split: bool.splits list.splits init_call_status.splits)
 qed(simp)
 
 end

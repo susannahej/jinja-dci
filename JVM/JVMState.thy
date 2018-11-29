@@ -26,15 +26,15 @@ where
 
 subsection {* Frame Stack *}
 
-datatype init_call_status = No_ics | Calling cname | ICalling cname
-                          | Called | Throwing addr
+datatype init_call_status = No_ics | Calling cname "cname list"
+                          | Called "cname list" | Throwing "cname list" addr
 	\<comment> \<open>No_ics = not currently calling or waiting for the result of an initialization procedure call\<close>
-  \<comment> \<open>Calling C = current instruction is calling for initialization of C\<close>
-  \<comment> \<open>ICalling C = initialization procedure is calling for initialization of C
-        due to the initialization of one of its subclasses (in this frame)\<close>
-  \<comment> \<open>Called = current instruction called initialization and is waiting for the result\<close>
-  \<comment> \<open>Throwing a = frame threw or was thrown an error causing erroneous end of initialization
-        procedure\<close>
+  \<comment> \<open>Calling C Cs = current instruction is calling for initialization of classes C#Cs (last class
+      is the original) -- still collecting classes to be initialized, C most recently collected\<close>
+  \<comment> \<open>Called Cs = current instruction called initialization and is waiting for the result
+      -- now initializing classes in the list\<close>
+  \<comment> \<open>Throwing Cs a = frame threw or was thrown an error causing erroneous end of initialization
+        procedure for classes Cs\<close>
 
 type_synonym
   frame = "val list \<times> val list \<times> cname \<times> mname \<times> pc \<times> init_call_status"
@@ -65,6 +65,12 @@ fun init_status :: "frame \<Rightarrow> init_call_status" where
 
 fun ics_of :: "frame \<Rightarrow> init_call_status" where
  "ics_of fr = snd(snd(snd(snd(snd fr))))"
+
+
+(* HERE: MOVE? *)
+fun classes_above_frames :: "'m prog \<Rightarrow> frame list \<Rightarrow> cname set" where
+"classes_above_frames P ((stk,loc,C,M,pc,ics)#frs) = classes_above P C \<union> classes_above_frames P frs" |
+"classes_above_frames P [] = {}"
 
 subsection {* Runtime State *}
 

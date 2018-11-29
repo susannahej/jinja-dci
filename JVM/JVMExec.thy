@@ -3,7 +3,7 @@
     Original file by: Cornelia Pusch, Gerwin Klein
     Copyright   1999 Technische Universitaet Muenchen
     Expanded to include statics and class initialization by Susannah Mansky
-    2016-17, UIUC
+    2016-18, UIUC
 *)
 
 section {* Program Execution in the JVM in full small step style *}
@@ -17,58 +17,39 @@ abbreviation
   "instrs_of P C M == fst(snd(snd(snd(snd(snd(snd(method P C M)))))))"
 
 (* execution of single step of the initialization procedure *)
-fun exec_Calling :: "[cname, jvm_prog, heap, val list, val list,
-                  cname, mname, pc, init_call_status, frame list, sheap] \<Rightarrow> jvm_state"
+fun exec_Calling :: "[cname, cname list, jvm_prog, heap, val list, val list,
+                  cname, mname, pc, frame list, sheap] \<Rightarrow> jvm_state"
 where
-"exec_Calling C P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh =
+"exec_Calling C Cs P h stk loc C\<^sub>0 M\<^sub>0 pc frs sh =
   (case sh C of
-        None \<Rightarrow> let ics' = case ics of Called \<Rightarrow> Calling C | _ \<Rightarrow> ICalling C
-                in (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics')#frs, sh(C := Some (sblank P C, Prepared)))
+        None \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling C Cs)#frs, sh(C := Some (sblank P C, Prepared)))
       | Some (obj, iflag) \<Rightarrow>
           (case iflag of
-              Done \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-            | Processing \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-            | Error \<Rightarrow> (let (stk',loc',D',M',pc',ics') = create_init_frame P C
-            in (None, h, (stk',loc',D',M',pc',Throwing (addr_of_sys_xcpt NoClassDefFoundError))
-                            #(stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-                       )
+              Done \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Called Cs)#frs, sh)
+            | Processing \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Called Cs)#frs, sh)
+            | Error \<Rightarrow> (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc,
+                                   Throwing Cs (addr_of_sys_xcpt NoClassDefFoundError))#frs, sh)
             | Prepared \<Rightarrow>
-                let (stk',loc',C',m',pc',ics') = create_init_frame P C;
-                    sh' = sh(C:=Some(fst(the(sh C)), Processing));
-                    frs' = (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs;
+                let sh' = sh(C:=Some(fst(the(sh C)), Processing));
                     D = fst(the(class P C))
-                 in
-                if C = Object
-                 then (None, h, (stk',loc',C',m',pc',ics')#frs', sh')
-                 else (None, h, (stk',loc',C',m',pc',ICalling D)#frs', sh')
+                 in if C = Object
+                    then (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Called (C#Cs))#frs, sh')
+                    else (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, Calling D (C#Cs))#frs, sh')
           )
   )"
-
-(* execution of single step: throwing initialization procedure error down the frame stack *)
-fun exec_Throwing :: "[addr, jvm_prog, heap, val list, val list,
-                  cname, mname, pc, init_call_status, frame list, sheap] \<Rightarrow> jvm_state"
-where
-"exec_Throwing a P h stk loc C\<^sub>0 M\<^sub>0 pc ics ((stk',loc',C',m',pc',ics')#frs) sh
- = (let (xp, ics1) = (case ics' of Called \<Rightarrow> (\<lfloor>a\<rfloor>, No_ics)
-                                 | _ \<Rightarrow> (case m' = clinit of True \<Rightarrow> (None, Throwing a)
-                                                           | _ \<Rightarrow> (\<lfloor>a\<rfloor>, ics')
-                                        )
-                     );
-       f' = (stk',loc',C',m',pc',ics1)
-    in (xp, h, f'#frs, (sh(C\<^sub>0:=Some(fst(the(sh C\<^sub>0)), Error)))))" |
-"exec_Throwing a P h stk loc C\<^sub>0 M\<^sub>0 pc ics [] sh
- = (\<lfloor>a\<rfloor>, h, [], (sh(C\<^sub>0:=Some(fst(the(sh C\<^sub>0)), Error))))"
 
 (* single step of execution without error handling *)
 fun exec_step :: "[jvm_prog, heap, val list, val list,
                   cname, mname, pc, init_call_status, frame list, sheap] \<Rightarrow> jvm_state"
 where
-"exec_step P h stk loc C M pc (Calling C') frs sh
-   = exec_Calling C' P h stk loc C M pc Called frs sh" |
-"exec_step P h stk loc C M pc (ICalling C') frs sh
-   = exec_Calling C' P h stk loc C M pc No_ics frs sh" |
-"exec_step P h stk loc C M pc (Throwing a) frs sh
-   = exec_Throwing a P h stk loc C M pc (Throwing a) frs sh" |
+"exec_step P h stk loc C M pc (Calling C' Cs) frs sh
+   = exec_Calling C' Cs P h stk loc C M pc frs sh" |
+"exec_step P h stk loc C M pc (Called (C'#Cs)) frs sh
+   = (None, h, create_init_frame P C'#(stk, loc, C, M, pc, Called Cs)#frs, sh)" |
+"exec_step P h stk loc C M pc (Throwing (C'#Cs) a) frs sh
+   = (None, h, (stk,loc,C,M,pc,Throwing Cs a)#frs, sh(C':=Some(fst(the(sh C')), Error)))" |
+"exec_step P h stk loc C M pc (Throwing [] a) frs sh
+   = (\<lfloor>a\<rfloor>, h, (stk,loc,C,M,pc,No_ics)#frs, sh)" |
 "exec_step P h stk loc C M pc ics frs sh
    = exec_instr (instrs_of P C M ! pc) P h stk loc C M pc ics frs sh"
 
@@ -76,10 +57,9 @@ where
 fun exec :: "jvm_prog \<times> jvm_state \<Rightarrow> jvm_state option" \<comment> \<open>single step execution\<close> where
 "exec (P, None, h, (stk,loc,C,M,pc,ics)#frs, sh) =
    (let (xp', h', frs', sh') = exec_step P h stk loc C M pc ics frs sh
-     in case (xp',ics) of
-            (None,_) \<Rightarrow> Some (None,h',frs',sh')
-          | (Some x,Throwing a) \<Rightarrow> Some (find_handler P x h frs' sh')
-          | (Some x,_) \<Rightarrow> Some (find_handler P x h ((stk,loc,C,M,pc,ics)#frs) sh')
+     in case xp' of
+            None \<Rightarrow> Some (None,h',frs',sh')
+          | Some x \<Rightarrow> Some (find_handler P x h ((stk,loc,C,M,pc,ics)#frs) sh)
    )"
 | "exec _ = None"
 
@@ -135,6 +115,11 @@ lemma exec_all_conf:
   \<Longrightarrow> P \<turnstile> \<sigma>' -jvm\<rightarrow> \<sigma>'' \<or> P \<turnstile> \<sigma>'' -jvm\<rightarrow> \<sigma>'"
 (*<*)by(simp add: exec_all_def single_valued_def single_valued_confluent)(*>*)
 
+(* HERE: rename? *)
+lemma exec_1_exec_all_conf:
+ "\<lbrakk> exec (P, \<sigma>) = Some \<sigma>'; P \<turnstile> \<sigma> -jvm\<rightarrow> \<sigma>''; \<sigma> \<noteq> \<sigma>'' \<rbrakk>
+ \<Longrightarrow> P \<turnstile> \<sigma>' -jvm\<rightarrow> \<sigma>''"
+ by(auto elim: converse_rtranclE simp: exec_1_eq exec_all_def)
 
 lemma exec_all_finalD: "P \<turnstile> (x, h, [], sh) -jvm\<rightarrow> \<sigma> \<Longrightarrow> \<sigma> = (x, h, [], sh)"
 (*<*)
@@ -155,7 +140,7 @@ done
 
 lemma exec_Calling_prealloc_pres:
 assumes "preallocated h"
-  and "exec_Calling C P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh = (xp',h',frs',sh')"
+  and "exec_Calling C Cs P h stk loc C\<^sub>0 M\<^sub>0 pc frs sh = (xp',h',frs',sh')"
 shows "preallocated h'"
 using assms
 proof(cases "sh C")
@@ -164,18 +149,12 @@ proof(cases "sh C")
   then show ?thesis using Some assms
   proof(cases i)
     case Prepared
-    then show ?thesis using sfsi Some assms by(cases "method P C clinit", cases "C = Object", auto)
+    then show ?thesis using sfsi Some assms by(cases "method P C clinit", auto split: if_split_asm)
   next
     case Error
     then show ?thesis using sfsi Some assms by(cases "method P C clinit", auto)
   qed(auto)
 qed(auto)
-
-lemma exec_Throwing_prealloc_pres:
-assumes "preallocated h"
-  and "exec_Throwing a P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh = (xp',h',frs',sh')"
-shows "preallocated h'"
-using assms by(cases frs; cases "ics_of (hd frs)"; cases "curr_method (hd frs) = clinit", auto)
 
 lemma exec_step_prealloc_pres:
 assumes pre: "preallocated h"
@@ -185,17 +164,14 @@ proof(cases ics)
   case No_ics
   then show ?thesis using exec_instr_prealloc_pres assms by auto
 next
-  case (Calling x31)
+  case Calling
   then show ?thesis using exec_Calling_prealloc_pres assms by auto
 next
-  case (ICalling x4)
-  then show ?thesis using exec_Calling_prealloc_pres assms by auto
+  case (Called Cs)
+  then show ?thesis using exec_instr_prealloc_pres assms by(cases Cs, auto)
 next
-  case (Called)
-  then show ?thesis using exec_instr_prealloc_pres assms by auto
-next
-  case (Throwing x6)
-  then show ?thesis using exec_Throwing_prealloc_pres assms by auto
+  case (Throwing Cs a)
+  then show ?thesis using assms by(cases Cs, auto)
 qed
 
 lemma exec_prealloc_pres:
@@ -216,9 +192,10 @@ proof(cases "\<exists>x. xp = \<lfloor>x\<rfloor> \<or> frs = []")
     case (Some a)
     show ?thesis
       using find_handler_prealloc_pres[OF pre, where a=a]
-            exec_instr_prealloc_pres[OF pre]
-            exec_step f1 frs Some False assms  proof(cases "M1=clinit"; cases ics1) qed(simp_all)
-  qed(cases ics1, auto)
+            exec_step_prealloc_pres[OF pre]
+            exec_step f1 frs Some False assms
+       by(auto split: bool.splits init_call_status.splits list.splits)
+  qed(auto split: init_call_status.splits)
 qed(auto)
 
 
@@ -235,7 +212,7 @@ definition start_state :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Ri
   "start_state P C M =
  (if (\<exists>D Ts m. P \<turnstile> C sees M,Static:Ts \<rightarrow> Void = m in D)
   then let (D,sb,Ts,T,mxs,mxl\<^sub>0,b) = method P C M
-       in (Some (None, start_heap P, [([], replicate mxl\<^sub>0 undefined, C, M, 0, Calling C)], start_sheap P))
+       in (Some (None, start_heap P, [([], replicate mxl\<^sub>0 undefined, C, M, 0, Calling C [])], start_sheap P))
   else None
  )"
 

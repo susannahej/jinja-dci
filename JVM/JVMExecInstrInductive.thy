@@ -270,12 +270,12 @@ where
    (None, h, (stk, loc, C\<^sub>0, M\<^sub>0, nat(int pc+i), ics)#frs, sh)"
 
 | exec_step_ind_Throw:
-"hd stk = Addr a
+"hd stk \<noteq> Null
   \<Longrightarrow> exec_step_ind (StepI Throw) P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh
-    (\<lfloor>a\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)"
+    (\<lfloor>the_Addr (hd stk)\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)"
 
 | exec_step_ind_Throw_Null:
-"\<forall>a. hd stk \<noteq> Addr a
+"hd stk = Null
   \<Longrightarrow> exec_step_ind (StepI Throw) P h stk loc C\<^sub>0 M\<^sub>0 pc ics frs sh
     (\<lfloor>addr_of_sys_xcpt NullPointer\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)"
 
@@ -668,7 +668,8 @@ next
     qed(auto)
   next
     case Throw then show ?thesis
-     using exec_instr StepI exec_step_ind_Throw exec_step_ind_Throw_Null by(cases "hd stk", auto)
+     using exec_instr StepI exec_step_ind_Throw exec_step_ind_Throw_Null
+       by(cases "hd stk = Null", auto)
   qed
 qed
 

@@ -251,10 +251,11 @@ apply (fast)
 done
 (*>*)
 
+(*
 lemma shconf_new: "\<lbrakk> P,h \<turnstile>\<^sub>s sh \<surd>; sh C = None; P,h,C \<turnstile>\<^sub>s sfs \<surd> \<rbrakk> \<Longrightarrow> P,h \<turnstile>\<^sub>s sh(C\<mapsto>(sfs,i)) \<surd>"
-(*<*)by (unfold shconf_def) (auto intro: soconf_new preallocated_new)(*>*)
+(*<*)by (unfold shconf_def) (auto intro: soconf_new preallocated_new)(*>*) *)
 
-lemma shconf_upd_obj: "\<lbrakk> P,h \<turnstile>\<^sub>s sh \<surd>; sh C = Some(sfs,i); P,h,C \<turnstile>\<^sub>s sfs' \<surd> \<rbrakk>
+lemma shconf_upd_obj: "\<lbrakk> P,h \<turnstile>\<^sub>s sh \<surd>; P,h,C \<turnstile>\<^sub>s sfs' \<surd> \<rbrakk>
  \<Longrightarrow> P,h \<turnstile>\<^sub>s sh(C\<mapsto>(sfs',i'))\<surd>"
 (*<*)by (unfold shconf_def) (auto intro: soconf_upd_obj preallocated_upd_obj)(*>*)
 

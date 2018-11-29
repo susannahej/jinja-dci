@@ -289,92 +289,29 @@ definition
                 \<Rightarrow> jvm_state" where
   "handle P C M a h vs ls pc ics frs sh = find_handler P a h ((vs,ls,C,M,pc,ics) # frs) sh"
 
-lemma handle_Cons:
- "\<lbrakk> P,C,M \<rhd> xt/I,d; d \<le> size vs; pc \<in> I;
-    \<forall>x \<in> set xt. \<not> matches_ex_entry P (cname_of h xa) pc x \<rbrakk> \<Longrightarrow>
-  handle P C M xa h (v # vs) ls pc ics frs sh = handle P C M xa h vs ls pc ics frs sh"
-(*<*)by(cases ics, auto simp:handle_def Suc_diff_le dest: match_ex_table_SomeD2)(*>*)
-
-lemma handle_append:
- "\<lbrakk> P,C,M \<rhd> xt/I,d; d \<le> size vs; pc \<in> I; pc \<notin> pcs xt \<rbrakk> \<Longrightarrow>
-  handle P C M xa h (ws @ vs) ls pc ics frs sh = handle P C M xa h vs ls pc ics frs sh"
-(*<*)
-apply(auto simp:handle_def)
-(* case find_handler = Some *) apply(rename_tac pc' d')
- apply(subgoal_tac "size ws \<le> length ws + length vs - d'")
- apply(simp add:drop_all)
- apply(fastforce dest:match_ex_table_SomeD2 split:nat_diff_split)
-done
-(*>*)
-
-
 lemma aux_isin[simp]: "\<lbrakk> B \<subseteq> A; a \<in> B \<rbrakk> \<Longrightarrow> a \<in> A"
 (*<*)by blast(*>*)
 
+lemma handle_frs_tl_neq:
+ "ics_of f \<noteq> No_ics
+  \<Longrightarrow> (xp, h, f#frs, sh) \<noteq> handle P C M xa h' vs l pc ics frs sh'"
+ by(simp add: handle_def find_handler_frs_tl_neq del: find_handler.simps)
 
 (*** frame definitions for Jcc_pieces ***)
-
-primrec init_frames :: "jvm_prog \<Rightarrow> cname \<Rightarrow> cname list \<Rightarrow> frame list" where
-"init_frames P C' (C#Cs) = (let (stk,loc,D,M,pc,ics) = create_init_frame P C
-                           in (stk,loc,D,M,pc,ICalling C')#init_frames P C Cs)" |
-"init_frames P C' [] = []"
-
-lemma init_frames_mt: "length Cs \<noteq> 0 \<Longrightarrow> init_frames P C Cs \<noteq> []"
-apply(cases "method P (hd Cs) clinit")
-apply(cases Cs, auto)
-done
-
-
-fun calling_init_frame :: "jvm_prog \<Rightarrow> cname \<Rightarrow> cname \<Rightarrow> frame" where
-"calling_init_frame P C C' = (let (stk,loc,D,M,pc,ics) = create_init_frame P C
-                            in (stk,loc,D,M,pc,ICalling C'))"
-
-lemma ics_of_hd_init_frames:
- "ics_of (create_init_frame P C) = ics
-  \<Longrightarrow> ics_of (hd (init_frames P C' (C#Cs))) = ICalling C'"
- by(cases "method P C clinit", auto)
-
 fun calling_to_called :: "frame \<Rightarrow> frame" where
-"calling_to_called (stk,loc,D,M,pc,ics) = (stk,loc,D,M,pc,case ics of ICalling C \<Rightarrow> No_ics
-                                                                    | Calling C \<Rightarrow> Called)"
+"calling_to_called (stk,loc,D,M,pc,ics) = (stk,loc,D,M,pc,case ics of Calling C Cs \<Rightarrow> Called (C#Cs))"
 
-(* maps Calling to Called (ICalling to inner) - includes top frame if bool is True *)
-primrec to_called_frames :: "bool \<Rightarrow> frame list \<Rightarrow> frame list" where
-"to_called_frames b (f#fs) =
-  (case b of True \<Rightarrow> map calling_to_called (f#fs)
-           | False \<Rightarrow> f # (map calling_to_called fs)
-  )" |
-"to_called_frames b Nil = Nil"
+fun calling_to_scalled :: "frame \<Rightarrow> frame" where
+"calling_to_scalled (stk,loc,D,M,pc,ics) = (stk,loc,D,M,pc,case ics of Calling C Cs \<Rightarrow> Called Cs)"
 
-lemma ics_of_hd_to_called_frames_False:
- "ics_of (hd frs) = ics
-  \<Longrightarrow> ics_of (hd (to_called_frames False frs)) = ics"
- by(cases frs, auto)
+fun calling_to_calling :: "frame \<Rightarrow> cname \<Rightarrow> frame" where
+"calling_to_calling (stk,loc,D,M,pc,ics) C' = (stk,loc,D,M,pc,case ics of Calling C Cs \<Rightarrow> Calling C' (C#Cs))"
 
+fun calling_to_throwing :: "frame \<Rightarrow> addr \<Rightarrow> frame" where
+"calling_to_throwing (stk,loc,D,M,pc,ics) a = (stk,loc,D,M,pc,case ics of Calling C Cs \<Rightarrow> Throwing (C#Cs) a)"
 
-lemma ics_of_hd_to_called_frames:
-"length Cs = Suc n
- \<Longrightarrow> ics_of(hd(to_called_frames True (init_frames P C Cs))) = No_ics"
-apply(cases "method P (hd Cs) clinit")
-apply(cases Cs, auto)
-done
-
-lemma curr_method_hd_to_called_frames:
-"length Cs = Suc n
- \<Longrightarrow> curr_method(hd(to_called_frames True (init_frames P C Cs))) = clinit"
-apply(cases "method P (hd Cs) clinit")
-apply(cases Cs, auto)
-done
-
-lemma hd_to_called_frames_app:
-"frs' \<noteq> [] \<Longrightarrow> hd(to_called_frames True (frs' @ frs))
-    = hd(to_called_frames True frs')"
- by(induct frs', auto)
-
-fun rinit_frame :: "jvm_prog \<Rightarrow> cname \<Rightarrow> expr\<^sub>1 \<Rightarrow> frame" where
-"rinit_frame P C e = (case e of Throw a \<Rightarrow> let (stk,loc,D,M,pc,ics) = create_init_frame P C
-                                             in (stk,loc,D,M,pc,Throwing a)
-                                | _ \<Rightarrow> create_init_frame P C)"
+fun calling_to_sthrowing :: "frame \<Rightarrow> addr \<Rightarrow> frame" where
+"calling_to_sthrowing (stk,loc,D,M,pc,ics) a = (stk,loc,D,M,pc,case ics of Calling C Cs \<Rightarrow> Throwing Cs a)"
 
 
 (*** JVM stepping lemmas ***)
@@ -415,7 +352,7 @@ assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
  and sh: "sh\<^sub>2 D = Some(sfs,i)"
  and method: "P\<^sub>1 \<turnstile> C' sees M', Static :  Ts\<rightarrow>T = body in D"
  and len: "length pvs = length Ts" and "ls\<^sub>2' = pvs @ replicate (max_vars body) undefined"
-shows "P \<turnstile> (None, h\<^sub>2, (rev pvs @ vs, ls\<^sub>2, C, M, pc, Called) # frs, sh\<^sub>2) -jvm\<rightarrow>
+shows "P \<turnstile> (None, h\<^sub>2, (rev pvs @ vs, ls\<^sub>2, C, M, pc, Called []) # frs, sh\<^sub>2) -jvm\<rightarrow>
     (None, h\<^sub>2, ([], ls\<^sub>2', D, M', 0, No_ics) # (rev pvs @ vs, ls\<^sub>2, C, M, pc, No_ics) # frs, sh\<^sub>2)"
 proof -
   have exm: "\<exists>Ts T m D b. P \<turnstile> C' sees M',b:Ts \<rightarrow> T = m in D"
@@ -432,7 +369,7 @@ apply(cases frs, auto)
 done
 
 lemma jvm_InitNone:
- "\<lbrakk> (ics_of f = ICalling C) \<or> ics_of f = Calling C;
+ "\<lbrakk> ics_of f = Calling C Cs;
     sh C = None \<rbrakk>
   \<Longrightarrow> P \<turnstile> (None,h,f#frs,sh) -jvm\<rightarrow> (None,h,f#frs,sh(C \<mapsto> (sblank P C, Prepared)))"
 apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
@@ -440,88 +377,75 @@ apply(cases f) apply(rename_tac ics, case_tac ics, simp_all)
 done
 
 lemma jvm_InitDP:
- "\<lbrakk> (ics_of f = ICalling C) \<or> ics_of f = Calling C;
+ "\<lbrakk> ics_of f = Calling C Cs;
     sh C = \<lfloor>(sfs,i)\<rfloor>; i = Done \<or> i = Processing \<rbrakk>
-  \<Longrightarrow> P \<turnstile> (None,h,f#frs,sh) -jvm\<rightarrow> (None,h,(calling_to_called f)#frs,sh)"
+  \<Longrightarrow> P \<turnstile> (None,h,f#frs,sh) -jvm\<rightarrow> (None,h,(calling_to_scalled f)#frs,sh)"
 apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(cases f) apply(rename_tac ics)
+apply(cases f)
 apply(erule_tac P = "i = Done" in disjE)
- apply(case_tac ics, simp_all)
-apply(case_tac ics, simp_all)
+apply simp_all
 done
 
-lemma jvm_InitError0:
+lemma jvm_InitError:
  "sh C = \<lfloor>(sfs,Error)\<rfloor>
-  \<Longrightarrow> P \<turnstile> (None,h,(vs,ls,C\<^sub>0,M,pc,Calling C)#frs,sh)
-   -jvm\<rightarrow> (None,h,rinit_frame P C (THROW NoClassDefFoundError)#(vs,ls,C\<^sub>0,M,pc,Called)#frs,sh)"
-apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(case_tac "method P C clinit", simp)
-done
+  \<Longrightarrow> P \<turnstile> (None,h,(vs,ls,C\<^sub>0,M,pc,Calling C Cs)#frs,sh)
+   -jvm\<rightarrow> (None,h,(vs,ls,C\<^sub>0,M,pc,Throwing Cs (addr_of_sys_xcpt NoClassDefFoundError))#frs,sh)"
+ by(clarsimp simp: exec_all_def1 intro!: r_into_rtrancl exec_1I)
 
-lemma jvm_InitError1:
+lemma exec_ErrorThrowing:
  "sh C = \<lfloor>(sfs,Error)\<rfloor>
-  \<Longrightarrow> P \<turnstile> (None,h,(vs,ls,C\<^sub>0,M,pc,ICalling C)#frs,sh)
-   -jvm\<rightarrow> (None,h,rinit_frame P C (THROW NoClassDefFoundError)#(vs,ls,C\<^sub>0,M,pc,No_ics)#frs,sh)"
-apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(case_tac "method P C clinit", simp)
-done
+  \<Longrightarrow> exec (P, (None,h,calling_to_throwing (stk,loc,D,M,pc,Calling C Cs) a#frs,sh))
+   = Some (None,h,calling_to_sthrowing (stk,loc,D,M,pc,Calling C Cs) a #frs,sh)"
+ by(clarsimp simp: exec_all_def1 fun_upd_idem_iff intro!: r_into_rtrancl exec_1I)
 
-lemma jvm_InitObj0:
+lemma jvm_InitObj:
  "\<lbrakk> sh C = Some(sfs,Prepared);
      C = Object;
      sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
-\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,Calling C)#frs, sh) -jvm\<rightarrow>
-    (None, h, create_init_frame P C # (vs,ls,C\<^sub>0,M,pc,Called)#frs,sh')"
+\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,Calling C Cs)#frs, sh) -jvm\<rightarrow>
+    (None, h, (vs,ls,C\<^sub>0,M,pc,Called (C#Cs))#frs,sh')"
 apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
 apply(case_tac "method P C clinit", simp)
 done
 
-lemma jvm_InitObj1:
- "\<lbrakk> sh C = Some(sfs,Prepared);
-     C = Object;
-     sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
-\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,ICalling C)#frs, sh) -jvm\<rightarrow>
-    (None, h, create_init_frame P C # (vs,ls,C\<^sub>0,M,pc,No_ics)#frs,sh')"
-apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(case_tac "method P C clinit", simp)
-done
-
-lemma jvm_InitNonObj0:
+lemma jvm_InitNonObj:
  "\<lbrakk> sh C = Some(sfs,Prepared);
      C \<noteq> Object;
      class P C = Some (D,r);
      sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
-\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,Calling C)#frs, sh) -jvm\<rightarrow>
-    (None, h, (calling_init_frame P C D) # (vs,ls,C\<^sub>0,M,pc,Called)#frs, sh')"
+\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,Calling C Cs)#frs, sh) -jvm\<rightarrow>
+    (None, h, (vs,ls,C\<^sub>0,M,pc,Calling D (C#Cs))#frs, sh')"
 apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
 apply(case_tac "method P C clinit", simp)
 done
 
-lemma jvm_InitNonObj1:
- "\<lbrakk> sh C = Some(sfs,Prepared);
-     C \<noteq> Object;
-     class P C = Some (D,r);
-     sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
-\<Longrightarrow> P \<turnstile> (None, h, (vs,ls,C\<^sub>0,M,pc,ICalling C)#frs, sh) -jvm\<rightarrow>
-    (None, h, (calling_init_frame P C D) # (vs,ls,C\<^sub>0,M,pc,No_ics)#frs, sh')"
+lemma jvm_RInit_throw:
+ "P \<turnstile> (None,h,(vs,l,C,M,pc,Throwing [] xa) # frs,sh)
+        -jvm\<rightarrow> handle P C M xa h vs l pc No_ics frs sh"
 apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(case_tac "method P C clinit", simp)
+apply(simp add: handle_def split: bool.splits)
 done
 
-lemma jvm_RInit_throw0:
- "P \<turnstile> (None,h,(vs',l',C',M',pc',Throwing xa) # (vs,l,C,M,pc,Called) # frs,sh)
-        -jvm\<rightarrow> handle P C M xa h vs l pc No_ics frs (sh(C'\<mapsto>(fst(the(sh C')),Error)))"
-apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(simp add: handle_def)
+lemma jvm_RInit_throw':
+ "P \<turnstile> (None,h,(vs,l,C,M,pc,Throwing [C'] xa) # frs,sh)
+        -jvm\<rightarrow> handle P C M xa h vs l pc No_ics frs (sh(C':=Some(fst(the(sh C')), Error)))"
+apply(simp add: exec_all_def1)
+ apply(rule_tac y = "(None,h,(vs,l,C,M,pc,Throwing [] xa) # frs,sh(C':=Some(fst(the(sh C')), Error)))" in rtrancl_trans)
+ apply(rule r_into_rtrancl, rule exec_1I)
+  apply(simp add: handle_def)
+apply(cut_tac jvm_RInit_throw)
+apply(simp add: exec_all_def1)
 done
 
-lemma jvm_RInit_throw1:
- "ics \<noteq> Called \<Longrightarrow> P \<turnstile> (None,h,(vs',l',C',M',pc',Throwing xa) # (vs,l,C,clinit,pc,ics) # frs,sh)
-        -jvm\<rightarrow> (None,h,(vs,l,C,clinit,pc,Throwing xa) # frs,sh(C'\<mapsto>(fst(the(sh C')),Error)))"
-apply(simp add: exec_all_def1, rule r_into_rtrancl, rule exec_1I)
-apply(cases ics; simp add: handle_def)
-done
+lemma jvm_Called:
+ "P \<turnstile> (None, h, (vs, l, C, M, pc, Called (C\<^sub>0 # Cs)) # frs, sh) -jvm\<rightarrow>
+    (None, h, create_init_frame P C\<^sub>0 # (vs, l, C, M, pc, Called Cs) # frs, sh)"
+ by(simp add: exec_all_def1 r_into_rtrancl exec_1I)
 
+lemma jvm_Throwing:
+ "P \<turnstile> (None, h, (vs, l, C, M, pc, Throwing (C\<^sub>0#Cs) xa') # frs, sh) -jvm\<rightarrow>
+    (None, h, (vs, l, C, M, pc, Throwing Cs xa') # frs, sh(C\<^sub>0 \<mapsto> (fst (the (sh C\<^sub>0)), Error)))"
+ by(simp add: exec_all_def1 r_into_rtrancl exec_1I)
 
 (*** Jcc_pieces ***)
 
@@ -535,7 +459,7 @@ fun Jcc_cond :: "J\<^sub>1_prog \<Rightarrow> ty list \<Rightarrow> cname \<Righ
       \<and> unit = e' \<and> ics = No_ics)" |
 "Jcc_cond P E C M vs pc ics I h sh (C'\<bullet>\<^sub>sM'(es))
   = (let e = (C'\<bullet>\<^sub>sM'(es))
-     in if M' = clinit \<and> es = [] then (\<exists>T. P,E,h,sh \<turnstile>\<^sub>1 e:T) \<and> (ics = Called \<or> (ics = No_ics \<and> M = clinit))
+     in if M' = clinit \<and> es = [] then (\<exists>T. P,E,h,sh \<turnstile>\<^sub>1 e:T) \<and> (\<exists>Cs. ics = Called Cs)
         else (compP\<^sub>2 P,C,M,pc \<rhd> compE\<^sub>2 e \<and> compP\<^sub>2 P,C,M \<rhd> compxE\<^sub>2 e pc (size vs)/I,size vs
                   \<and> {pc..<pc+size(compE\<^sub>2 e)} \<subseteq> I \<and> \<not>sub_RI e \<and> ics = No_ics)
     )" |
@@ -545,91 +469,85 @@ fun Jcc_cond :: "J\<^sub>1_prog \<Rightarrow> ty list \<Rightarrow> cname \<Righ
 
 
 fun Jcc_frames :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> val list \<Rightarrow> val list \<Rightarrow> pc \<Rightarrow> init_call_status
-  \<Rightarrow> frame list \<Rightarrow> val list \<Rightarrow> expr\<^sub>1 \<Rightarrow> frame list" where
-"Jcc_frames P C M vs ls pc ics frs ls3 (INIT C\<^sub>0 (C'#Cs',b) \<leftarrow> e')
-  = (case b of False \<Rightarrow> []
-             | True \<Rightarrow> [create_init_frame P C']
-    )
-      @ (to_called_frames b (init_frames P C' Cs' @ [(vs,ls,C,M,pc,Calling (last (C'#Cs')))]))
-      @ frs" |
-"Jcc_frames P C M vs ls pc ics frs ls3 (INIT C\<^sub>0 (Nil,b) \<leftarrow> e')
-  = (vs,ls,C,M,pc,Called)#frs" |
-"Jcc_frames P C M vs ls pc ics frs ls3 (RI(C',e\<^sub>0);Cs \<leftarrow> e')
-  = ([rinit_frame P C' e\<^sub>0]
-       @ to_called_frames True (init_frames P C' Cs @ [(vs,ls,C,M,pc,Calling (last (C'#Cs)))])
-       @ frs
+  \<Rightarrow> frame list \<Rightarrow> expr\<^sub>1 \<Rightarrow> frame list" where
+"Jcc_frames P C M vs ls pc ics frs (INIT C\<^sub>0 (C'#Cs,b) \<leftarrow> e')
+  = (case b of False \<Rightarrow> (vs,ls,C,M,pc,Calling C' Cs) # frs
+             | True \<Rightarrow> (vs,ls,C,M,pc,Called (C'#Cs)) # frs
     )" |
-"Jcc_frames P C M vs ls pc ics frs ls3 (C'\<bullet>\<^sub>sM'(es))
+"Jcc_frames P C M vs ls pc ics frs (INIT C\<^sub>0 (Nil,b) \<leftarrow> e')
+  = (vs,ls,C,M,pc,Called [])#frs" |
+"Jcc_frames P C M vs ls pc ics frs (RI(C',e\<^sub>0);Cs \<leftarrow> e')
+  = (case e\<^sub>0 of Throw a \<Rightarrow> (vs,ls,C,M,pc,Throwing (C'#Cs) a) # frs
+              | _ \<Rightarrow> (vs,ls,C,M,pc,Called (C'#Cs)) # frs )" |
+"Jcc_frames P C M vs ls pc ics frs (C'\<bullet>\<^sub>sM'(es))
   = (if M' = clinit \<and> es = []
-     then create_init_frame P C'#(vs,ls3,C,M,pc,ics)#frs
+     then create_init_frame P C'#(vs,ls,C,M,pc,ics)#frs
      else (vs,ls,C,M,pc,ics)#frs
     )" |
-"Jcc_frames P C M vs ls pc ics frs ls3 e
+"Jcc_frames P C M vs ls pc ics frs e
   = (vs,ls,C,M,pc,ics)#frs"
 
 fun Jcc_rhs :: "J\<^sub>1_prog \<Rightarrow> ty list \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> val list \<Rightarrow> val list \<Rightarrow> pc \<Rightarrow> init_call_status
-  \<Rightarrow> frame list \<Rightarrow> val list \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> val \<Rightarrow> expr\<^sub>1 \<Rightarrow> jvm_state" where
-"Jcc_rhs P E C M vs ls pc ics frs ls3 h' ls' sh' v (INIT C\<^sub>0 (Cs,b) \<leftarrow> e')
-  = (None,h',(vs,ls,C,M,pc,Called)#frs,sh')" |
-"Jcc_rhs P E C M vs ls pc ics frs ls3 h' ls' sh' v (RI(C',e\<^sub>0);Cs \<leftarrow> e')
-  = (None,h',(vs,ls,C,M,pc,Called)#frs,sh')" |
-"Jcc_rhs P E C M vs ls pc ics frs ls3 h' ls' sh' v (C'\<bullet>\<^sub>sM'(es))
+  \<Rightarrow> frame list \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> val \<Rightarrow> expr\<^sub>1 \<Rightarrow> jvm_state" where
+"Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v (INIT C\<^sub>0 (Cs,b) \<leftarrow> e')
+  = (None,h',(vs,ls,C,M,pc,Called [])#frs,sh')" |
+"Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v (RI(C',e\<^sub>0);Cs \<leftarrow> e')
+  = (None,h',(vs,ls,C,M,pc,Called [])#frs,sh')" |
+"Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v (C'\<bullet>\<^sub>sM'(es))
   = (let e = (C'\<bullet>\<^sub>sM'(es))
      in if M' = clinit \<and> es = []
-        then (None,h',(vs,ls3,C,M,pc,ics)#frs,sh'(C'\<mapsto>(fst(the(sh' C')),Done)))
+        then (None,h',(vs,ls,C,M,pc,ics)#frs,sh'(C'\<mapsto>(fst(the(sh' C')),Done)))
         else (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 e),ics)#frs,sh')
     )" |
-"Jcc_rhs P E C M vs ls pc ics frs ls3 h' ls' sh' v e
+"Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v e
   = (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 e),ics)#frs,sh')"
 
 fun Jcc_err :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> val list \<Rightarrow> pc \<Rightarrow> init_call_status
-  \<Rightarrow> frame list \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> nat set \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> addr \<Rightarrow> expr\<^sub>1
+  \<Rightarrow> frame list \<Rightarrow> sheap \<Rightarrow> nat set \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> addr \<Rightarrow> expr\<^sub>1
   \<Rightarrow> bool" where
-"Jcc_err P C M h vs ls pc ics frs ls3 sh I h' ls' sh' xa (INIT C\<^sub>0 (Cs,b) \<leftarrow> e')
-  = P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 (INIT C\<^sub>0 (Cs,b) \<leftarrow> e'),sh)
-           -jvm\<rightarrow> handle P C M xa h' vs ls pc ics frs sh'" |
-"Jcc_err P C M h vs ls pc ics frs ls3 sh I h' ls' sh' xa (RI(C',e\<^sub>0);Cs \<leftarrow> e')
-  = P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 (RI(C',e\<^sub>0);Cs \<leftarrow> e'),sh)
-           -jvm\<rightarrow> handle P C M xa h' vs ls pc ics frs sh'" |
-"Jcc_err P C M h vs ls pc ics frs ls3 sh I h' ls' sh' xa (C'\<bullet>\<^sub>sM'(es))
+"Jcc_err P C M h vs ls pc ics frs sh I h' ls' sh' xa (INIT C\<^sub>0 (Cs,b) \<leftarrow> e')
+  = (\<exists>vs'. P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs (INIT C\<^sub>0 (Cs,b) \<leftarrow> e'),sh)
+           -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls pc ics frs sh')" |
+"Jcc_err P C M h vs ls pc ics frs sh I h' ls' sh' xa (RI(C',e\<^sub>0);Cs \<leftarrow> e')
+  = (\<exists>vs'. P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs (RI(C',e\<^sub>0);Cs \<leftarrow> e'),sh)
+           -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls pc ics frs sh')" |
+"Jcc_err P C M h vs ls pc ics frs sh I h' ls' sh' xa (C'\<bullet>\<^sub>sM'(es))
   = (let e = (C'\<bullet>\<^sub>sM'(es))
      in if M' = clinit \<and> es = []
         then case ics of
-                Called \<Rightarrow> P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 e,sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs ls3 pc No_ics frs (sh'(C' \<mapsto> (fst(the(sh' C')),Error)))
-              | _ \<Rightarrow> (case M = clinit of True \<Rightarrow> P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 e,sh)
-                       -jvm\<rightarrow> (None,h',(vs,ls3,C,M,pc,Throwing xa)#frs,(sh'(C' \<mapsto> (fst(the(sh' C')),Error)))))
+               Called Cs \<Rightarrow> P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs e,sh)
+                       -jvm\<rightarrow> (None,h',(vs,ls,C,M,pc,Throwing Cs xa)#frs,(sh'(C' \<mapsto> (fst(the(sh' C')),Error))))
         else (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 e) \<and>
                \<not> caught P pc\<^sub>1 h' xa (compxE\<^sub>2 e pc (size vs)) \<and>
-               P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 e,sh)
-                      -jvm\<rightarrow> handle P C M xa h' vs ls' pc\<^sub>1 ics frs sh')
+               (\<exists>vs'. P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs e,sh)
+                      -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls' pc\<^sub>1 ics frs sh'))
     )" |
-"Jcc_err P C M h vs ls pc ics frs ls3 sh I h' ls' sh' xa e
+"Jcc_err P C M h vs ls pc ics frs sh I h' ls' sh' xa e
   = (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 e) \<and>
                \<not> caught P pc\<^sub>1 h' xa (compxE\<^sub>2 e pc (size vs)) \<and>
-               P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 e,sh)
-                      -jvm\<rightarrow> handle P C M xa h' vs ls' pc\<^sub>1 ics frs sh')"
+               (\<exists>vs'. P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs e,sh)
+                      -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls' pc\<^sub>1 ics frs sh'))"
 
 fun Jcc_pieces :: "J\<^sub>1_prog \<Rightarrow> ty list \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> val list \<Rightarrow> pc \<Rightarrow> init_call_status
-  \<Rightarrow> frame list \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> nat set \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> val \<Rightarrow> addr \<Rightarrow> expr\<^sub>1
+  \<Rightarrow> frame list \<Rightarrow> sheap \<Rightarrow> nat set \<Rightarrow> heap \<Rightarrow> val list \<Rightarrow> sheap \<Rightarrow> val \<Rightarrow> addr \<Rightarrow> expr\<^sub>1
   \<Rightarrow> bool \<times> frame list \<times> jvm_state \<times> bool" where
-"Jcc_pieces P E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa e
-  = (Jcc_cond P E C M vs pc ics I h sh e, Jcc_frames (compP\<^sub>2 P) C M vs ls pc ics frs ls3 e,
-      Jcc_rhs P E C M vs ls pc ics frs ls3 h' ls' sh' v e,
-      Jcc_err (compP\<^sub>2 P) C M h vs ls pc ics frs ls3 sh I h' ls' sh' xa e)"
+"Jcc_pieces P E C M h vs ls pc ics frs sh I h' ls' sh' v xa e
+  = (Jcc_cond P E C M vs pc ics I h sh e, Jcc_frames (compP\<^sub>2 P) C M vs ls pc ics frs e,
+      Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v e,
+      Jcc_err (compP\<^sub>2 P) C M h vs ls pc ics frs sh I h' ls' sh' xa e)"
 
 
 lemma nsub_RI_Jcc_pieces:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
   and nsub: "\<not>sub_RI e"
-shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa e 
+shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa e 
   = (let cond = P,C,M,pc \<rhd> compE\<^sub>2 e \<and> P,C,M \<rhd> compxE\<^sub>2 e pc (size vs)/I,size vs
                   \<and> {pc..<pc+size(compE\<^sub>2 e)} \<subseteq> I \<and> ics = No_ics;
          frs' = (vs,ls,C,M,pc,ics)#frs;
          rhs = (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 e),ics)#frs,sh');
          err = (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 e) \<and>
                \<not> caught P pc\<^sub>1 h' xa (compxE\<^sub>2 e pc (size vs)) \<and>
-               P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> handle P C M xa h' vs ls' pc\<^sub>1 ics frs sh')
+               (\<exists>vs'. P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls' pc\<^sub>1 ics frs sh'))
      in (cond, frs',rhs, err)
     )"
 proof -
@@ -644,13 +562,13 @@ qed
 
 lemma Jcc_pieces_Cast:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
+ and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
+shows "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h',(v'#vs',ls',C\<^sub>0,M',pc' - 1,ics')#frs',sh'),
         (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 e) \<and>
                \<not> caught P pc\<^sub>1 h\<^sub>1 xa (compxE\<^sub>2 e pc (size vs)) \<and>
-               P \<turnstile> (None,h\<^sub>0,frs\<^sub>0,sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1))"
+               (\<exists>vs'. P \<turnstile> (None,h\<^sub>0,frs\<^sub>0,sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1)))"
 proof -
   have pc: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> I" using assms by clarsimp
   show ?thesis using assms nsub_RI_Jcc_pieces[where e=e] pc by clarsimp
@@ -658,9 +576,9 @@ qed
 
 lemma Jcc_pieces_BinOp1:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e \<guillemotleft>bop\<guillemotright> e')
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e \<guillemotleft>bop\<guillemotright> e')
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0
+shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0
  (I - pcs (compxE\<^sub>2 e' (pc + length (compE\<^sub>2 e)) (Suc (length vs')))) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h\<^sub>1,(v'#vs',ls\<^sub>1,C\<^sub>0,M',pc' - size (compE\<^sub>2 e') - 1,ics')#frs',sh\<^sub>1), err)"
 proof -
@@ -673,16 +591,16 @@ qed
 
 lemma Jcc_pieces_BinOp2:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e \<guillemotleft>bop\<guillemotright> e')
+ and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e \<guillemotleft>bop\<guillemotright> e')
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (v\<^sub>1#vs) ls\<^sub>1 (pc + size (compE\<^sub>2 e)) ics frs ls3 sh\<^sub>1
+shows "\<exists>err. Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (v\<^sub>1#vs) ls\<^sub>1 (pc + size (compE\<^sub>2 e)) ics frs sh\<^sub>1
    (I - pcs (compxE\<^sub>2 e pc (length vs'))) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v' xa e'
    = (True, (v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,
        (xp',h',(v'#v\<^sub>1#vs',ls',C\<^sub>0,M',pc' - 1,ics')#frs',sh'),
           (\<exists>pc\<^sub>1. pc + size (compE\<^sub>2 e) \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size (compE\<^sub>2 e) + length (compE\<^sub>2 e') \<and>
                \<not> caught P pc\<^sub>1 h\<^sub>2 xa (compxE\<^sub>2 e' (pc + size (compE\<^sub>2 e)) (Suc (length vs))) \<and>
-               P \<turnstile> (None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,sh\<^sub>1)
-                       -jvm\<rightarrow> handle P C M xa h\<^sub>2 (v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2))"
+               (\<exists>vs'. P \<turnstile> (None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,sh\<^sub>1)
+                       -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2)))"
 proof -
   have bef: "compP compMb\<^sub>2 P\<^sub>1,C\<^sub>0,M' \<rhd> compxE\<^sub>2 e pc (length vs) 
          / I - pcs (compxE\<^sub>2 e' (pc + length (compE\<^sub>2 e)) (Suc (length vs'))),length vs"
@@ -693,9 +611,9 @@ qed
 
 lemma Jcc_pieces_FAcc:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
+shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h',(v'#vs',ls',C\<^sub>0,M',pc' - 1,ics')#frs',sh'), err)"
 proof -
   have pc: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> I" using assms by clarsimp
@@ -704,13 +622,13 @@ qed
 
 lemma Jcc_pieces_LAss:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
+ and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
+shows "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h',(v'#vs',ls',C\<^sub>0,M',pc' - 2,ics')#frs',sh'),
         (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 e) \<and>
                \<not> caught P pc\<^sub>1 h\<^sub>1 xa (compxE\<^sub>2 e pc (size vs)) \<and>
-               P \<turnstile> (None,h\<^sub>0,frs\<^sub>0,sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1))"
+               (\<exists>vs'. P \<turnstile> (None,h\<^sub>0,frs\<^sub>0,sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1)))"
 proof -
   have pc: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> I" using assms by clarsimp
   show ?thesis using assms nsub_RI_Jcc_pieces[where e=e] pc by clarsimp
@@ -718,9 +636,9 @@ qed
 
 lemma Jcc_pieces_FAss1:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>F{D}:=e')
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>F{D}:=e')
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0
+shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0
  (I - pcs (compxE\<^sub>2 e' (pc + length (compE\<^sub>2 e)) (Suc (length vs')))) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h\<^sub>1,(v'#vs',ls\<^sub>1,C\<^sub>0,M',pc' - size (compE\<^sub>2 e') - 2,ics')#frs',sh\<^sub>1), err)"
 proof -
@@ -729,25 +647,25 @@ qed
 
 lemma Jcc_pieces_FAss2:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>F{D}:=e')
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>F{D}:=e')
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "Jcc_pieces P E C M h\<^sub>1 (v\<^sub>1#vs) ls\<^sub>1 (pc + size (compE\<^sub>2 e)) ics frs ls3 sh\<^sub>1
+shows "Jcc_pieces P E C M h\<^sub>1 (v\<^sub>1#vs) ls\<^sub>1 (pc + size (compE\<^sub>2 e)) ics frs sh\<^sub>1
    (I - pcs (compxE\<^sub>2 e pc (length vs'))) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v' xa e'
    = (True, (v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,
        (xp',h',(v'#v\<^sub>1#vs',ls',C\<^sub>0,M',pc' - 2,ics')#frs',sh'),
         (\<exists>pc\<^sub>1. (pc + size (compE\<^sub>2 e)) \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size (compE\<^sub>2 e) + size(compE\<^sub>2 e') \<and>
                \<not> caught (compP\<^sub>2 P) pc\<^sub>1 h\<^sub>2 xa (compxE\<^sub>2 e' (pc + size (compE\<^sub>2 e)) (size (v\<^sub>1#vs))) \<and>
-               (compP\<^sub>2 P) \<turnstile> (None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,sh\<^sub>1)
-                                   -jvm\<rightarrow> handle (compP\<^sub>2 P) C M xa h\<^sub>2 (v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2))"
+               (\<exists>vs'. (compP\<^sub>2 P) \<turnstile> (None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,pc + size (compE\<^sub>2 e),ics)#frs,sh\<^sub>1)
+                                   -jvm\<rightarrow> handle (compP\<^sub>2 P) C M xa h\<^sub>2 (vs'@v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2)))"
 proof -
   show ?thesis using assms nsub_RI_Jcc_pieces[where e=e'] by clarsimp
 qed
 
 lemma Jcc_pieces_SFAss:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D}:=e)
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D}:=e)
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C\<^sub>0,M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
+shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0, (xp',h\<^sub>1,(v'#vs',ls\<^sub>1,C\<^sub>0,M',pc' - 2,ics')#frs',sh\<^sub>1), err)"
 proof -
   have pc: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> I" using assms by clarsimp
@@ -756,9 +674,9 @@ qed
 
 lemma Jcc_pieces_Call1:
 assumes
- "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>3 ls\<^sub>3 sh\<^sub>3 v xa (e\<bullet>M\<^sub>0(es))
+ "Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>3 ls\<^sub>3 sh\<^sub>3 v xa (e\<bullet>M\<^sub>0(es))
    = (True, frs\<^sub>0, (xp',h',(v#vs',ls',C',M',pc',ics')#frs',sh'), err)"
-shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0
+shows "\<exists>err. Jcc_pieces P E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs')))) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v' xa e
    = (True, frs\<^sub>0,
        (xp',h\<^sub>1,(v'#vs',ls\<^sub>1,C',M',pc' - size (compEs\<^sub>2 es) - 1,ics')#frs',sh\<^sub>1), err)"
@@ -769,27 +687,26 @@ qed
 lemma Jcc_pieces_clinit:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
   and cond: "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (C1\<bullet>\<^sub>sclinit([]))"
-shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (C1\<bullet>\<^sub>sclinit([]))
-     = (True, create_init_frame P C1 # (vs,ls3,C,M,pc,ics)#frs,
-          (None, h', (vs,ls3,C,M,pc,ics)#frs, sh'(C1\<mapsto>(fst(the(sh' C1)),Done))), 
-    P \<turnstile> (None,h,create_init_frame P C1 # (vs,ls3,C,M,pc,ics)#frs,sh) -jvm\<rightarrow>
-     (case ics of Called \<Rightarrow> handle P C M xa h' vs ls3 pc No_ics frs (sh'(C1 \<mapsto> (fst(the(sh' C1)),Error)))
-                | _ \<Rightarrow> (None,h',(vs,ls3,C,M,pc,Throwing xa)#frs,(sh'(C1 \<mapsto> (fst(the(sh' C1)),Error))))))"
-using assms apply(cases ics) by simp_all
+shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (C1\<bullet>\<^sub>sclinit([]))
+     = (True, create_init_frame P C1 # (vs,ls,C,M,pc,ics)#frs,
+          (None, h', (vs,ls,C,M,pc,ics)#frs, sh'(C1\<mapsto>(fst(the(sh' C1)),Done))), 
+      P \<turnstile> (None,h,create_init_frame P C1 # (vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow>
+     (case ics of Called Cs \<Rightarrow> (None,h',(vs,ls,C,M,pc,Throwing Cs xa)#frs,(sh'(C1 \<mapsto> (fst(the(sh' C1)),Error))))))"
+using assms by(auto split: init_call_status.splits list.splits bool.splits)
 
 lemma Jcc_pieces_SCall_clinit_body:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1" and wf: "wf_J\<^sub>1_prog P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (C1\<bullet>\<^sub>sclinit([]))
+ and "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (C1\<bullet>\<^sub>sclinit([]))
          = (True, frs', rhs', err')"
  and method: "P\<^sub>1 \<turnstile> C1 sees clinit,Static: []\<rightarrow>Void = body in D"
 shows "Jcc_pieces P\<^sub>1 [] D clinit h\<^sub>2 [] (replicate (max_vars body) undefined) 0
-          No_ics (tl frs') ls3 sh\<^sub>2 {..<length (compE\<^sub>2 body)} h\<^sub>3 ls\<^sub>3 sh\<^sub>3 v xa body
+          No_ics (tl frs') sh\<^sub>2 {..<length (compE\<^sub>2 body)} h\<^sub>3 ls\<^sub>3 sh\<^sub>3 v xa body
            = (True, frs', 
                 (None,h\<^sub>3,([v],ls\<^sub>3,D,clinit,size(compE\<^sub>2 body), No_ics)#tl frs',sh\<^sub>3),
                     \<exists>pc\<^sub>1. 0 \<le> pc\<^sub>1 \<and> pc\<^sub>1 < size(compE\<^sub>2 body) \<and>
                       \<not> caught P pc\<^sub>1 h\<^sub>3 xa (compxE\<^sub>2 body 0 0) \<and>
-                      P \<turnstile> (None,h\<^sub>2,frs',sh\<^sub>2) -jvm\<rightarrow> handle P D clinit xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>1
-                            No_ics (tl frs') sh\<^sub>3)"
+                      (\<exists>vs'. P \<turnstile> (None,h\<^sub>2,frs',sh\<^sub>2) -jvm\<rightarrow> handle P D clinit xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>1
+                            No_ics (tl frs') sh\<^sub>3))"
 proof -
   have M_in_D: "P\<^sub>1 \<turnstile> D sees clinit,Static: []\<rightarrow>Void = body in D"
     using method by(rule sees_method_idemp) 
@@ -806,27 +723,27 @@ assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
  and "{pc..<pc+size(compEs\<^sub>2 (e#es))} \<subseteq> I"
  and "ics = No_ics"
  and "\<not>sub_RIs (e#es)"
-shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh
+shows "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh
   (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs)))) h' ls' sh' v xa e
   = (True, (vs, ls, C, M, pc, ics) # frs,
         (None, h', (v#vs, ls', C, M, pc + length (compE\<^sub>2 e), ics) # frs, sh'),
           \<exists>pc\<^sub>1\<ge>pc. pc\<^sub>1 < pc + length (compE\<^sub>2 e) \<and> \<not> caught P pc\<^sub>1 h' xa (compxE\<^sub>2 e pc (length vs))
-                   \<and> P \<turnstile> (None, h, (vs, ls, C, M, pc, ics) # frs, sh)
-                         -jvm\<rightarrow> handle P C M xa h' vs ls' pc\<^sub>1 ics frs sh')"
+                   \<and> (\<exists>vs'. P \<turnstile> (None, h, (vs, ls, C, M, pc, ics) # frs, sh)
+                         -jvm\<rightarrow> handle P C M xa h' (vs'@vs) ls' pc\<^sub>1 ics frs sh'))"
 proof -
   show ?thesis using assms nsub_RI_Jcc_pieces[where e=e] by auto
 qed
 
 lemma Jcc_pieces_InitNone:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 (sh(C\<^sub>0 \<mapsto> (sblank P C\<^sub>0, Prepared)))
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs (sh(C\<^sub>0 \<mapsto> (sblank P C\<^sub>0, Prepared)))
      I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'),
-        P \<turnstile> (None,h,frs',(sh(C\<^sub>0 \<mapsto> (sblank P\<^sub>1 C\<^sub>0, Prepared))))
-            -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh')"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'),
+        \<exists>vs'. P \<turnstile> (None,h,frs',(sh(C\<^sub>0 \<mapsto> (sblank P\<^sub>1 C\<^sub>0, Prepared))))
+            -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh')"
 proof -
   have  "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)" using assms by simp
   then obtain T where "P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> unit : T" by fastforce
@@ -837,158 +754,81 @@ proof -
   then show ?thesis using assms by clarsimp
 qed
 
-lemma Jcc_pieces_InitFalse_frs:
-assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', rhs, err)"
-shows "(\<exists>ics\<^sub>0. ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0
-                                           | _ \<Rightarrow> ICalling C\<^sub>0))
-         \<and> frs' \<noteq> Nil"
-proof -
-  have frs': "frs' = to_called_frames False
-     (init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (last(C\<^sub>0#Cs)))])
-     @ frs" using assms by clarsimp
-  show ?thesis
-  proof(rule conjI)
-    let ?ics = "case Cs of Nil \<Rightarrow> ics | _ \<Rightarrow> ics_of(create_init_frame P (hd Cs))"
-    have ics: "\<exists>ics\<^sub>0. ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0
-                                                  | _ \<Rightarrow> ICalling C\<^sub>0)"
-    proof(cases Cs)
-      case Nil
-      have "init_frames P C\<^sub>0 Cs = []" using Nil by simp
-      then have "hd frs' = (vs, l, C, M, pc, Calling (last (C\<^sub>0 # Cs)))"
-        using frs' by simp
-      then show ?thesis
-       using Nil ics_of_hd_to_called_frames_False[OF ics_of_hd_init_frames] by simp
-    next
-      case (Cons C\<^sub>1 Cs\<^sub>1)
-      then have "init_frames P C\<^sub>0 Cs \<noteq> []" apply(cases "method P C\<^sub>1 clinit") by simp
-      then have "hd frs' = hd (to_called_frames False (init_frames P C\<^sub>0 Cs))"
-        using frs' apply(cases "init_frames P C\<^sub>0 Cs") by simp+
-      then show ?thesis
-       using Cons ics_of_hd_to_called_frames_False[OF ics_of_hd_init_frames]
-        apply(cases "method P C\<^sub>1 clinit") by auto
-    qed
-    then show "\<exists>ics\<^sub>0. ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0
-                                                  | _ \<Rightarrow> ICalling C\<^sub>0)" by blast
-  next
-    have "\<exists>f\<^sub>1 frs\<^sub>1. frs' = f\<^sub>1#frs\<^sub>1" using frs'
-    proof(cases Cs)
-      case (Cons a list) then show ?thesis
-        using frs' apply(cases "method P a clinit") by simp
-    qed(simp)
-    then show "frs' \<noteq> []" by fast
-  qed
-qed
-
-lemma Jcc_pieces_InitDP_aux:
- "to_called_frames True (init_frames P C' Cs @ [(vs, l, C, M, pc, Calling (last Cs))]) =
-       map calling_to_called (init_frames P C' Cs) @ [(vs, l, C, M, pc, Called)]"
-apply(induct Cs, simp)
-apply clarsimp apply(rename_tac C1 Cs1)
-apply(case_tac "method P C1 clinit", simp)
-done
-
 lemma Jcc_pieces_InitDP:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (Cs,True) \<leftarrow> e)
-    = (True, (calling_to_called (hd frs'))#(tl frs'),
-         (None, h', (vs, l, C, M, pc, Called) # frs, sh'),
-             P \<turnstile> (None,h,(calling_to_called (hd frs'))#(tl frs'),sh)
-                        -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh')"
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (INIT C' (Cs,True) \<leftarrow> e)
+    = (True, (calling_to_scalled (hd frs'))#(tl frs'),
+         (None, h', (vs, l, C, M, pc, Called []) # frs, sh'),
+             \<exists>vs'. P \<turnstile> (None,h,calling_to_scalled (hd frs')#(tl frs'),sh)
+                        -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh')"
 proof -
   have "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)" using assms by simp
   then obtain T where "P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> unit : T" by fastforce
   then have "P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 INIT C' (Cs,True) \<leftarrow> unit : T"
      apply clarsimp apply(rule WTrtInit\<^sub>1, auto) by (metis list.sel(2) list.set_sel(2))
   then have wtrt: "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT C' (Cs,True) \<leftarrow> unit))" by(simp only: exI)
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_InitFalse_frs[OF _ assms(2)] by simp
-  then show ?thesis using assms wtrt
+  show ?thesis using assms wtrt
   proof(cases Cs)
     case (Cons C1 Cs1)
-    then show ?thesis using assms frs' wtrt Jcc_pieces_InitDP_aux
+    then show ?thesis using assms wtrt
       by(case_tac "method P C1 clinit") clarsimp
   qed(clarsimp)
 qed
 
 lemma Jcc_pieces_InitError:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
  and err: "sh C\<^sub>0 = Some(sfs,Error)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (RI (C\<^sub>0, THROW NoClassDefFoundError);Cs \<leftarrow> e)
-    = (True, rinit_frame P C\<^sub>0 (THROW NoClassDefFoundError)#(calling_to_called (hd frs'))#(tl frs'),
-         (None, h', (vs, l, C, M, pc, Called) # frs, sh'),
-             P \<turnstile> (None,h,rinit_frame P C\<^sub>0 (THROW NoClassDefFoundError)#(calling_to_called (hd frs'))#(tl frs'),sh)
-                        -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh')"
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (RI (C\<^sub>0, THROW NoClassDefFoundError);Cs \<leftarrow> e)
+    = (True, (calling_to_throwing (hd frs') (addr_of_sys_xcpt NoClassDefFoundError))#(tl frs'),
+         (None, h', (vs, l, C, M, pc, Called []) # frs, sh'),
+             \<exists>vs'. P \<turnstile> (None,h, (calling_to_throwing (hd frs') (addr_of_sys_xcpt NoClassDefFoundError))#(tl frs'),sh)
+                        -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh')"
 proof -
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_InitFalse_frs[OF assms(1,2)] by simp
-  then show ?thesis using assms
+  show ?thesis using assms
   proof(cases Cs)
     case (Cons C1 Cs1)
-    then show ?thesis using assms frs'
+    then show ?thesis using assms
       apply(case_tac "method P C1 clinit", case_tac "method P C\<^sub>0 clinit") by clarsimp
   qed(clarsimp)
 qed
 
-(* HERE: MOVE *)
-lemma to_called_frames_True_equiv:
- "frs \<noteq> [] \<Longrightarrow> to_called_frames True frs
-    = calling_to_called (hd (to_called_frames False frs)) # tl (to_called_frames False frs)"
- by(cases frs, auto)
-
-(* HERE: MOVE *)
-lemma to_called_nmt: "frs \<noteq> [] \<Longrightarrow> to_called_frames b frs \<noteq> []"
-proof(cases frs)
-  case (Cons f' frs') then show ?thesis by(cases b, auto)
-qed(simp)
-
 lemma Jcc_pieces_InitObj:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) I h' l' sh'' v xa (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)
-    = (True, (create_init_frame P C\<^sub>0)#(calling_to_called (hd frs'))#(tl frs'),
-         (None, h', (vs, l, C, M, pc, Called) # frs, sh''),
-             P \<turnstile> (None,h,(create_init_frame P C\<^sub>0)#(calling_to_called (hd frs'))#(tl frs'),sh')
-                        -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'')"
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) I h' l' sh'' v xa (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)
+    = (True, calling_to_called (hd frs')#(tl frs'),
+         (None, h', (vs, l, C, M, pc, Called []) # frs, sh''),
+             \<exists>vs'. P \<turnstile> (None,h,calling_to_called (hd frs')#(tl frs'),sh')
+                        -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'')"
 proof -
-  let ?frs = "init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (last Cs))]"
   have "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)" using assms by simp
   then obtain T where "P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> unit : T" by fastforce
   then have "P\<^sub>1,E,h,sh(C\<^sub>0 \<mapsto> (sfs,Processing)) \<turnstile>\<^sub>1 INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> unit : T"
     using assms by clarsimp (auto simp: fun_upd_apply)
   then have wtrt: "Ex (WTrt2\<^sub>1 P\<^sub>1 E h (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> unit))"
     by(simp only: exI)
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_InitFalse_frs[OF assms] by simp
-  show ?thesis using assms wtrt to_called_nmt to_called_frames_True_equiv[of ?frs] by clarsimp
+  show ?thesis using assms wtrt by clarsimp
 qed
-
-lemma Jcc_pieces_InitNonObj_aux:
- "map calling_to_called (init_frames P C\<^sub>0 Cs) @ (vs, l, C, M, pc, Called) # frs =
- calling_to_called
-  (hd (to_called_frames False (init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (last Cs))]) @ frs)) #
- tl (to_called_frames False (init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (last Cs))]) @ frs)"
-proof(induct Cs)
-  case (Cons a list) then show ?case apply(cases "method P a clinit") by auto
-qed(simp)
 
 lemma Jcc_pieces_InitNonObj:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
  and "is_class P\<^sub>1 D" and "D \<notin> set (C\<^sub>0#Cs)" and "\<forall>C \<in> set (C\<^sub>0#Cs). P\<^sub>1 \<turnstile> C \<preceq>\<^sup>* D"
- and pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) I h' l' sh'' v xa (INIT C' (D # C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, (calling_init_frame P C\<^sub>0 D)#(calling_to_called (hd frs'))#(tl frs'),
-         (None, h', (vs, l, C, M, pc, Called) # frs, sh''),
-             P \<turnstile> (None,h,(calling_init_frame P C\<^sub>0 D)#(calling_to_called (hd frs'))#(tl frs'),sh')
-                        -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'')"
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) I h' l' sh'' v xa (INIT C' (D # C\<^sub>0 # Cs,False) \<leftarrow> e)
+    = (True, calling_to_calling (hd frs') D#(tl frs'),
+         (None, h', (vs, l, C, M, pc, Called []) # frs, sh''),
+             \<exists>vs'. P \<turnstile> (None,h,calling_to_calling (hd frs') D#(tl frs'),sh')
+                        -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'')"
 proof -
   have "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)" using assms by simp
   then obtain T where "P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> unit : T" by fastforce
@@ -996,21 +836,19 @@ proof -
     using assms by clarsimp (auto simp: fun_upd_apply)
   then have wtrt: "Ex (WTrt2\<^sub>1 P\<^sub>1 E h (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) (INIT C' (D # C\<^sub>0 # Cs,False) \<leftarrow> unit))"
     by(simp only: exI)
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by simp
-  then show ?thesis using assms frs' wtrt apply clarsimp apply(case_tac "method P C\<^sub>0 clinit") 
-    apply clarsimp using Jcc_pieces_InitNonObj_aux by simp
+  show ?thesis using assms wtrt by clarsimp
 qed
 
 lemma Jcc_pieces_InitRInit:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1" and wf: "wf_J\<^sub>1_prog P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e)
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e)
     = (True, frs',
-         (None, h', (vs, l, C, M, pc, Called) # frs, sh'),
-             P \<turnstile> (None,h,frs',sh)
-                        -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh')"
+         (None, h', (vs, l, C, M, pc, Called []) # frs, sh'),
+             \<exists>vs'. P \<turnstile> (None,h,frs',sh)
+                        -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh')"
 proof -
   have cond: "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)" using assms by simp
   then have clinit: "\<exists>T. P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 C\<^sub>0\<bullet>\<^sub>sclinit([]) : T" using wf
@@ -1026,81 +864,34 @@ qed
 
 lemma Jcc_pieces_RInit_clinit:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1" and wf: "wf_J\<^sub>1_prog P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)
-    = (True, fr#frs',
-         (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1), err)"
- and "hd frs' = (vs1,l1,C1,M1,pc1,ics1)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)
+    = (True, frs',
+         (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1), err)"
 shows
- "Jcc_pieces P\<^sub>1 E C1 M1 h vs1 l pc1 ics1 (tl frs') l1 sh I h' l' sh' v xa (C\<^sub>0\<bullet>\<^sub>sclinit([]))
-    = (True, create_init_frame P C\<^sub>0#frs',
-         (None, h', frs', sh'(C\<^sub>0\<mapsto>(fst(the(sh' C\<^sub>0)),Done))),
-             P \<turnstile> (None,h,create_init_frame P C\<^sub>0#frs',sh)
-   -jvm\<rightarrow> (case (length Cs) of 0 \<Rightarrow> handle P C1 M1 xa h' vs1 l1 pc1
-                       (case ics1 of Called \<Rightarrow> No_ics | _ \<Rightarrow> ics1) (tl frs') (sh'(C\<^sub>0 \<mapsto> (fst(the(sh' C\<^sub>0)),Error)))
-                    | Suc n \<Rightarrow> (None,h',(vs1, l1, C1, M1, pc1, Throwing xa) # tl frs',sh'(C\<^sub>0 \<mapsto> (fst(the(sh' C\<^sub>0)),Error)))))"
+ "Jcc_pieces P\<^sub>1 E C M h vs l pc (Called Cs) (tl frs') sh I h' l' sh' v xa (C\<^sub>0\<bullet>\<^sub>sclinit([]))
+    = (True, create_init_frame P C\<^sub>0#(vs,l,C,M,pc,Called Cs)#tl frs',
+         (None, h', (vs,l,C,M,pc,Called Cs)#tl frs', sh'(C\<^sub>0\<mapsto>(fst(the(sh' C\<^sub>0)),Done))),
+             P \<turnstile> (None,h,create_init_frame P C\<^sub>0#(vs,l,C,M,pc,Called Cs)#tl frs',sh)
+   -jvm\<rightarrow> (None,h',(vs, l, C, M, pc, Throwing Cs xa) # tl frs',sh'(C\<^sub>0 \<mapsto> (fst(the(sh' C\<^sub>0)),Error))))"
 proof -
-  have fr2: "fr = create_init_frame P C\<^sub>0" using assms by simp
-  have lenSuc: "\<forall>n'. length Cs = Suc n' \<longrightarrow> ics1 = No_ics \<and> M1 = clinit"
-  proof(rule allI, rule impI)
-    fix n' assume len: "length Cs = Suc n'"
-    then have nnil: "init_frames (compP compMb\<^sub>2 P\<^sub>1) C\<^sub>0 Cs \<noteq> []" by (simp add: init_frames_mt)
-    have "hd (to_called_frames True
-        (init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (if Cs = [] then C\<^sub>0 else last Cs))]) @
-       frs) = (vs1, l1, C1, M1, pc1, ics1)" using assms by auto
-    then have "hd (to_called_frames True (init_frames P C\<^sub>0 Cs)) = (vs1, l1, C1, M1, pc1, ics1)"
-      using hd_to_called_frames_app[where frs'="init_frames P C\<^sub>0 Cs"] nnil
-        using Jcc_pieces_InitDP_aux by auto
-    then show "ics1 = No_ics \<and> M1 = clinit"
-      using assms len ics_of_hd_to_called_frames[of Cs n' P C\<^sub>0]
-        curr_method_hd_to_called_frames[of Cs n' P C\<^sub>0] by clarsimp
-  qed
   have cond: "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)" using assms by simp
   then have wtrt: "\<exists>T. P\<^sub>1,E,h,sh \<turnstile>\<^sub>1 C\<^sub>0\<bullet>\<^sub>sclinit([]) : T" using wf
     by clarsimp (auto simp: is_class_def intro: wf\<^sub>1_types_clinit)
-  then show ?thesis using assms fr2 lenSuc
-  proof(cases "length Cs")
-    case (Suc nat)
-    then have "to_called_frames True (init_frames (compP compMb\<^sub>2 P\<^sub>1) C\<^sub>0 Cs
-       @ [(vs, l, C, M, pc, Calling (if Cs = [] then C\<^sub>0 else last Cs))]) @ frs
-     = hd (to_called_frames True (init_frames (compP compMb\<^sub>2 P\<^sub>1) C\<^sub>0 Cs
-       @ [(vs, l, C, M, pc, Calling (if Cs = [] then C\<^sub>0 else last Cs))]) @ frs)
-         # tl (to_called_frames True (init_frames (compP compMb\<^sub>2 P\<^sub>1) C\<^sub>0 Cs
-       @ [(vs, l, C, M, pc, Calling (if Cs = [] then C\<^sub>0 else last Cs))]) @ frs)"
-      by (auto simp: Jcc_pieces_InitDP_aux)
-    then show ?thesis using Suc assms fr2 lenSuc wtrt by clarsimp
-  qed(clarsimp)
-qed
-
-
-lemma Jcc_pieces_RInit_frs:
-assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa (RI (C\<^sub>0,e);Cs \<leftarrow> e')
-    = (True, fr#frs', rhs, err)"
-shows "frs' \<noteq> Nil"
-proof -
-  have frs': "frs' = to_called_frames True
-     (init_frames P C\<^sub>0 Cs @ [(vs, l, C, M, pc, Calling (last(C\<^sub>0#Cs)))])
-     @ frs" using assms by clarsimp
-  have "\<exists>f\<^sub>1 frs\<^sub>1. frs' = f\<^sub>1#frs\<^sub>1" using frs'
-  proof(cases Cs)
-    case (Cons a list) then show ?thesis
-      using frs' apply(cases "method P a clinit") by simp
-  qed(simp)
-  then show ?thesis by fast
+  then show ?thesis using assms by clarsimp
 qed
 
 lemma Jcc_pieces_RInit_Init:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1" and wf: "wf_J\<^sub>1_prog P\<^sub>1"
  and proc: "\<forall>C' \<in> set Cs. \<exists>sfs. sh'' C' = \<lfloor>(sfs,Processing)\<rfloor>"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)
-    = (True, fr#frs',
-         (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1), err)"
-shows
- "Jcc_pieces P\<^sub>1 E C M h' vs l pc ics frs ls3 sh'' I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (INIT (last (C\<^sub>0#Cs)) (Cs,True) \<leftarrow> e)
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)
     = (True, frs',
-         (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1),
-             P \<turnstile> (None,h',frs',sh'')
-                        -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs l pc ics frs sh\<^sub>1)"
+         (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1), err)"
+shows
+ "Jcc_pieces P\<^sub>1 E C M h' vs l pc ics frs sh'' I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (INIT (last (C\<^sub>0#Cs)) (Cs,True) \<leftarrow> e)
+    = (True, (vs, l, C, M, pc, Called Cs) # frs,
+         (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1),
+             \<exists>vs'. P \<turnstile> (None,h',(vs, l, C, M, pc, Called Cs) # frs,sh'')
+                        -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) l pc ics frs sh\<^sub>1)"
 proof -
   have "Jcc_cond P\<^sub>1 E C M vs pc ics I h sh (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([]));Cs \<leftarrow> e)" using assms by simp
   then have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> unit))" by simp
@@ -1108,31 +899,26 @@ proof -
   then have "P\<^sub>1,E,h',sh'' \<turnstile>\<^sub>1 INIT (last (C\<^sub>0#Cs)) (Cs,True) \<leftarrow> unit : T" using proc
   proof(cases Cs) qed(auto)
   then have wtrt: "Ex (WTrt2\<^sub>1 P\<^sub>1 E h' sh'' (INIT (last (C\<^sub>0#Cs)) (Cs,True) \<leftarrow> unit))" by(simp only: exI)
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_RInit_frs[OF _ assms(4)] by simp
-  then show ?thesis using assms wtrt
+  show ?thesis using assms wtrt
   proof(cases Cs)
     case (Cons C1 Cs1)
-    then show ?thesis using assms frs' wtrt Jcc_pieces_InitDP_aux
+    then show ?thesis using assms wtrt
       by(case_tac "method P C1 clinit") clarsimp
   qed(clarsimp)
 qed
 
 lemma Jcc_pieces_RInit_RInit:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
- and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,e);D#Cs \<leftarrow> e')
-    = (True, fr#frs', rhs, err)"
+ and "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (C\<^sub>0,e);D#Cs \<leftarrow> e')
+    = (True, frs', rhs, err)"
  and hd: "hd frs' = (vs1,l1,C1,M1,pc1,ics1)"
 shows
- "Jcc_pieces P\<^sub>1 E C M h' vs l pc ics frs ls3 sh'' I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (D,Throw xa) ; Cs \<leftarrow> e')
-    = (True, (vs1, l1, C1, M1, pc1, Throwing xa) # tl frs',
-         (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1),
-             P \<turnstile> (None,h',(vs1, l1, C1, M1, pc1, Throwing xa) # tl frs',sh'')
-                        -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs l pc ics frs sh\<^sub>1)"
-proof -
-  have frs': "frs' \<noteq> Nil" using Jcc_pieces_RInit_frs[OF _ assms(2)] by simp
-  then show ?thesis using assms Jcc_pieces_InitDP_aux
-    apply(case_tac "method P D clinit", cases "e = C\<^sub>0\<bullet>\<^sub>sclinit([])") by clarsimp+
-qed
+ "Jcc_pieces P\<^sub>1 E C M h' vs l pc ics frs sh'' I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa (RI (D,Throw xa) ; Cs \<leftarrow> e')
+    = (True, (vs1, l1, C1, M1, pc1, Throwing (D#Cs) xa) # tl frs',
+         (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1),
+             \<exists>vs'. P \<turnstile> (None,h',(vs1, l1, C1, M1, pc1, Throwing (D#Cs) xa) # tl frs',sh'')
+                        -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) l pc ics frs sh\<^sub>1)"
+using assms apply(case_tac "method P D clinit", cases "e = C\<^sub>0\<bullet>\<^sub>sclinit([])") by clarsimp+
 
 
 (* HERE: MOVE?  --needs J1 and EConform; version for eval found in Equivalence *)
@@ -1266,17 +1052,17 @@ using wf_sees_clinit[OF wf ex] create by(cases "method P C clinit", auto)
 lemma fixes P\<^sub>1 defines [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
 assumes wf: "wf_J\<^sub>1_prog P\<^sub>1"
 shows Jcc: "P\<^sub>1 \<turnstile>\<^sub>1 \<langle>e,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> \<Rightarrow> \<langle>ef,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow>
-  (\<And>E C M pc ics v xa vs frs ls3 I.
+  (\<And>E C M pc ics v xa vs frs I.
      \<lbrakk> Jcc_cond P\<^sub>1 E C M vs pc ics I h\<^sub>0 sh\<^sub>0 e \<rbrakk> \<Longrightarrow>
      (ef = Val v \<longrightarrow>
-         P \<turnstile> (None,h\<^sub>0,Jcc_frames P C M vs ls\<^sub>0 pc ics frs ls3 e,sh\<^sub>0)
-                -jvm\<rightarrow> Jcc_rhs P\<^sub>1 E C M vs ls\<^sub>0 pc ics frs ls3 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v e)
+         P \<turnstile> (None,h\<^sub>0,Jcc_frames P C M vs ls\<^sub>0 pc ics frs e,sh\<^sub>0)
+                -jvm\<rightarrow> Jcc_rhs P\<^sub>1 E C M vs ls\<^sub>0 pc ics frs h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v e)
      \<and>
-     (ef = Throw xa \<longrightarrow> Jcc_err P C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 xa e)
+     (ef = Throw xa \<longrightarrow> Jcc_err P C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 xa e)
   )"
 (*<*)
-  (is "_ \<Longrightarrow> (\<And>E C M pc ics v xa vs frs ls3 I.
-                  PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 ef h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 I)")
+  (is "_ \<Longrightarrow> (\<And>E C M pc ics v xa vs frs I.
+                  PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 ef h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs I)")
 (*>*)
 and "P\<^sub>1 \<turnstile>\<^sub>1 \<langle>es,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> [\<Rightarrow>] \<langle>fs,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow>
     (\<And>C M pc ics ws xa es' vs frs I.
@@ -1290,31 +1076,36 @@ and "P\<^sub>1 \<turnstile>\<^sub>1 \<langle>es,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0
       (fs = map Val ws @ Throw xa # es' \<longrightarrow>
        (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compEs\<^sub>2 es) \<and>
                 \<not> caught P pc\<^sub>1 h\<^sub>1 xa (compxEs\<^sub>2 es pc (size vs)) \<and>
-                P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1)))"
+                (\<exists>vs'. P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0)
+                                     -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1))))"
 (*<*)
   (is "_ \<Longrightarrow> (\<And>C M pc ics ws xa es' vs frs I.
                   PROP ?Ps es h\<^sub>0 ls\<^sub>0 sh\<^sub>0 fs h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C M pc ics ws xa es' vs frs I)")
 proof (induct rule:eval\<^sub>1_evals\<^sub>1_inducts)
-  case New\<^sub>1 thus ?case apply(cases ics) by(auto simp add:blank_def fun_eq_iff)
+  case New\<^sub>1 thus ?case by auto
 next
-  case NewFail\<^sub>1 thus ?case apply(cases ics) by(auto simp: handle_def pcs_def)
+  case (NewFail\<^sub>1 sh C' sfs h ls)
+  let ?xa = "addr_of_sys_xcpt OutOfMemory"
+  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> handle P C M ?xa h vs ls pc ics frs sh"
+    using NewFail\<^sub>1 by(clarsimp simp: handle_def)
+  then show ?case by(auto intro!: exI[where x="[]"])
 next
   case (NewInit\<^sub>1 sh C' h ls v' h' ls' sh' a FDTs h'')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (new C')
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (new C')
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (new C')),ics)#frs,sh'), err)"
     using NewInit\<^sub>1.prems(1) by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT C' ([C'],False) \<leftarrow> unit))"
     using has_fields_is_class[OF NewInit\<^sub>1.hyps(5)] by auto
   then obtain err' where pcs':
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v' xa (INIT C' ([C'],False) \<leftarrow> unit)
-    = (True, (vs,ls,C,M,pc,Calling C') # frs, (None,h',(vs,ls,C,M,pc,Called)#frs,sh'), err')"
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v' xa (INIT C' ([C'],False) \<leftarrow> unit)
+    = (True, (vs,ls,C,M,pc,Calling C' []) # frs, (None,h',(vs,ls,C,M,pc,Called [])#frs,sh'), err')"
     using NewInit\<^sub>1.prems(1) by auto
   have IH: "PROP ?P (INIT C' ([C'],False) \<leftarrow> unit) h ls sh (Val v')
-             h' ls' sh' E C M pc ics v' xa vs frs ls3 I" by fact
+             h' ls' sh' E C M pc ics v' xa vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF NewInit\<^sub>1.hyps(2)])
   obtain sfs i where sh': "sh' C' = Some(sfs,i)"
     using init\<^sub>1_Val_PD[OF NewInit\<^sub>1.hyps(2)] by clarsimp
-  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C')#frs,sh)"
+  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C' [])#frs,sh)"
   proof(cases "sh C'")
     case None then show ?thesis using NewInit\<^sub>1.prems by(cases ics) auto
   next
@@ -1323,29 +1114,29 @@ next
     then show ?thesis using NewInit\<^sub>1.hyps(1) NewInit\<^sub>1.prems Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called) # frs, sh')"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called []) # frs, sh')"
     using IH pcs' by auto
-  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h'', (Addr a#vs, ls, C, M, Suc pc, ics) # frs, sh')"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h'', (Addr a#vs, ls, C, M, Suc pc, ics) # frs, sh')"
     using NewInit\<^sub>1.hyps(1,2,4-6) NewInit\<^sub>1.prems sh' by(cases ics) auto
   finally show ?case using pcs ls by clarsimp
 next
   case (NewInitOOM\<^sub>1 sh C' h ls v' h' ls' sh')
   let ?xa = "addr_of_sys_xcpt OutOfMemory"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (new C')
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (new C')
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (new C')),ics)#frs,sh'), err)"
     using NewInitOOM\<^sub>1.prems(1) by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT C' ([C'],False) \<leftarrow> unit))" using NewInitOOM\<^sub>1.hyps(5) by auto
   then obtain err' where pcs':
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v' xa (INIT C' ([C'],False) \<leftarrow> unit)
-    = (True, (vs,ls,C,M,pc,Calling C') # frs, (None,h',(vs,ls,C,M,pc,Called)#frs,sh'), err')"
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v' xa (INIT C' ([C'],False) \<leftarrow> unit)
+    = (True, (vs,ls,C,M,pc,Calling C' []) # frs, (None,h',(vs,ls,C,M,pc,Called [])#frs,sh'), err')"
     using NewInitOOM\<^sub>1.prems(1) by auto
   have IH: "PROP ?P (INIT C' ([C'],False) \<leftarrow> unit) h ls sh (Val v')
-             h' ls' sh' E C M pc ics v' xa vs frs ls3 I" by fact
+             h' ls' sh' E C M pc ics v' xa vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF NewInitOOM\<^sub>1.hyps(2)])
   have "iconf P\<^sub>1 (shp\<^sub>1 (h, ls, sh)) (INIT C' ([C'],False) \<leftarrow> unit)" by simp
   then obtain sfs i where sh': "sh' C' = Some(sfs,i)"
     using init\<^sub>1_Val_PD[OF NewInitOOM\<^sub>1.hyps(2)] by clarsimp
-  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C')#frs,sh)"
+  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C' [])#frs,sh)"
   proof(cases "sh C'")
     case None then show ?thesis using NewInitOOM\<^sub>1.prems by(cases ics) auto
   next
@@ -1354,28 +1145,28 @@ next
     then show ?thesis using NewInitOOM\<^sub>1.hyps(1) NewInitOOM\<^sub>1.prems Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called) # frs, sh')"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called []) # frs, sh')"
     using IH pcs' by auto
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h' vs ls pc ics frs sh'"
     using NewInitOOM\<^sub>1.hyps(1,2,4,5) NewInitOOM\<^sub>1.prems sh' by(auto simp: handle_def)
-  finally show ?case using pcs ls by simp blast
+  finally show ?case using pcs ls apply simp by (metis (no_types) append_Nil le_refl lessI)
 next
   case (NewInitThrow\<^sub>1 sh C' h ls a h' ls' sh')
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (new C')
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (new C')
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (new C')),ics)#frs,sh'), err)"
     using NewInitThrow\<^sub>1.prems(1) by clarsimp
   obtain a' where throw: "throw a = Throw a'" using eval\<^sub>1_final[OF NewInitThrow\<^sub>1.hyps(2)] by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT C' ([C'],False) \<leftarrow> unit))" using NewInitThrow\<^sub>1.hyps(4) by auto
-  then have pcs':
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v a' (INIT C' ([C'],False) \<leftarrow> unit)
-    = (True, (vs,ls,C,M,pc,Calling C') # frs, (None,h',(vs,ls,C,M,pc,Called)#frs,sh'),
-        P \<turnstile> (None,h,(vs,ls,C,M,pc,Calling C') # frs,sh)
-               -jvm\<rightarrow> handle P C M a' h' vs ls pc ics frs sh')"
-    using NewInitThrow\<^sub>1.prems(1) by auto
+  then obtain vs' where pcs':
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v a' (INIT C' ([C'],False) \<leftarrow> unit)
+    = (True, (vs,ls,C,M,pc,Calling C' []) # frs, (None,h',(vs,ls,C,M,pc,Called [])#frs,sh'),
+        P \<turnstile> (None,h,(vs,ls,C,M,pc,Calling C' []) # frs,sh)
+               -jvm\<rightarrow> handle P C M a' h' (vs'@vs) ls pc ics frs sh')"
+    using NewInitThrow\<^sub>1.prems(1) by simp blast
   have IH: "PROP ?P (INIT C' ([C'],False) \<leftarrow> unit) h ls sh (throw a)
-             h' ls' sh' E C M pc ics v a' vs frs ls3 I" by fact
+             h' ls' sh' E C M pc ics v a' vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF NewInitThrow\<^sub>1.hyps(2)])
-  then have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C') # frs,sh)"
+  then have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C' []) # frs,sh)"
   proof(cases "sh C'")
     case None then show ?thesis using NewInitThrow\<^sub>1.prems by(cases ics) auto
   next
@@ -1384,15 +1175,15 @@ next
     then show ?thesis using NewInitThrow\<^sub>1.hyps(1) NewInitThrow\<^sub>1.prems Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h' vs ls pc ics frs sh'" using IH pcs' throw by auto
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h' (vs'@vs) ls pc ics frs sh'" using IH pcs' throw by auto
   finally show ?case using throw ls by auto
 next
   case (Cast\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 D fs C')
   let ?pc = "pc + length(compE\<^sub>2 e)"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (Cast C' e)),ics)#frs,sh\<^sub>1), err)"
     using Cast\<^sub>1.prems(1) by auto
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs I" by fact
   then have "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow>
              (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using Jcc_pieces_Cast[OF assms(1) pcs, of "Addr a"] Cast\<^sub>1.prems pcs by auto
@@ -1402,10 +1193,10 @@ next
 next
   case (CastNull\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C')
   let ?pc = "pc + length(compE\<^sub>2 e)"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (Cast C' e)),ics)#frs,sh\<^sub>1), err)"
     using CastNull\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs I" by fact
   then have "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow>
              (None,h\<^sub>1,(Null#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using Jcc_pieces_Cast[OF assms(1) pcs, of Null] CastNull\<^sub>1.prems pcs by auto
@@ -1416,34 +1207,31 @@ next
   case (CastFail\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 D fs C')
   let ?pc = "pc + length(compE\<^sub>2 e)"
   let ?xa = "addr_of_sys_xcpt ClassCast"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (Cast C' e)),ics)#frs,sh\<^sub>1), err)"
     using CastFail\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs I" by fact
   then have "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow>
              (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using Jcc_pieces_Cast[OF assms(1) pcs, of "Addr a"] CastFail\<^sub>1.prems pcs by auto
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>1 (Addr a#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
     using CastFail\<^sub>1 by (auto simp add:handle_def cast_ok_def)
-  also have "handle P C M ?xa h\<^sub>1 (Addr a#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using CastFail\<^sub>1.prems by(auto simp:handle_Cons)
   finally have exec: "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow> \<dots>".
   show ?case (is "?N \<and> (?eq \<longrightarrow> ?err)")
   proof
     show ?N by simp
   next
     { assume ?eq
-      then have ?err using exec by (auto intro: exI[where x="?pc"])
+      then have ?err using exec by (auto intro!: exI[where x="?pc"] exI[where x="[Addr a]"])
     }
     thus "?eq \<longrightarrow> ?err" by simp
   qed
 next
   case (CastThrow\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 e' h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C')
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (Cast C' e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (Cast C' e)),ics)#frs,sh\<^sub>1), err)"
     using CastThrow\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs I" by fact
   show ?case using IH Jcc_pieces_Cast[OF assms(1) pcs, of v] CastThrow\<^sub>1.prems pcs
     apply simp using less_SucI by blast
 next
@@ -1452,14 +1240,14 @@ next
   case Var\<^sub>1 thus ?case by auto
 next
   case (BinOp\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 v\<^sub>1 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 v\<^sub>2 h\<^sub>2 ls\<^sub>2 sh\<^sub>2 bop w)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using BinOp\<^sub>1.prems(1) by clarsimp
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compE\<^sub>2 e\<^sub>2)"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v\<^sub>1) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v\<^sub>1 xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v\<^sub>1) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v\<^sub>1 xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v\<^sub>2) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v\<^sub>2 xa (v\<^sub>1#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v\<^sub>2) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v\<^sub>2 xa (v\<^sub>1#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using IH\<^sub>1 Jcc_pieces_BinOp1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v\<^sub>1] by simp
@@ -1470,44 +1258,42 @@ next
   finally show ?case using pcs by (auto split: bop.splits simp:add.assoc)
 next
   case (BinOpThrow\<^sub>1\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 e h\<^sub>1 ls\<^sub>1 sh\<^sub>1 bop e\<^sub>2)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using BinOpThrow\<^sub>1\<^sub>1.prems(1) by clarsimp
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
   show ?case using IH\<^sub>1 Jcc_pieces_BinOp1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v] BinOpThrow\<^sub>1\<^sub>1.prems nsub_RI_Jcc_pieces
     by auto (* HERE: make this proof better *)
 next
   case (BinOpThrow\<^sub>2\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 v\<^sub>1 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 e h\<^sub>2 ls\<^sub>2 sh\<^sub>2 bop)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using BinOpThrow\<^sub>2\<^sub>1.prems(1) by clarsimp
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>1)"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v\<^sub>1) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v\<^sub>1 xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v\<^sub>1) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v\<^sub>1 xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc ics v xa (v\<^sub>1#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc ics v xa (v\<^sub>1#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,(v\<^sub>1#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
   have 1: "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> ?\<sigma>\<^sub>1"
     using IH\<^sub>1 Jcc_pieces_BinOp1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v\<^sub>1] by simp
-  have "(throw e = Val v \<longrightarrow>  P \<turnstile> (None, h\<^sub>0, Jcc_frames P C M vs ls\<^sub>0 pc ics frs ls3 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2), sh\<^sub>0) -jvm\<rightarrow>
-     Jcc_rhs P\<^sub>1 E C M vs ls\<^sub>0 pc ics frs ls3 h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2))
+  have "(throw e = Val v \<longrightarrow>  P \<turnstile> (None, h\<^sub>0, Jcc_frames P C M vs ls\<^sub>0 pc ics frs (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2), sh\<^sub>0) -jvm\<rightarrow>
+     Jcc_rhs P\<^sub>1 E C M vs ls\<^sub>0 pc ics frs h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2))
    \<and> (throw e = Throw xa \<longrightarrow> (\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < pc + size(compE\<^sub>2 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)) \<and>
                \<not> caught P pc\<^sub>1 h\<^sub>2 xa (compxE\<^sub>2 (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2) pc (size vs)) \<and>
-               P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2))"
+               (\<exists>vs'. P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>1 ics frs sh\<^sub>2)))"
    (is "?N \<and> (?eq \<longrightarrow> (\<exists>pc\<^sub>2. ?H pc\<^sub>2))")
   proof
     show ?N by simp
   next
     { assume ?eq
-      then obtain pc\<^sub>2 where
+      then obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc + size(compE\<^sub>2 e\<^sub>2) \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>2 ?pc (size vs + 1))" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@v\<^sub>1#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using IH\<^sub>2 Jcc_pieces_BinOp2[OF assms(1) pcs, of h\<^sub>1 v\<^sub>1 ls\<^sub>1 sh\<^sub>1 v] BinOpThrow\<^sub>2\<^sub>1.prems by clarsimp
-      have 3: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
-        using 2 BinOpThrow\<^sub>2\<^sub>1.prems pc\<^sub>2 by(auto simp:handle_Cons)
-      have "?H pc\<^sub>2" using pc\<^sub>2 jvm_trans[OF 1 3] by auto
+      then have "?H pc\<^sub>2" using jvm_trans[OF 1 2] by(auto intro!: exI[where x="vs'@[v\<^sub>1]"])
       hence "\<exists>pc\<^sub>2. ?H pc\<^sub>2" by iprover
     }
     thus "?eq \<longrightarrow> (\<exists>pc\<^sub>2. ?H pc\<^sub>2)" by iprover
@@ -1515,12 +1301,12 @@ next
   then show ?case using pcs by simp blast
 next
   case (FAcc\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' fs F T D w)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<bullet>F{D})),ics)#frs,sh\<^sub>1), err)"
     using FAcc\<^sub>1.prems(1) by clarsimp
   have "P\<^sub>1 \<turnstile> D sees F,NonStatic:T in D" by(rule has_field_sees[OF has_field_idemp[OF FAcc\<^sub>1.hyps(4)]])
   then have field: "field P D F = (D,NonStatic,T)" by simp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e)"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using IH Jcc_pieces_FAcc[OF pcs, of "Addr a"] pcs by simp
@@ -1531,10 +1317,10 @@ next
   then show ?case using pcs by auto
 next
   case (FAccNull\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 F D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<bullet>F{D})),ics)#frs,sh\<^sub>1), err)"
     using FAccNull\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e)"
   let ?xa = "addr_of_sys_xcpt NullPointer"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Null#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
@@ -1542,24 +1328,21 @@ next
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>1 (Null#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
     using FAccNull\<^sub>1.prems
     by(fastforce simp:split_beta handle_def simp del: split_paired_Ex)
-  also have "handle P C M ?xa h\<^sub>1 (Null#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using FAccNull\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc] exI[where x="[Null]"])
 next
   case (FAccThrow\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 e' h\<^sub>1 ls\<^sub>1 sh\<^sub>1 F D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<bullet>F{D})),ics)#frs,sh\<^sub>1), err)"
     using FAccThrow\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs I" by fact
   show ?case using IH Jcc_pieces_FAcc[OF pcs, of v] FAccThrow\<^sub>1.prems nsub_RI_Jcc_pieces
     less_Suc_eq by auto
 next
   case (FAccNone\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C fs F D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<bullet>F{D})),ics)#frs,sh\<^sub>1), err)"
     using FAccNone\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e)"
   let ?xa = "addr_of_sys_xcpt NoSuchFieldError"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
@@ -1568,18 +1351,15 @@ next
     using FAccNone\<^sub>1 apply simp
     apply(cases ics) by(clarsimp simp:split_beta handle_def simp del: split_paired_Ex)+
     (* HERE: figure out a way to make this not spin so long *)
-  also have "handle P C M ?xa h\<^sub>1 (Addr a#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using FAccNone\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc] exI[where x="[Addr a]"])
 next
   case (FAccStatic\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' fs F T D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<bullet>F{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<bullet>F{D})),ics)#frs,sh\<^sub>1), err)"
     using FAccStatic\<^sub>1.prems(1) by clarsimp
   have "P\<^sub>1 \<turnstile> D sees F,Static:T in D" by(rule has_field_sees[OF has_field_idemp[OF FAccStatic\<^sub>1.hyps(4)]])
   then have field: "field P D F = (D,Static,T)" by simp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e)"
   let ?xa = "addr_of_sys_xcpt IncompatibleClassChangeError"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
@@ -1587,37 +1367,34 @@ next
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>1 (Addr a#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
     using FAccStatic\<^sub>1 field by(fastforce simp:split_beta handle_def simp del: split_paired_Ex)
     (* HERE: figure out a way to make this not spin so long *)
-  also have "handle P C M ?xa h\<^sub>1 (Addr a#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using FAccStatic\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc] exI[where x="[Addr a]"])
 next
   case (SFAcc\<^sub>1 C' F t D sh sfs v' h ls)
   have has: "P\<^sub>1 \<turnstile> D has F,Static:t in D" by(rule has_field_idemp[OF SFAcc\<^sub>1.hyps(1)])
   have "P\<^sub>1 \<turnstile> D sees F,Static:t in D" by(rule has_field_sees[OF has])
   then have field: "field P D F = (D,Static,t)" by simp
-  then have "P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs ls3 (C'\<bullet>\<^sub>sF{D}),sh) -jvm\<rightarrow>
+  then have "P \<turnstile> (None,h,Jcc_frames P C M vs ls pc ics frs (C'\<bullet>\<^sub>sF{D}),sh) -jvm\<rightarrow>
              (None,h,(v'#vs,ls,C,M,Suc pc,ics)#frs,sh)"
     using SFAcc\<^sub>1 has by(cases ics) auto (* HERE: spins a while *)
   then show ?case by clarsimp
 next
   case (SFAccInit\<^sub>1 C' F t D sh h ls v' h' ls' sh' sfs i v'')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D})
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D})
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D})),ics)#frs,sh'), err)"
     using SFAccInit\<^sub>1.prems(1) by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT D ([D],False) \<leftarrow> unit))"
     using has_field_is_class'[OF SFAccInit\<^sub>1.hyps(1)] by auto
   then obtain err' where pcs':
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v' xa (INIT D ([D],False) \<leftarrow> unit)
-    = (True, (vs,ls,C,M,pc,Calling D) # frs, (None,h',(vs,ls,C,M,pc,Called)#frs,sh'), err')"
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v' xa (INIT D ([D],False) \<leftarrow> unit)
+    = (True, (vs,ls,C,M,pc,Calling D []) # frs, (None,h',(vs,ls,C,M,pc,Called [])#frs,sh'), err')"
     using SFAccInit\<^sub>1.prems(1) by auto
   have IH: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h ls sh (Val v')
-             h' ls' sh' E C M pc ics v' xa vs frs ls3 I" by fact
+             h' ls' sh' E C M pc ics v' xa vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF SFAccInit\<^sub>1.hyps(3)])
   have has: "P\<^sub>1 \<turnstile> D has F,Static:t in D" by(rule has_field_idemp[OF SFAccInit\<^sub>1.hyps(1)])
   have "P\<^sub>1 \<turnstile> D sees F,Static:t in D" by(rule has_field_sees[OF has])
   then have field: "field P D F = (D,Static,t)" by simp
-  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling D)#frs,sh)"
+  have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling D [])#frs,sh)"
   proof(cases "sh D")
     case None then show ?thesis using SFAccInit\<^sub>1.hyps(1,2,5,6) SFAccInit\<^sub>1.prems field
       by(cases ics) auto
@@ -1627,32 +1404,32 @@ next
     then show ?thesis using SFAccInit\<^sub>1.hyps(1,2,5,6) SFAccInit\<^sub>1.prems field Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called) # frs, sh')"
+  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (vs, ls, C, M, pc, Called []) # frs, sh')"
     using IH pcs' by auto
   also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (v''#vs, ls, C, M, Suc pc, ics) # frs, sh')"
     using SFAccInit\<^sub>1.hyps(1,2,5,6) SFAccInit\<^sub>1.prems has field by(cases ics) auto
   finally show ?case using pcs ls by clarsimp
 next
   case (SFAccInitThrow\<^sub>1 C' F t D sh h ls a h' ls' sh')
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D})
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D})
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D})),ics)#frs,sh'), err)"
     using SFAccInitThrow\<^sub>1.prems(1) by clarsimp
   obtain a' where throw: "throw a = Throw a'" using eval\<^sub>1_final[OF SFAccInitThrow\<^sub>1.hyps(3)] by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h sh (INIT D ([D],False) \<leftarrow> unit))"
     using has_field_is_class'[OF SFAccInitThrow\<^sub>1.hyps(1)] by auto
-  then have pcs':
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v a' (INIT D ([D],False) \<leftarrow> unit)
-    = (True, (vs,ls,C,M,pc,Calling D) # frs, (None,h',(vs,ls,C,M,pc,Called)#frs,sh'),
-        P \<turnstile> (None,h,(vs,ls,C,M,pc,Calling D) # frs,sh)
-               -jvm\<rightarrow> handle P C M a' h' vs ls pc ics frs sh')"
-    using SFAccInitThrow\<^sub>1.prems(1) by auto
+  then obtain vs' where pcs':
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v a' (INIT D ([D],False) \<leftarrow> unit)
+    = (True, (vs,ls,C,M,pc,Calling D []) # frs, (None,h',(vs,ls,C,M,pc,Called [])#frs,sh'),
+        P \<turnstile> (None,h,(vs,ls,C,M,pc,Calling D []) # frs,sh)
+               -jvm\<rightarrow> handle P C M a' h' (vs'@vs) ls pc ics frs sh')"
+    using SFAccInitThrow\<^sub>1.prems(1) by simp blast
   have IH: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h ls sh (throw a)
-             h' ls' sh' E C M pc ics v a' vs frs ls3 I" by fact
+             h' ls' sh' E C M pc ics v a' vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF SFAccInitThrow\<^sub>1.hyps(3)])
   have has: "P\<^sub>1 \<turnstile> D has F,Static:t in D" by(rule has_field_idemp[OF SFAccInitThrow\<^sub>1.hyps(1)])
   have "P\<^sub>1 \<turnstile> D sees F,Static:t in D" by(rule has_field_sees[OF has])
   then have field: "field P D F = (D,Static,t)" by simp
-  then have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling D) # frs,sh)"
+  then have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling D []) # frs,sh)"
   proof(cases "sh D")
     case None then show ?thesis using SFAccInitThrow\<^sub>1.hyps(1,2) SFAccInitThrow\<^sub>1.prems field
       by(cases ics) auto
@@ -1662,20 +1439,20 @@ next
     then show ?thesis using SFAccInitThrow\<^sub>1.hyps(1,2) SFAccInitThrow\<^sub>1.prems field Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h' vs ls pc ics frs sh'"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h' (vs'@vs) ls pc ics frs sh'"
     using IH pcs' throw by auto
   finally show ?case using throw ls by auto
 next
   case (SFAccNone\<^sub>1 C' F D h\<^sub>1 ls\<^sub>1 sh\<^sub>1)
   then obtain frs' err where pcs:
-   "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 vs ls\<^sub>1 pc ics frs ls3 sh\<^sub>1 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D})
+   "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 vs ls\<^sub>1 pc ics frs sh\<^sub>1 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D})
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D})),ics)#frs,sh\<^sub>1), err)"
     by clarsimp
   let ?xa = "addr_of_sys_xcpt NoSuchFieldError"
   have "P \<turnstile> (None,h\<^sub>1,frs',sh\<^sub>1) -jvm\<rightarrow> handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 pc ics frs sh\<^sub>1"
     using SFAccNone\<^sub>1 pcs apply simp
     apply(cases ics) by(clarsimp simp:split_beta handle_def simp del: split_paired_Ex)+
-  then show ?case using pcs by (auto intro: exI[where x = pc])
+  then show ?case using pcs by(auto intro!: exI[where x = pc] exI[where x="[]"])
 next
   case (SFAccNonStatic\<^sub>1 C' F t D h\<^sub>1 ls\<^sub>1 sh\<^sub>1)
   let ?frs' = "(vs, ls\<^sub>1, C, M, pc, ics) # frs"
@@ -1690,14 +1467,14 @@ next
       then show ?thesis using SFAccNonStatic\<^sub>1 field
        by (auto simp:split_beta handle_def simp del: split_paired_Ex)
     qed(simp_all) (* HERE: see if we can make this cases proof better *)
-  then show ?case by (auto intro: exI[where x = pc])
+  then show ?case by (auto intro!: exI[where x = pc] exI[where x="[]"])
 next
   case (LAss\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 i ls\<^sub>2)
   let ?pc = "pc + length(compE\<^sub>2 e)"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (i:=e)),ics)#frs,sh\<^sub>1), err)"
     using LAss\<^sub>1.prems(1) by auto
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   then have "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow>
              (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using Jcc_pieces_LAss[OF assms(1) pcs, of w] LAss\<^sub>1.prems pcs by auto
@@ -1706,24 +1483,24 @@ next
   finally show ?case by auto
 next
   case (LAssThrow\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 i)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (i:=e)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (i:=e)),ics)#frs,sh\<^sub>1), err)"
     using LAssThrow\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs I" by fact
   show ?case using IH Jcc_pieces_LAss[OF assms(1) pcs, of v] LAssThrow\<^sub>1.prems pcs
     apply simp using less_SucI by blast
 next
   case (FAss\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 w h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C' fs F T D fs' h\<^sub>2')
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using FAss\<^sub>1.prems(1) by clarsimp
   have "P\<^sub>1 \<turnstile> D sees F,NonStatic:T in D" by(rule has_field_sees[OF has_field_idemp[OF FAss\<^sub>1.hyps(6)]])
   then have field: "field P D F = (D,NonStatic,T)" by simp
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compE\<^sub>2 e\<^sub>2)"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 "Addr a"] by simp
@@ -1734,15 +1511,15 @@ next
   finally show ?case using pcs by (auto simp:add.assoc)
 next
   case (FAssNull\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 w h\<^sub>2 ls\<^sub>2 sh\<^sub>2 F D)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using FAssNull\<^sub>1.prems(1) by clarsimp
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compE\<^sub>2 e\<^sub>2)"
   let ?xa = "addr_of_sys_xcpt NullPointer"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Null#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Null#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Null#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 Null] by simp
@@ -1750,21 +1527,18 @@ next
     using IH\<^sub>2 Jcc_pieces_FAss2[OF pcs, of h\<^sub>1 Null ls\<^sub>1 sh\<^sub>1 w] by (simp add: add.assoc)
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>2 (w#Null#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
     using FAssNull\<^sub>1 by(fastforce simp:split_beta handle_def simp del: split_paired_Ex)
-  also have "handle P C M ?xa h\<^sub>2 (w#Null#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using FAssNull\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="w#[Null]"])
 next
   case (FAssThrow\<^sub>2\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 F D)
   let ?frs' = "(vs, ls\<^sub>0, C, M, pc, ics) # frs"
-  obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, ?frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using FAssThrow\<^sub>2\<^sub>1.prems(1) by clarsimp
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v xa (w#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v xa (w#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have 1: "P \<turnstile> (None,h\<^sub>0,?frs',sh\<^sub>0) -jvm\<rightarrow> ?\<sigma>\<^sub>1"
     using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 w] by simp
@@ -1774,40 +1548,38 @@ next
   next
     { assume ?eq
       moreover
-      have "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v xa (w#vs) frs ls3
+      have "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v xa (w#vs) frs
                     (I - pcs (compxE\<^sub>2 e\<^sub>1 pc (length vs)))" by fact
-      ultimately obtain pc\<^sub>2 where
+      ultimately obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>1 + size(compE\<^sub>2 e\<^sub>2) \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>2 ?pc\<^sub>1 (size vs + 1))" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (w#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@w#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using FAssThrow\<^sub>2\<^sub>1.prems Jcc_pieces_FAss2[OF pcs, of h\<^sub>1 w ls\<^sub>1 sh\<^sub>1] by auto
-      have 3: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
-        using 2 FAssThrow\<^sub>2\<^sub>1.prems pc\<^sub>2 by(auto simp:handle_Cons)
-      have ?err using Jcc_pieces_FAss2[OF pcs, of h\<^sub>1 w ls\<^sub>1 sh\<^sub>1] pc\<^sub>2 jvm_trans[OF 1 3]
-        by(auto intro: exI[where x=pc\<^sub>2])
+      have ?err using Jcc_pieces_FAss2[OF pcs, of h\<^sub>1 w ls\<^sub>1 sh\<^sub>1] pc\<^sub>2 jvm_trans[OF 1 2]
+        by(auto intro!: exI[where x=pc\<^sub>2] exI[where x="vs'@[w]"])
     }
     thus "?eq \<longrightarrow> ?err" by simp
   qed
 next
   case (FAssThrow\<^sub>1\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 e' h\<^sub>1 ls\<^sub>1 sh\<^sub>1 F D e\<^sub>2)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using FAssThrow\<^sub>1\<^sub>1.prems(1) by clarsimp
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
   show ?case using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v] FAssThrow\<^sub>1\<^sub>1.prems nsub_RI_Jcc_pieces
     by auto (* HERE: make this proof better - see ThrowThrow\<^sub>1 *)
 next
   case (FAssNone\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 w h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C' fs F D)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using FAssNone\<^sub>1.prems(1) by clarsimp
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compE\<^sub>2 e\<^sub>2)"
   let ?xa = "addr_of_sys_xcpt NoSuchFieldError"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 "Addr a"] by simp
@@ -1815,13 +1587,10 @@ next
     using IH\<^sub>2 Jcc_pieces_FAss2[OF pcs, of h\<^sub>1 "Addr a" ls\<^sub>1 sh\<^sub>1 w] by (simp add: add.assoc)
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>2 (w#Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
     using FAssNone\<^sub>1 by(fastforce simp:split_beta handle_def simp del: split_paired_Ex)
-  also have "handle P C M ?xa h\<^sub>2 (w#Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using FAssNone\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="w#[Addr a]"])
 next
   case (FAssStatic\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2 w h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C' fs F T D)
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<^sub>1\<bullet>F{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>2,(v#vs,ls\<^sub>2,C,M,pc+size(compE\<^sub>2 (e\<^sub>1\<bullet>F{D} := e\<^sub>2)),ics)#frs,sh\<^sub>2), err)"
     using FAssStatic\<^sub>1.prems(1) by clarsimp
   have "P\<^sub>1 \<turnstile> D sees F,Static:T in D" by(rule has_field_sees[OF has_field_idemp[OF FAssStatic\<^sub>1.hyps(6)]])
@@ -1829,9 +1598,9 @@ next
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compE\<^sub>2 e\<^sub>2)"
   let ?xa = "addr_of_sys_xcpt IncompatibleClassChangeError"
-  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH\<^sub>1: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
                      (I - pcs (compxE\<^sub>2 e\<^sub>2 (pc + length (compE\<^sub>2 e\<^sub>1)) (Suc (length vs))))" by fact
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val w) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics w xa (Addr a#vs) frs
                      (I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(Addr a#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using IH\<^sub>1 Jcc_pieces_FAss1[OF pcs, of h\<^sub>1 ls\<^sub>1 sh\<^sub>1 "Addr a"] by simp
@@ -1840,18 +1609,15 @@ next
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>2 (w#Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
     using FAssStatic\<^sub>1 field by(fastforce simp:split_beta handle_def simp del: split_paired_Ex)
     (* HERE: figure out a way to make this not spin so long *)
-  also have "handle P C M ?xa h\<^sub>2 (w#Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using FAssStatic\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="w#[Addr a]"])
 next
   case (SFAss\<^sub>1 e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F T D sfs sfs' sh\<^sub>1')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using SFAss\<^sub>1.prems(1) by clarsimp
   have "P\<^sub>1 \<turnstile> D sees F,Static:T in D" by(rule has_field_sees[OF has_field_idemp[OF SFAss\<^sub>1.hyps(3)]])
   then have field: "field P D F = (D,Static,T)" by simp
-  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>2)"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using IH Jcc_pieces_SFAss[OF pcs, where v'=w] pcs by simp
@@ -1863,26 +1629,26 @@ next
 next
   case (SFAssInit\<^sub>1 e\<^sub>2 h ls sh w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F t D v' h' ls' sh' sfs i sfs' sh'')
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>2)"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh'' v xa (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh'' v xa (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)),ics)#frs,sh''), err)"
     using SFAssInit\<^sub>1.prems(1) by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h\<^sub>1 sh\<^sub>1 (INIT D ([D],False) \<leftarrow> unit))"
     using has_field_is_class'[OF SFAssInit\<^sub>1.hyps(3)] by auto
   then obtain err' where pcs':
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs ls3 sh\<^sub>1 I h' ls' sh' v' xa (INIT D ([D],False) \<leftarrow> unit)
-    = (True, (w#vs,ls\<^sub>1,C,M,?pc,Calling D) # frs,
-       (None,h',(w#vs,ls\<^sub>1,C,M,?pc,Called)#frs,sh'), err')"
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 I h' ls' sh' v' xa (INIT D ([D],False) \<leftarrow> unit)
+    = (True, (w#vs,ls\<^sub>1,C,M,?pc,Calling D []) # frs,
+       (None,h',(w#vs,ls\<^sub>1,C,M,?pc,Called [])#frs,sh'), err')"
     using SFAssInit\<^sub>1.prems(1) by simp
   have ls: "ls\<^sub>1 = ls'" by(rule init\<^sub>1_same_loc[OF SFAssInit\<^sub>1.hyps(5)])
   have has: "P\<^sub>1 \<turnstile> D has F,Static:t in D" by(rule has_field_idemp[OF SFAssInit\<^sub>1.hyps(3)])
   have "P\<^sub>1 \<turnstile> D sees F,Static:t in D" by(rule has_field_sees[OF has])
   then have field: "field P D F = (D,Static,t)" by simp
-  have IH: "PROP ?P e\<^sub>2 h ls sh (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h ls sh (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   have IHI: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v')
-             h' ls' sh' E C M ?pc ics v' xa (w#vs) frs ls3 I" by fact
+             h' ls' sh' E C M ?pc ics v' xa (w#vs) frs I" by fact
   have "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using IH Jcc_pieces_SFAss[OF pcs, where v'=w] by simp
-  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D)#frs,sh\<^sub>1)"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D [])#frs,sh\<^sub>1)"
   proof(cases "sh\<^sub>1 D")
     case None then show ?thesis using None SFAssInit\<^sub>1.hyps(1,3-5,7-9) SFAssInit\<^sub>1.prems field
       apply(cases ics) by auto
@@ -1892,7 +1658,7 @@ next
     then show ?thesis using SFAssInit\<^sub>1.hyps(1,3-5,7-9) SFAssInit\<^sub>1.prems field Some
       apply(cases ics, simp_all) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (w#vs, ls\<^sub>1, C, M, ?pc, Called) # frs, sh')"
+  also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (w#vs, ls\<^sub>1, C, M, ?pc, Called []) # frs, sh')"
     using IHI pcs' by clarsimp
   also have "P \<turnstile> ... -jvm\<rightarrow> (None, h', (vs, ls\<^sub>1, C, M, ?pc + 1, ics) # frs, sh'')"
     using SFAssInit\<^sub>1.hyps(1,3-5,7-9) SFAssInit\<^sub>1.prems has field by(cases ics) auto
@@ -1902,28 +1668,28 @@ next
 next
   case (SFAssInitThrow\<^sub>1 e\<^sub>2 h ls sh w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F t D a h' ls' sh')
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>2)"
-  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)
+  obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)
     = (True, frs', (None,h',(v#vs,ls',C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D}:=e\<^sub>2)),ics)#frs,sh'), err)"
     using SFAssInitThrow\<^sub>1.prems(1) by clarsimp
   obtain a' where throw: "throw a = Throw a'" using eval\<^sub>1_final[OF SFAssInitThrow\<^sub>1.hyps(5)] by clarsimp
   have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h\<^sub>1 sh\<^sub>1 (INIT D ([D],False) \<leftarrow> unit))"
     using has_field_is_class'[OF SFAssInitThrow\<^sub>1.hyps(3)] by auto
-  then have pcs':
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs ls3 sh\<^sub>1 I h' ls' sh' v a' (INIT D ([D],False) \<leftarrow> unit)
-    = (True, (w#vs,ls\<^sub>1,C,M,?pc,Calling D) # frs, (None,h',(w#vs,ls\<^sub>1,C,M,?pc,Called)#frs,sh'),
-         P \<turnstile> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D) # frs,sh\<^sub>1)
-               -jvm\<rightarrow> handle P C M a' h' (w#vs) ls\<^sub>1 ?pc ics frs sh')"
-    using SFAssInitThrow\<^sub>1.prems(1) by simp
+  then obtain vs' where pcs':
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 I h' ls' sh' v a' (INIT D ([D],False) \<leftarrow> unit)
+    = (True, (w#vs,ls\<^sub>1,C,M,?pc,Calling D []) # frs, (None,h',(w#vs,ls\<^sub>1,C,M,?pc,Called [])#frs,sh'),
+         P \<turnstile> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D []) # frs,sh\<^sub>1)
+               -jvm\<rightarrow> handle P C M a' h' (vs'@w#vs) ls\<^sub>1 ?pc ics frs sh')"
+    using SFAssInitThrow\<^sub>1.prems(1) by simp blast
   have ls: "ls\<^sub>1 = ls'" by(rule init\<^sub>1_same_loc[OF SFAssInitThrow\<^sub>1.hyps(5)])
   have has: "P\<^sub>1 \<turnstile> D has F,Static:t in D" by(rule has_field_idemp[OF SFAssInitThrow\<^sub>1.hyps(3)])
   have "P\<^sub>1 \<turnstile> D sees F,Static:t in D" by(rule has_field_sees[OF has])
   then have field: "field P D F = (D,Static,t)" by simp
-  have IH: "PROP ?P e\<^sub>2 h ls sh (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h ls sh (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   have IHI: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw a)
-             h' ls' sh' E C M ?pc ics v a' (w#vs) frs ls3 I" by fact
+             h' ls' sh' E C M ?pc ics v a' (w#vs) frs I" by fact
   have "P \<turnstile> (None,h,(vs, ls, C, M, pc, ics) # frs,sh) -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using IH Jcc_pieces_SFAss[OF pcs, where v'=w] pcs by simp blast
-  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D)#frs,sh\<^sub>1)"
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,Calling D [])#frs,sh\<^sub>1)"
   proof(cases "sh\<^sub>1 D")
     case None then show ?thesis using SFAssInitThrow\<^sub>1.hyps(1,3,4,5) SFAssInitThrow\<^sub>1.prems field
       by(cases ics) auto
@@ -1933,42 +1699,36 @@ next
     then show ?thesis using SFAssInitThrow\<^sub>1.hyps(1,3,4,5) SFAssInitThrow\<^sub>1.prems field Some
       apply(cases ics) apply auto by(case_tac i, simp+)+
   qed
-  also have "P \<turnstile> ... -jvm\<rightarrow> handle P C M a' h' (w#vs) ls\<^sub>1 ?pc ics frs sh'"
+  also have "P \<turnstile> ... -jvm\<rightarrow> handle P C M a' h' (vs'@w#vs) ls\<^sub>1 ?pc ics frs sh'"
     using IHI pcs' throw by auto
-  also have "handle P C M a' h' (w#vs) ls\<^sub>1 ?pc ics frs sh'
-    = handle P C M a' h' vs ls\<^sub>1 ?pc ics frs sh'"
-    using SFAssInitThrow\<^sub>1.prems by(auto simp:handle_Cons)
-  finally show ?case using throw ls by(auto intro: exI[where x="?pc"])
+  finally show ?case using throw ls by(auto intro!: exI[where x = ?pc] exI[where x="vs'@[w]"])
 next
   case (SFAssThrow\<^sub>1 e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 e' h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using SFAssThrow\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e') h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs I" by fact
   show ?case using IH Jcc_pieces_SFAss[OF pcs, where v'=v] SFAssThrow\<^sub>1.prems nsub_RI_Jcc_pieces
     less_Suc_eq by auto
 next
   case (SFAssNone\<^sub>1 e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using SFAssNone\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>2)"
   let ?xa = "addr_of_sys_xcpt NoSuchFieldError"
   have "P \<turnstile> (None,h\<^sub>0,frs',sh\<^sub>0) -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using IH Jcc_pieces_SFAss[OF pcs, where v'=w] pcs by simp
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
     using SFAssNone\<^sub>1 apply(cases ics) by(clarsimp simp add: handle_def)+
-  also have "handle P C M ?xa h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using SFAssNone\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc] exI[where x="[w]"])
 next
   case (SFAssNonStatic\<^sub>1 e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 w h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' F T D)
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>1 ls\<^sub>1 sh\<^sub>1 v xa (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)
     = (True, frs', (None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,pc+size(compE\<^sub>2 (C'\<bullet>\<^sub>sF{D} := e\<^sub>2)),ics)#frs,sh\<^sub>1), err)"
     using SFAssNonStatic\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 I" by fact
+  have IH: "PROP ?P e\<^sub>2 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs I" by fact
   let ?pc = "pc + length(compE\<^sub>2 e\<^sub>2)"
   let ?xa = "addr_of_sys_xcpt IncompatibleClassChangeError"
   have "P\<^sub>1 \<turnstile> D sees F,NonStatic:T in D"
@@ -1983,10 +1743,7 @@ next
       then show ?thesis using SFAssNonStatic\<^sub>1 field
        by (auto simp:split_beta handle_def simp del: split_paired_Ex)
     qed(simp_all)
-  also have "handle P C M ?xa h\<^sub>1 (w#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-             handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-    using SFAssNonStatic\<^sub>1.prems by(auto simp add:handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc] exI[where x="[w]"])
 next
   case (Call\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 es pvs h\<^sub>2 ls\<^sub>2 sh\<^sub>2 Ca fs M' Ts T body D ls\<^sub>2' f h\<^sub>3 ls\<^sub>3 sh\<^sub>3)
   let ?frs\<^sub>0 = "(vs, ls\<^sub>0, C,M,pc,ics)#frs"
@@ -2006,10 +1763,10 @@ next
     using Call\<^sub>1.hyps(7) Call\<^sub>1.prems(1) by clarsimp
   have nsub: "\<not> sub_RI body" by(rule sees_wf\<^sub>1_nsub_RI[OF wf Call\<^sub>1.hyps(6)])
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (e\<bullet>M'(es)) =
     (True, ?frs\<^sub>0, (None, h\<^sub>3, (v#vs, ls\<^sub>2, C,M,?pc\<^sub>2+1,ics)#frs,sh\<^sub>3), err)"
    using Call\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   have IH_es: "PROP ?Ps es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (map Val pvs) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C M ?pc\<^sub>1 ics pvs xa
                     (map Val pvs) (Addr a#vs) frs (I - pcs(compxE\<^sub>2 e pc (size vs)))" by fact
@@ -2024,7 +1781,7 @@ next
   have M'_code: "compP\<^sub>2 P\<^sub>1,D,M',0 \<rhd> compE\<^sub>2 body @ [Return]" using beforeM M'_in_D by simp
   have M'_xtab: "compP\<^sub>2 P\<^sub>1,D,M' \<rhd> compxE\<^sub>2 body 0 0/{..<size(compE\<^sub>2 body)},0"
     using M'_in_D by(rule beforexM)
-  have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 f h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>2 ls3
+  have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 f h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>2
     ({..<size(compE\<^sub>2 body)})" by fact
   have cond: "Jcc_cond P\<^sub>1 (Class D # Ts) D M' [] 0 No_ics {..<length (compE\<^sub>2 body)} h\<^sub>2 sh\<^sub>2 body"
     using nsub_RI_Jcc_pieces[OF assms(1) nsub] M'_code M'_xtab by clarsimp
@@ -2044,18 +1801,17 @@ next
     show ?Err (is "?throw \<longrightarrow> ?err")
     proof
       assume throw: ?throw
-      with IH_body obtain pc\<^sub>2 where
+      with IH_body obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "0 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < size(compE\<^sub>2 body) \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>3 xa (compxE\<^sub>2 body 0 0)" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3"
+        2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3"
         using Call\<^sub>1.prems M'_code M'_xtab cond nsub_RI_Jcc_pieces nsub
          by (auto simp del:split_paired_Ex)
-      have "handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3 =
+      have "handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3 =
             handle P C M xa h\<^sub>3 (rev pvs @ Addr a # vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>3"
         using pc\<^sub>2 M'_in_D nclinit by(auto simp add:handle_def)
-      also have "\<dots> = handle P C M xa h\<^sub>3 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>3"
-        using Call\<^sub>1.prems by(auto simp add:handle_append handle_Cons)
-      finally show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] by(auto intro:exI[where x="?pc\<^sub>2"])
+      then show "?err" using pc\<^sub>2 jvm_trans[OF 1 2]
+       by(auto intro!:exI[where x="?pc\<^sub>2"] exI[where x="rev pvs@[Addr a]"])
     qed
   qed
 next
@@ -2066,10 +1822,10 @@ next
   let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,(w # vs, ls\<^sub>1, C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compEs\<^sub>2 es)"
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
     (True, ?frs\<^sub>0, (None, h\<^sub>2, (v#vs, ls\<^sub>2, C,M,?pc\<^sub>2+1,ics)#frs,sh\<^sub>2), err)"
    using CallParamsThrow\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   have 1: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> ?\<sigma>\<^sub>1" using Jcc_pieces_Call1[OF pcs] IH by clarsimp
   have Isubs: "{?pc\<^sub>1..<?pc\<^sub>2} \<subseteq> I - pcs (compxE\<^sub>2 e pc (length vs))"
@@ -2082,17 +1838,15 @@ next
       moreover
       have "PROP ?Ps es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 es' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C M ?pc\<^sub>1 ics pvs xa es'' (w#vs) frs
         (I - pcs (compxE\<^sub>2 e pc (length vs)))" by fact
-      ultimately have "\<exists>pc\<^sub>2.
+      ultimately obtain vs' where "\<exists>pc\<^sub>2.
         (?pc\<^sub>1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>1 + size(compEs\<^sub>2 es) \<and>
          \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxEs\<^sub>2 es ?pc\<^sub>1 (size vs + 1))) \<and>
-        P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (w#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@w#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         (is "\<exists>pc\<^sub>2. ?PC pc\<^sub>2 \<and> ?Exec pc\<^sub>2")
         using CallParamsThrow\<^sub>1 Isubs by auto
       then obtain pc\<^sub>2 where pc\<^sub>2: "?PC pc\<^sub>2" and 2: "?Exec pc\<^sub>2" by iprover
-      then have "handle P C M xa h\<^sub>2 (w#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2
-        = handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
-        using CallParamsThrow\<^sub>1.prems by(auto simp:handle_Cons)
-      then have "?err" using pc\<^sub>2 jvm_trans[OF 1 2] by(auto intro: exI[where x="pc\<^sub>2"])
+      then have "?err" using pc\<^sub>2 jvm_trans[OF 1 2]
+       by(auto intro!: exI[where x="pc\<^sub>2"] exI[where x="vs'@[w]"])
     }
     thus "?eq \<longrightarrow> ?err" by simp
   qed
@@ -2105,10 +1859,10 @@ next
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compEs\<^sub>2 es)"
   let ?xa = "addr_of_sys_xcpt NullPointer"
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
     (True, ?frs\<^sub>0, (None, h\<^sub>2, (v#vs, ls\<^sub>2, C,M,?pc\<^sub>2+1,ics)#frs,sh\<^sub>2), err)"
    using CallNull\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   have IH_es: "PROP ?Ps es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (map Val pvs) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C M ?pc\<^sub>1 ics pvs xa
                     (map Val pvs) (Null#vs) frs (I - pcs(compxE\<^sub>2 e pc (size vs)))" by fact
@@ -2122,20 +1876,17 @@ next
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M ?xa h\<^sub>2 (rev pvs@Null#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
     using CallNull\<^sub>1.prems
     by(auto simp:split_beta handle_def nth_append simp del: split_paired_Ex)
-  also have "handle P C M ?xa h\<^sub>2 (rev pvs@Null#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using CallNull\<^sub>1.prems by(auto simp:handle_Cons handle_append)
-  finally show ?case by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="rev pvs@[Null]"])
 next
   case (CallObjThrow\<^sub>1 e h ls sh e' h' ls' sh' M' es)
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs ls3 sh I h' ls' sh' v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h vs ls pc ics frs sh I h' ls' sh' v xa (e\<bullet>M'(es)) =
     (True, (vs, ls, C,M,pc,ics)#frs,
        (None, h', (v#vs, ls', C,M,pc+size(compE\<^sub>2 (e\<bullet>M'(es))),ics)#frs,sh'), err)"
    using CallObjThrow\<^sub>1.prems(1) by clarsimp
   obtain a' where throw: "throw e' = Throw a'"
     using eval\<^sub>1_final[OF CallObjThrow\<^sub>1.hyps(1)] by clarsimp
-  have IH: "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs ls3
+  have IH: "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   show ?case using IH Jcc_pieces_Call1[OF pcs] throw CallObjThrow\<^sub>1.prems nsub_RI_Jcc_pieces
     by auto
@@ -2156,10 +1907,10 @@ next
   have nmeth: "\<not>(\<exists>b Ts T body D. P \<turnstile> C' sees M', b :  Ts\<rightarrow>T = body in D)"
     using sees_method_compPD CallNone\<^sub>1.hyps(6) by fastforce
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
     (True, ?frs\<^sub>0, (None, h\<^sub>2, (v#vs, ls\<^sub>2, C,M,?pc\<^sub>2+1,ics)#frs,sh\<^sub>2), err)"
    using CallNone\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   have IH_es: "PROP ?Ps es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (map Val pvs) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C M ?pc\<^sub>1 ics pvs xa
                     (map Val pvs) (Addr a#vs) frs (I - pcs(compxE\<^sub>2 e pc (size vs)))" by fact
@@ -2169,10 +1920,7 @@ next
     using CallNone\<^sub>1.hyps(5) CallNone\<^sub>1.prems aux nmeth
      apply(cases "method P C' M'") apply(cases "find_handler P ?xa h\<^sub>2 frs sh\<^sub>2")
      by(auto simp: handle_def)
-  also have "handle P C M ?xa h\<^sub>2 (rev pvs@Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using CallNone\<^sub>1.prems by(auto simp add:handle_append handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="rev pvs@[Addr a]"])
 next
   case (CallStatic\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 a h\<^sub>1 ls\<^sub>1 sh\<^sub>1 es pvs h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C' fs M' Ts T body D)
   let ?frs\<^sub>0 = "(vs, ls\<^sub>0, C,M,pc,ics)#frs"
@@ -2190,10 +1938,10 @@ next
   obtain body' where method: "P \<turnstile> C' sees M', Static :  Ts\<rightarrow>T = body' in D"
     by (metis CallStatic\<^sub>1.hyps(6) P_def compP\<^sub>2_def sees_method_compP)
   obtain err where pcs:
-    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs ls3 sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
+    "Jcc_pieces P\<^sub>1 E C M h\<^sub>0 vs ls\<^sub>0 pc ics frs sh\<^sub>0 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (e\<bullet>M'(es)) =
     (True, ?frs\<^sub>0, (None, h\<^sub>2, (v#vs, ls\<^sub>2, C,M,?pc\<^sub>2+1,ics)#frs,sh\<^sub>2), err)"
    using CallStatic\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) xa vs frs
     (I - pcs (compxEs\<^sub>2 es (pc + length (compE\<^sub>2 e)) (Suc (length vs))))" by fact
   have IH_es: "PROP ?Ps es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (map Val pvs) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 C M ?pc\<^sub>1 ics pvs xa
                     (map Val pvs) (Addr a#vs) frs (I - pcs(compxE\<^sub>2 e pc (size vs)))" by fact
@@ -2203,10 +1951,7 @@ next
     using CallStatic\<^sub>1.hyps(5) CallStatic\<^sub>1.prems aux method
      apply(cases "method P C' M'") apply(cases "find_handler P ?xa h\<^sub>2 frs sh\<^sub>2")
      by(auto simp: handle_def) (meson frames_of.cases)+
-  also have "handle P C M ?xa h\<^sub>2 (rev pvs@Addr a#vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-             handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-    using CallStatic\<^sub>1.prems by(auto simp add:handle_append handle_Cons)
-  finally show ?case using pcs by (auto intro: exI[where x = ?pc\<^sub>2])
+  finally show ?case using pcs by (auto intro!: exI[where x = ?pc\<^sub>2] exI[where x="rev pvs@[Addr a]"])
 next
   case (SCallParamsThrow\<^sub>1 es h\<^sub>1 ls\<^sub>1 sh\<^sub>1 es' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 pvs ex es'' C' M')
   show ?case
@@ -2228,7 +1973,7 @@ next
         ultimately have "\<exists>pc\<^sub>2.
           (pc \<le> pc\<^sub>2 \<and> pc\<^sub>2 < pc + size(compEs\<^sub>2 es) \<and>
            \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxEs\<^sub>2 es pc (size vs))) \<and>
-          P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+          (\<exists>vs'. P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2)"
           (is "\<exists>pc\<^sub>2. ?PC pc\<^sub>2 \<and> ?Exec pc\<^sub>2")
           using SCallParamsThrow\<^sub>1 Isubs nclinit by auto
         then obtain pc\<^sub>2 where pc\<^sub>2: "?PC pc\<^sub>2" and 2: "?Exec pc\<^sub>2" by iprover
@@ -2260,9 +2005,6 @@ next
       using SCallNone\<^sub>1.prems nmeth nclinit
        apply(cases "method P C' M'") apply(cases "find_handler P ?xa h\<^sub>2 frs sh\<^sub>2")
        by(auto simp: handle_def)
-    also have "handle P C M ?xa h\<^sub>2 (rev pvs@vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-               handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-      using SCallNone\<^sub>1.prems nclinit by(auto simp add:handle_append)
     finally show ?thesis using nclinit by (auto intro: exI[where x = ?pc\<^sub>2])
   qed
 next
@@ -2289,9 +2031,6 @@ next
       using SCallNonStatic\<^sub>1.prems method nclinit
        apply(cases "method P C' M'") apply(cases "find_handler P ?xa h\<^sub>2 frs sh\<^sub>2")
        by(auto simp: handle_def) (meson frames_of.cases)+
-    also have "handle P C M ?xa h\<^sub>2 (rev pvs@vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2 =
-               handle P C M ?xa h\<^sub>2 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>2"
-      using SCallNonStatic\<^sub>1.prems nclinit by(auto simp add:handle_append handle_Cons)
     finally show ?thesis using nclinit by (auto intro: exI[where x = ?pc\<^sub>2])
   qed
 next
@@ -2305,9 +2044,9 @@ next
     let ?pc\<^sub>1 = "pc + length(compEs\<^sub>2 es)"
     let ?frs\<^sub>1 = "(rev pvs @ vs, ls\<^sub>1, C,M,?pc\<^sub>1,ics)#frs"
     let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,?frs\<^sub>1,sh\<^sub>1)"
-    let ?frs\<^sub>1' = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Calling D)#frs"
+    let ?frs\<^sub>1' = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Calling D [])#frs"
     let ?\<sigma>\<^sub>1' = "(None,h\<^sub>1,?frs\<^sub>1',sh\<^sub>1)"
-    let ?frs\<^sub>2 = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Called)#frs"
+    let ?frs\<^sub>2 = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Called [])#frs"
     let ?\<sigma>\<^sub>2 = "(None,h\<^sub>2,?frs\<^sub>2,sh\<^sub>2)"
     have ls: "ls\<^sub>1 = ls\<^sub>2" by(rule init\<^sub>1_same_loc[OF SCallInitThrow\<^sub>1.hyps(6)])
     have method: "\<exists>m'. P \<turnstile> C' sees M',Static:Ts\<rightarrow>T = m' in D" using SCallInitThrow\<^sub>1.hyps(3)
@@ -2316,11 +2055,11 @@ next
     have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h\<^sub>1 sh\<^sub>1 (INIT D ([D],False) \<leftarrow> unit))"
       using sees_method_is_class'[OF SCallInitThrow\<^sub>1.hyps(3)] by auto
     then obtain err' where pcs':
-      "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs ls3 sh\<^sub>1 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (INIT D ([D],False) \<leftarrow> unit)
+      "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs sh\<^sub>1 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v xa (INIT D ([D],False) \<leftarrow> unit)
       = (True, ?frs\<^sub>1', (None,h\<^sub>2,?frs\<^sub>2,sh\<^sub>2), err')"
       using SCallInitThrow\<^sub>1.prems(1) nclinit by auto
     have IHI: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw a)
-               h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v a' (rev pvs@vs) frs ls3 I" by fact
+               h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v a' (rev pvs@vs) frs I" by fact
     have IH_es: "PROP ?Ps es h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (map Val pvs) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C M pc ics pvs xa
                       (map Val pvs) vs frs I" by fact
     have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> ?\<sigma>\<^sub>1" using IH_es SCallInitThrow\<^sub>1.prems nclinit apply auto by fastforce+
@@ -2334,11 +2073,10 @@ next
       then show ?thesis using SCallInitThrow\<^sub>1.hyps(1,3-6) SCallInitThrow\<^sub>1.prems method Some
         apply(cases ics) apply auto by(case_tac i, simp+)+
     qed
-    also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h\<^sub>2 (rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs sh\<^sub>2"
+    also obtain vs' where "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M a' h\<^sub>2 (vs'@rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs sh\<^sub>2"
       using IHI pcs' throw by auto
-    also have "\<dots> = handle P C M a' h\<^sub>2 vs ls\<^sub>1 ?pc\<^sub>1 ics frs sh\<^sub>2"
-      using SCallInitThrow\<^sub>1.prems nclinit by(auto simp: handle_append)
-    finally show ?thesis using nclinit throw ls by(auto intro: exI[where x="?pc\<^sub>1"])
+    finally show ?thesis using nclinit throw ls
+     by(auto intro!: exI[where x="?pc\<^sub>1"] exI[where x="vs'@rev pvs"])
   qed
 next
   case (SCallInit\<^sub>1 es h\<^sub>0 ls\<^sub>0 sh\<^sub>0 pvs h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C' M' Ts T body D v' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 ls\<^sub>2' e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3)
@@ -2351,9 +2089,9 @@ next
     let ?pc\<^sub>1 = "pc + length(compEs\<^sub>2 es)"
     let ?frs\<^sub>1 = "(rev pvs @ vs, ls\<^sub>1, C,M,?pc\<^sub>1,ics)#frs"
     let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,?frs\<^sub>1,sh\<^sub>1)"
-    let ?frs\<^sub>1' = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Calling D)#frs"
+    let ?frs\<^sub>1' = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Calling D [])#frs"
     let ?\<sigma>\<^sub>1' = "(None,h\<^sub>1,?frs\<^sub>1',sh\<^sub>1)"
-    let ?frs\<^sub>2 = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Called)#frs"
+    let ?frs\<^sub>2 = "(rev pvs@vs,ls\<^sub>1,C,M,?pc\<^sub>1,Called [])#frs"
     let ?\<sigma>\<^sub>2 = "(None,h\<^sub>2,?frs\<^sub>2,sh\<^sub>2)"
     let ?frs\<^sub>2' = "([], ls\<^sub>2', D,M',0,No_ics) # ?frs\<^sub>1"
     let ?\<sigma>\<^sub>2' = "(None, h\<^sub>2, ?frs\<^sub>2', sh\<^sub>2)"
@@ -2372,11 +2110,11 @@ next
     have "Ex (WTrt2\<^sub>1 P\<^sub>1 E h\<^sub>1 sh\<^sub>1 (INIT D ([D],False) \<leftarrow> unit))"
       using sees_method_is_class'[OF SCallInit\<^sub>1.hyps(3)] by auto
     then obtain err' where pcs':
-      "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs ls3 sh\<^sub>1 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v' xa (INIT D ([D],False) \<leftarrow> unit)
+      "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 (rev pvs@vs) ls\<^sub>1 ?pc\<^sub>1 ics frs sh\<^sub>1 I h\<^sub>2 ls\<^sub>2 sh\<^sub>2 v' xa (INIT D ([D],False) \<leftarrow> unit)
       = (True, ?frs\<^sub>1', (None,h\<^sub>2,?frs\<^sub>2,sh\<^sub>2), err')"
       using SCallInit\<^sub>1.prems(1) nclinit by auto
     have IHI: "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v')
-               h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v' xa (rev pvs@vs) frs ls3 I" by fact
+               h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1 ics v' xa (rev pvs@vs) frs I" by fact
     have IH_es: "PROP ?Ps es h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (map Val pvs) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 C M pc ics pvs xa
                       (map Val pvs) vs frs I" by fact
     have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> ?\<sigma>\<^sub>1" using IH_es SCallInit\<^sub>1.prems nclinit apply auto by fastforce+
@@ -2400,7 +2138,7 @@ next
     have M'_code: "compP\<^sub>2 P\<^sub>1,D,M',0 \<rhd> compE\<^sub>2 body @ [Return]" using beforeM M'_in_D by simp
     have M'_xtab: "compP\<^sub>2 P\<^sub>1,D,M' \<rhd> compxE\<^sub>2 body 0 0/{..<size(compE\<^sub>2 body)},0"
       using M'_in_D by(rule beforexM)
-    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>1 ls3
+    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>1
       ({..<size(compE\<^sub>2 body)})" by fact
     have cond: "Jcc_cond P\<^sub>1 (Class D # Ts) D M' [] 0 No_ics {..<length (compE\<^sub>2 body)} h\<^sub>2 sh\<^sub>2 body"
       using nsub_RI_Jcc_pieces[OF assms(1) nsub] M'_code M'_xtab by clarsimp
@@ -2420,18 +2158,17 @@ next
       show ?Err (is "?throw \<longrightarrow> ?err")
       proof
         assume throw: ?throw
-        with IH_body obtain pc\<^sub>2 where
+        with IH_body obtain pc\<^sub>2 vs' where
           pc\<^sub>2: "0 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < size(compE\<^sub>2 body) \<and>
                 \<not> caught P pc\<^sub>2 h\<^sub>3 xa (compxE\<^sub>2 body 0 0)" and
-          2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>1 sh\<^sub>3"
+          2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>1 sh\<^sub>3"
           using SCallInit\<^sub>1.prems M'_code M'_xtab cond nsub_RI_Jcc_pieces nsub
            by (auto simp del:split_paired_Ex)
-        have "handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>1 sh\<^sub>3 =
+        have "handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>1 sh\<^sub>3 =
               handle P C M xa h\<^sub>3 (rev pvs @ vs) ls\<^sub>2 ?pc\<^sub>1 ics frs sh\<^sub>3"
           using pc\<^sub>2 M'_in_D ls nclinit' by(auto simp add:handle_def)
-        also have "\<dots> = handle P C M xa h\<^sub>3 vs ls\<^sub>2 ?pc\<^sub>1 ics frs sh\<^sub>3"
-          using SCallInit\<^sub>1.prems nclinit by(auto simp add:handle_append)
-        finally show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] nclinit by(auto intro:exI[where x="?pc\<^sub>1"])
+        then show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] nclinit
+         by(auto intro!:exI[where x="?pc\<^sub>1"] exI[where x="rev pvs"])
       qed
     qed
   qed
@@ -2443,21 +2180,20 @@ next
     then have s1: "pvs = []" "h\<^sub>1 = h\<^sub>2" "ls\<^sub>1 = ls\<^sub>2" "sh\<^sub>1 = sh\<^sub>2"
       using SCall\<^sub>1.hyps(1) evals\<^sub>1_cases(1) by blast+
     then have ls\<^sub>2': "ls\<^sub>2' = replicate (max_vars body) undefined" using SCall\<^sub>1.hyps(6) clinit by simp
-    let ?frs = "create_init_frame P C' # (vs, ls3, C,M,pc,ics)#frs"
+    let ?frs = "create_init_frame P C' # (vs, ls\<^sub>1, C,M,pc,ics)#frs"
     let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,?frs,sh\<^sub>1)"
     have method: "P\<^sub>1 \<turnstile> C' sees clinit,Static: []\<rightarrow>Void = body in C'"
       using SCall\<^sub>1.hyps(3) clinit s1(1) wf_sees_clinit[OF wf]
         by (metis is_class_def option.collapse sees_method_fun sees_method_is_class)
     then have M_code: "compP\<^sub>2 P\<^sub>1,C',clinit,0 \<rhd> compE\<^sub>2 body @ [Return]" by(rule beforeM)
-    have pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 vs ls\<^sub>1 pc ics frs ls3 sh\<^sub>1 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (C'\<bullet>\<^sub>sclinit([]))
+    have pcs: "Jcc_pieces P\<^sub>1 E C M h\<^sub>1 vs ls\<^sub>1 pc ics frs sh\<^sub>1 I h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa (C'\<bullet>\<^sub>sclinit([]))
          = (True, ?frs, (None, h\<^sub>3, tl ?frs, sh\<^sub>3(C'\<mapsto>(fst(the(sh\<^sub>3 C')),Done))),
         P \<turnstile> (None, h\<^sub>1, ?frs, sh\<^sub>1) -jvm\<rightarrow>
         (case ics of
-     Called \<Rightarrow> handle P C M xa h\<^sub>3 vs ls3 pc No_ics frs (sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))
-   | _ \<Rightarrow> (None, h\<^sub>3, (vs, ls3, C, M, pc, Throwing xa) # frs, sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))))"
-      using Jcc_pieces_clinit[OF assms(1),of E C M vs pc ics I h\<^sub>1 sh\<^sub>1 C' ls\<^sub>1 frs ls3 h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa]
+     Called Cs \<Rightarrow> (None, h\<^sub>3, (vs, ls\<^sub>1, C, M, pc, Throwing Cs xa) # frs, sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))))"
+      using Jcc_pieces_clinit[OF assms(1),of E C M vs pc ics I h\<^sub>1 sh\<^sub>1 C' ls\<^sub>1 frs h\<^sub>3 ls\<^sub>2 sh\<^sub>3 v xa]
          SCall\<^sub>1.prems(1) clinit s1(1) by clarsimp
-    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 [] C' clinit 0 No_ics v xa [] (tl ?frs) ls3
+    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 [] C' clinit 0 No_ics v xa [] (tl ?frs)
      ({..<size(compE\<^sub>2 body)})" by fact
     show ?thesis (is "?Norm \<and> ?Err")
     proof
@@ -2475,32 +2211,21 @@ next
       show ?Err (is "?throw \<longrightarrow> ?err")
       proof
         assume throw: ?throw
-        with IH_body obtain pc\<^sub>2 where
+        with IH_body obtain pc\<^sub>2 vs2 where
           pc\<^sub>2: "0 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < size(compE\<^sub>2 body) \<and>
                 \<not> caught P pc\<^sub>2 h\<^sub>3 xa (compxE\<^sub>2 body 0 0)" and
-          2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C' clinit xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics (tl ?frs) sh\<^sub>3"
+          2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C' clinit xa h\<^sub>3 vs2 ls\<^sub>3 pc\<^sub>2 No_ics (tl ?frs) sh\<^sub>3"
           using SCall\<^sub>1.prems Jcc_pieces_SCall_clinit_body[OF assms(1) wf pcs method] s1 ls\<^sub>2' by clarsimp
         show ?err using SCall\<^sub>1.prems(1) clinit
         proof(cases ics)
-          case No_ics
-          then have M: "M = clinit" using clinit local.SCall\<^sub>1(9) by auto
+          case (Called Cs)
           note 2
-          also have "handle P C' clinit xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics (tl ?frs) sh\<^sub>3
-             = (None, h\<^sub>3, ([], ls\<^sub>3, C', clinit, pc\<^sub>2, Throwing xa) # tl ?frs, sh\<^sub>3)"
-            using No_ics pc\<^sub>2 method by(auto simp: handle_def)
-          also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h\<^sub>3, (vs, ls3, C, M, pc, Throwing xa) # frs,
-             sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))" using M No_ics jvm_RInit_throw1 by simp
-          finally show ?thesis using pcs clinit M No_ics by simp
-        next
-          case Called
-          note 2
-          also have "handle P C' clinit xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics (tl ?frs) sh\<^sub>3
-             = (None, h\<^sub>3, ([], ls\<^sub>3, C', clinit, pc\<^sub>2, Throwing xa) # tl ?frs, sh\<^sub>3)"
-            using Called pc\<^sub>2 method by(auto simp: handle_def)
-          also have "P \<turnstile> \<dots> -jvm\<rightarrow>
-           handle P C M xa h\<^sub>3 vs ls3 pc No_ics frs (sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))"
-            using Called jvm_RInit_throw0 by simp
-          finally show ?thesis using pcs clinit Called by simp
+          also have "handle P C' clinit xa h\<^sub>3 vs2 ls\<^sub>3 pc\<^sub>2 No_ics (tl ?frs) sh\<^sub>3
+             = (None, h\<^sub>3, (vs, ls\<^sub>1, C, M, pc, Throwing (C'#Cs) xa) # frs, sh\<^sub>3)"
+            using Called pc\<^sub>2 method by(simp add: handle_def)
+          also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None, h\<^sub>3, (vs, ls\<^sub>1, C, M, pc, Throwing Cs xa) # frs,
+             sh\<^sub>3(C' \<mapsto> (fst (the (sh\<^sub>3 C')), Error)))" using Called jvm_Throwing by simp
+          finally show ?thesis using pcs clinit Called by(clarsimp intro!: exI[where x="[]"])
         qed(auto)
       qed
     qed
@@ -2533,7 +2258,7 @@ next
     have M'_code: "compP\<^sub>2 P\<^sub>1,D,M',0 \<rhd> compE\<^sub>2 body @ [Return]" using beforeM M'_in_D by simp
     have M'_xtab: "compP\<^sub>2 P\<^sub>1,D,M' \<rhd> compxE\<^sub>2 body 0 0/{..<size(compE\<^sub>2 body)},0"
       using M'_in_D by(rule beforexM)
-    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>2 ls3
+    have IH_body: "PROP ?P body h\<^sub>2 ls\<^sub>2' sh\<^sub>2 e' h\<^sub>3 ls\<^sub>3 sh\<^sub>3 (Class D # Ts) D M' 0 No_ics v xa [] ?frs\<^sub>2
       ({..<size(compE\<^sub>2 body)})" by fact
     have cond: "Jcc_cond P\<^sub>1 (Class D # Ts) D M' [] 0 No_ics {..<length (compE\<^sub>2 body)} h\<^sub>2 sh\<^sub>2 body"
       using nsub_RI_Jcc_pieces[OF assms(1) nsub] M'_code M'_xtab by clarsimp
@@ -2553,18 +2278,16 @@ next
       show ?Err (is "?throw \<longrightarrow> ?err")
       proof
         assume throw: ?throw
-        with IH_body obtain pc\<^sub>2 where
+        with IH_body obtain pc\<^sub>2 vs' where
           pc\<^sub>2: "0 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < size(compE\<^sub>2 body) \<and>
                 \<not> caught P pc\<^sub>2 h\<^sub>3 xa (compxE\<^sub>2 body 0 0)" and
-          2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3"
+          2: "P \<turnstile> ?\<sigma>\<^sub>2' -jvm\<rightarrow> handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3"
           using SCall\<^sub>1.prems M'_code M'_xtab cond nsub_RI_Jcc_pieces nsub
            by (auto simp del:split_paired_Ex)
-        have "handle P D M' xa h\<^sub>3 [] ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3 =
+        have "handle P D M' xa h\<^sub>3 vs' ls\<^sub>3 pc\<^sub>2 No_ics ?frs\<^sub>2 sh\<^sub>3 =
               handle P C M xa h\<^sub>3 (rev pvs @ vs) ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>3"
           using pc\<^sub>2 M'_in_D nclinit' by(auto simp add:handle_def)
-        also have "\<dots> = handle P C M xa h\<^sub>3 vs ls\<^sub>2 ?pc\<^sub>2 ics frs sh\<^sub>3"
-          using SCall\<^sub>1.prems nclinit by(auto simp add:handle_append)
-        finally show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] nclinit by(auto intro:exI[where x="?pc\<^sub>2"])
+        then show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] nclinit by(auto intro:exI[where x="?pc\<^sub>2"])
       qed
     qed
   qed
@@ -2577,14 +2300,14 @@ next
   let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,(vs,ls\<^sub>1,C,M,?pc\<^sub>1+1,ics)#frs,sh\<^sub>1)"
   let ?I = "I - pcs (compxE\<^sub>2 e\<^sub>2 (Suc ?pc\<^sub>1) (length vs))"
   have Isub: "{pc..<pc + length (compE\<^sub>2 e\<^sub>1)} \<subseteq> ?I" using Seq\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ls3 ?I" by fact
+  have IH: "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val w) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics w xa vs frs ?I" by fact
   have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,(w#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using Seq\<^sub>1.prems nsub_RI_Jcc_pieces IH Isub by auto
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> ?\<sigma>\<^sub>1" using Seq\<^sub>1 by auto
   finally have eval\<^sub>1: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> ?\<sigma>\<^sub>1".
   let ?pc\<^sub>2 = "?pc\<^sub>1 + 1 + length(compE\<^sub>2 e\<^sub>2)"
   let ?I' = "I - pcs(compxE\<^sub>2 e\<^sub>1 pc (size vs))"
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs ls3
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>2' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs
                      ?I'" by fact
   have Isub2: "{Suc (pc + length (compE\<^sub>2 e\<^sub>1))..<Suc (pc + length (compE\<^sub>2 e\<^sub>1) + length (compE\<^sub>2 e\<^sub>2))}
      \<subseteq> ?I'" using Seq\<^sub>1.prems by clarsimp
@@ -2602,10 +2325,10 @@ next
     show ?Err (is "?throw \<longrightarrow> ?err")
     proof
       assume throw: ?throw
-      then obtain pc\<^sub>2 where
+      then obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1+1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>2 \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>2 (?pc\<^sub>1+1) (size vs))" and
-        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using IH\<^sub>2 Seq\<^sub>1.prems nsub_RI_Jcc_pieces Isub2 by auto
       show "?err" using pc\<^sub>2 jvm_trans[OF eval\<^sub>1 eval\<^sub>2] by(auto intro: exI[where x=pc\<^sub>2])
     qed
@@ -2615,7 +2338,7 @@ next
   let ?I = "I - pcs (compxE\<^sub>2 e\<^sub>1 (Suc (pc + length (compE\<^sub>2 e\<^sub>0))) (length vs))"
   obtain a' where throw: "throw e = Throw a'" using eval\<^sub>1_final[OF SeqThrow\<^sub>1.hyps(1)] by clarsimp
   have Isub: "{pc..<pc + length (compE\<^sub>2 e\<^sub>0)} \<subseteq> ?I" using SeqThrow\<^sub>1.prems by clarsimp
-  have "PROP ?P e\<^sub>0 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a' vs frs ls3 ?I" by fact
+  have "PROP ?P e\<^sub>0 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw e) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a' vs frs ?I" by fact
   then show ?case using SeqThrow\<^sub>1.prems throw nsub_RI_Jcc_pieces Isub by auto
 next
   case (CondT\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e\<^sub>1 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 e\<^sub>2)
@@ -2627,7 +2350,7 @@ next
   let ?xt\<^sub>2 = "compxE\<^sub>2 e\<^sub>2 (pc+size(compE\<^sub>2 e)+size(compE\<^sub>2 e\<^sub>1)+2) ?d"
   let ?I = "I - (pcs ?xt\<^sub>1 \<union> pcs ?xt\<^sub>2)"
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> ?I" using CondT\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs ls3 ?I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs ?I" by fact
   have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,(Bool(True)#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using CondT\<^sub>1.prems nsub_RI_Jcc_pieces IH Isub by(auto simp: Int_Un_distrib)
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> ?\<sigma>\<^sub>1" using CondT\<^sub>1 by auto
@@ -2635,7 +2358,7 @@ next
   let ?pc\<^sub>1' = "?pc\<^sub>1 + 1 + length(compE\<^sub>2 e\<^sub>1)"
   let ?pc\<^sub>2' = "?pc\<^sub>1' + 1 + length(compE\<^sub>2 e\<^sub>2)"
   let ?I' = "I - pcs(compxE\<^sub>2 e pc ?d) - pcs(compxE\<^sub>2 e\<^sub>2 (?pc\<^sub>1'+1) ?d)"
-  have IH2: "PROP ?P e\<^sub>1 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs ls3 ?I'" by fact
+  have IH2: "PROP ?P e\<^sub>1 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs ?I'" by fact
   show ?case (is "?Norm \<and> ?Err")
   proof
     show ?Norm (is "?val \<longrightarrow> ?trans")
@@ -2654,10 +2377,10 @@ next
       assume throw: ?throw
       moreover
       note IH2
-      ultimately obtain pc\<^sub>2 where
+      ultimately obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1+1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>1' \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>1 (?pc\<^sub>1+1) (size vs))" and
-        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using CondT\<^sub>1.prems nsub_RI_Jcc_pieces by (fastforce simp:Int_Un_distrib)
       show "?err" using pc\<^sub>2 jvm_trans[OF eval\<^sub>1 eval\<^sub>2] by(auto intro: exI[where x=pc\<^sub>2])
     qed
@@ -2677,8 +2400,8 @@ next
   have pcs: "pcs(compxE\<^sub>2 e pc ?d) \<inter> pcs(?xt\<^sub>1 @ ?xt\<^sub>2) = {}"
     using CondF\<^sub>1.prems by (simp add:Int_Un_distrib)
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> ?I" using CondF\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 false h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool False) xa vs frs ls3 ?I" by fact
-  have IH2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>2 ics v xa vs frs ls3 ?I'" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 false h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool False) xa vs frs ?I" by fact
+  have IH2: "PROP ?P e\<^sub>2 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>2 ics v xa vs frs ?I'" by fact
   have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,(Bool(False)#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using CondF\<^sub>1.prems nsub_RI_Jcc_pieces IH Isub pcs by auto
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> ?\<sigma>\<^sub>1" using CondF\<^sub>1 by auto
@@ -2698,10 +2421,10 @@ next
     proof
       let ?I' = "I - pcs(compxE\<^sub>2 e pc ?d) - pcs(compxE\<^sub>2 e\<^sub>1 (?pc\<^sub>1+1) ?d)"
       assume throw: ?throw
-      then obtain pc\<^sub>2 where
+      then obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>2 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>2' \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>2 ?pc\<^sub>2 ?d)" and
-        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using CondF\<^sub>1.prems nsub_RI_Jcc_pieces IH2 by(fastforce simp:Int_Un_distrib)
       show "?err" using pc\<^sub>2 jvm_trans[OF eval\<^sub>1 eval\<^sub>2] by(auto intro: exI[where x=pc\<^sub>2])
     qed
@@ -2715,7 +2438,7 @@ next
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> ?I" using CondThrow\<^sub>1.prems by clarsimp
   have "pcs(compxE\<^sub>2 e pc ?d) \<inter> pcs(?xt\<^sub>1 @ ?xt\<^sub>2) = {}"
     using CondThrow\<^sub>1.prems by (simp add:Int_Un_distrib)
-  moreover have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw f) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ls3 ?I" by fact
+  moreover have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (throw f) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v xa vs frs ?I" by fact
   ultimately show ?case using CondThrow\<^sub>1.prems nsub_RI_Jcc_pieces Isub by auto (* HERE: spins, but completes *)
 next
   case (WhileF\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 c)
@@ -2725,7 +2448,7 @@ next
     using WhileF\<^sub>1.prems by clarsimp
   have Isub2: "{Suc (pc + length (compE\<^sub>2 e))..<Suc (pc + length (compE\<^sub>2 e) + length (compE\<^sub>2 c))}
      \<subseteq> I - pcs (compxE\<^sub>2 e pc (length vs))" using WhileF\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 false h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool False) xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 false h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool False) xa vs frs
     (I - pcs (compxE\<^sub>2 c (Suc (pc + length (compE\<^sub>2 e))) (length vs)))" by fact
   have "P \<turnstile> (None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0) -jvm\<rightarrow>
             (None,h\<^sub>1,(Bool False#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
@@ -2745,9 +2468,9 @@ next
     using WhileT\<^sub>1.prems by clarsimp
   have Isub2: "{Suc (pc + length (compE\<^sub>2 e))..<Suc (pc + length (compE\<^sub>2 e) + length (compE\<^sub>2 c))}
      \<subseteq> I - pcs (compxE\<^sub>2 e pc (length vs))" using WhileT\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs ls3
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs
     (I - pcs (compxE\<^sub>2 c (Suc (pc + length (compE\<^sub>2 e))) (length vs)))" by fact
-  have IH2: "PROP ?P c h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v\<^sub>1) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (Suc ?pc) ics v\<^sub>1 xa vs frs ls3
+  have IH2: "PROP ?P c h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (Val v\<^sub>1) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (Suc ?pc) ics v\<^sub>1 xa vs frs
     (I - pcs (compxE\<^sub>2 e pc (length vs)))" by fact
   have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,(Bool True#vs,ls\<^sub>1,C,M,?pc,ics)#frs,sh\<^sub>1)"
     using WhileT\<^sub>1.prems nsub_RI_Jcc_pieces IH Isub by auto
@@ -2772,11 +2495,11 @@ next
     proof
       assume throw: ?throw
       moreover
-      have "PROP ?P (while (e) c) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 e\<^sub>3 h\<^sub>3 ls\<^sub>3 sh\<^sub>3 E C M pc ics v xa vs frs ls3 I" by fact
-      ultimately obtain pc\<^sub>2 where
+      have "PROP ?P (while (e) c) h\<^sub>2 ls\<^sub>2 sh\<^sub>2 e\<^sub>3 h\<^sub>3 ls\<^sub>3 sh\<^sub>3 E C M pc ics v xa vs frs I" by fact
+      ultimately obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "pc \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc'+3 \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>3 xa (compxE\<^sub>2 (while (e) c) pc (size vs))" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>2 -jvm\<rightarrow> handle P C M xa h\<^sub>3 vs ls\<^sub>3 pc\<^sub>2 ics frs sh\<^sub>3"
+        2: "P \<turnstile> ?\<sigma>\<^sub>2 -jvm\<rightarrow> handle P C M xa h\<^sub>3 (vs'@vs) ls\<^sub>3 pc\<^sub>2 ics frs sh\<^sub>3"
         using WhileT\<^sub>1.prems by (auto simp:add.assoc eval_nat_numeral)
       show "?err" using pc\<^sub>2 jvm_trans[OF 1 2] by(auto intro: exI[where x=pc\<^sub>2])
     qed
@@ -2786,7 +2509,7 @@ next
   let ?I = "I - pcs (compxE\<^sub>2 c (Suc (pc + length (compE\<^sub>2 e))) (length vs))"
   obtain a' where throw: "throw e' = Throw a'" using eval\<^sub>1_final[OF WhileCondThrow\<^sub>1.hyps(1)] by clarsimp
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> ?I" using WhileCondThrow\<^sub>1.prems by clarsimp
-  have "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs ls3 ?I" by fact
+  have "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs ?I" by fact
   then show ?case using WhileCondThrow\<^sub>1.prems throw nsub_RI_Jcc_pieces Isub by auto
 next
   case (WhileBodyThrow\<^sub>1 e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 c e' h\<^sub>2 ls\<^sub>2 sh\<^sub>2)
@@ -2796,7 +2519,7 @@ next
   let ?I = "I - pcs (compxE\<^sub>2 c (Suc (pc + length (compE\<^sub>2 e))) (length vs))"
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> ?I"
     using WhileBodyThrow\<^sub>1.prems by clarsimp
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs ls3 ?I" by fact
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 true h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Bool True) xa vs frs ?I" by fact
   then have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,(Bool(True)#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
     using WhileBodyThrow\<^sub>1.prems nsub_RI_Jcc_pieces Isub by auto
   also have "P \<turnstile> \<dots> -jvm\<rightarrow> ?\<sigma>\<^sub>1" using  WhileBodyThrow\<^sub>1 by auto
@@ -2810,12 +2533,12 @@ next
     proof
       assume throw: ?throw
       moreover
-      have "PROP ?P c h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs ls3
+      have "PROP ?P c h\<^sub>1 ls\<^sub>1 sh\<^sub>1 (throw e') h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M (?pc\<^sub>1+1) ics v xa vs frs
                     (I - pcs (compxE\<^sub>2 e pc (size vs)))" by fact
-      ultimately obtain pc\<^sub>2 where
+      ultimately obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1+1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>1' \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 c (?pc\<^sub>1+1) (size vs))" and
-        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        eval\<^sub>2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using WhileBodyThrow\<^sub>1.prems nsub_RI_Jcc_pieces by (fastforce simp:Int_Un_distrib) (* HERE: make faster - might use Isub/IH approach *)
       show "?err" using pc\<^sub>2 jvm_trans[OF eval\<^sub>1 eval\<^sub>2] by(auto intro: exI[where x=pc\<^sub>2])
     qed
@@ -2831,16 +2554,13 @@ next
     show ?Err (is "?throw \<longrightarrow> ?err")
     proof
       assume throw:?throw
-      have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) a vs frs ls3 I" by fact
+      have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (addr a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics (Addr a) a vs frs I" by fact
       then have "P \<turnstile> (None, h\<^sub>0, (vs, ls\<^sub>0, C, M, pc, ics) # frs, sh\<^sub>0) -jvm\<rightarrow>
                  (None, h\<^sub>1, (Addr xa#vs, ls\<^sub>1, C, M, ?pc, ics) # frs, sh\<^sub>1)"
         using Throw\<^sub>1 nsub_RI_Jcc_pieces Isub throw by auto
       also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M xa h\<^sub>1 (Addr xa#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
         using Throw\<^sub>1.prems by(auto simp add:handle_def)
-      also have "handle P C M xa h\<^sub>1 (Addr xa#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-                 handle P C M xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-        using Throw\<^sub>1.prems by(auto simp add:handle_Cons)
-      finally show "?err" apply auto by(auto intro: exI[where x="?pc"])
+      finally show "?err" apply auto by(auto intro!: exI[where x="?pc"] exI[where x="[Addr xa]"])
     qed
   qed
 next
@@ -2855,23 +2575,20 @@ next
     show ?Err (is "?throw \<longrightarrow> ?err")
     proof
       assume throw: ?throw
-      have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs ls3 I" by fact
+      have "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 null h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics Null xa vs frs I" by fact
       then have "P \<turnstile> (None, h\<^sub>0, (vs, ls\<^sub>0, C, M, pc, ics) # frs, sh\<^sub>0) -jvm\<rightarrow>
                  (None, h\<^sub>1, (Null#vs, ls\<^sub>1, C, M, ?pc, ics) # frs, sh\<^sub>1)"
         using ThrowNull\<^sub>1.prems nsub_RI_Jcc_pieces Isub by auto
       also have "P \<turnstile> \<dots> -jvm\<rightarrow>  handle P C M ?xa h\<^sub>1 (Null#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1"
         using ThrowNull\<^sub>1.prems by(auto simp add:handle_def)
-      also have "handle P C M ?xa h\<^sub>1 (Null#vs) ls\<^sub>1 ?pc ics frs sh\<^sub>1 =
-                 handle P C M ?xa h\<^sub>1 vs ls\<^sub>1 ?pc ics frs sh\<^sub>1"
-        using ThrowNull\<^sub>1.prems by(auto simp add:handle_Cons)
-      finally show "?err" using throw by(auto intro: exI[where x="?pc"])
+      finally show "?err" using throw by(auto intro!: exI[where x="?pc"] exI[where x="[Null]"])
     qed
   qed
 next
   case (ThrowThrow\<^sub>1 e h ls sh e' h' ls' sh')
   obtain a' where throw: "throw e' = Throw a'" using eval\<^sub>1_final[OF ThrowThrow\<^sub>1.hyps(1)] by clarsimp
   have Isub: "{pc..<pc + length (compE\<^sub>2 e)} \<subseteq> I" using ThrowThrow\<^sub>1.prems by clarsimp
-  have "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs ls3 I" by fact
+  have "PROP ?P e h ls sh (throw e') h' ls' sh' E C M pc ics v a' vs frs I" by fact
   then show ?case using ThrowThrow\<^sub>1.prems throw nsub_RI_Jcc_pieces Isub by auto
 next
   case (Try\<^sub>1 e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 v\<^sub>1 h\<^sub>1 ls\<^sub>1 sh\<^sub>1 Ci i e\<^sub>2)
@@ -2903,19 +2620,19 @@ next
   have "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> (None,h\<^sub>1,((Addr a)#vs,ls\<^sub>1,C,M, ?pc\<^sub>1+1,ics) # frs,sh\<^sub>1)"
   proof -
     have ics: "ics = No_ics" using TryCatch\<^sub>1.prems by auto
-    have "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Throw a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a vs frs ls3 {pc..<pc + length (compE\<^sub>2 e\<^sub>1)}"
+    have "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Throw a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a vs frs {pc..<pc + length (compE\<^sub>2 e\<^sub>1)}"
       by fact
     moreover have "P,C,M \<rhd> compxE\<^sub>2 e\<^sub>1 pc (size vs)/{pc..<?pc\<^sub>1},size vs"
       using beforex I pcs_subset by(force elim!: beforex_appendD1)
     ultimately have
       "\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < ?pc\<^sub>1 \<and>
              \<not> caught P pc\<^sub>1 h\<^sub>1 a (compxE\<^sub>2 e\<^sub>1 pc (size vs)) \<and>
-             P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1"
+             (\<exists>vs'. P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1)"
       using  TryCatch\<^sub>1.prems nsub_RI_Jcc_pieces by auto
-    then obtain pc\<^sub>1 where
+    then obtain pc\<^sub>1 vs' where
       pc\<^sub>1_in_e\<^sub>1: "pc \<le> pc\<^sub>1" "pc\<^sub>1 < ?pc\<^sub>1" and
       pc\<^sub>1_not_caught: "\<not> caught P pc\<^sub>1 h\<^sub>1 a (compxE\<^sub>2 e\<^sub>1 pc (size vs))" and
-      0: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1" by iprover
+      0: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1" by iprover
     from beforex obtain xt\<^sub>0 xt\<^sub>1
       where ex_tab: "ex_table_of P C M = xt\<^sub>0 @ ?xt @ xt\<^sub>1"
       and disj: "pcs xt\<^sub>0 \<inter> I = {}" by(auto simp:beforex_def)
@@ -2931,7 +2648,7 @@ next
   have "P,C,M \<rhd> compxE\<^sub>2 ?e pc (size vs) / I,size vs" by fact
   hence beforex\<^sub>2: "P,C,M \<rhd> compxE\<^sub>2 e\<^sub>2 ?pc\<^sub>1' (size vs) / ?I\<^sub>2, size vs"
     using I pcs_subset[of _ ?pc\<^sub>1'] by(auto elim!:beforex_appendD2)
-  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ?ls\<^sub>1 sh\<^sub>1 e\<^sub>2' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1' ics v xa vs frs ls3 ?I\<^sub>2" by fact
+  have IH\<^sub>2: "PROP ?P e\<^sub>2 h\<^sub>1 ?ls\<^sub>1 sh\<^sub>1 e\<^sub>2' h\<^sub>2 ls\<^sub>2 sh\<^sub>2 E C M ?pc\<^sub>1' ics v xa vs frs ?I\<^sub>2" by fact
   show ?case (is "?Norm \<and> ?Err")
   proof
     show ?Norm (is "?val \<longrightarrow> ?trans")
@@ -2945,10 +2662,10 @@ next
     show ?Err (is "?throw \<longrightarrow> ?err")
     proof
       assume throw: ?throw
-      then obtain pc\<^sub>2 where
+      then obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1+2 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>2 \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxE\<^sub>2 e\<^sub>2 ?pc\<^sub>1' (size vs))" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 vs ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using IH\<^sub>2 beforex\<^sub>2 TryCatch\<^sub>1.prems nsub_RI_Jcc_pieces by auto
       show ?err using pc\<^sub>2 jvm_trans[OF 1 2] apply (simp add:match_ex_entry)
        by(auto intro: exI[where x=pc\<^sub>2])
@@ -2962,19 +2679,19 @@ next
   let ?xt = "compxE\<^sub>2 ?e pc (size vs)"
   have I: "{pc..<pc + length (compE\<^sub>2 (try e\<^sub>1 catch(Ci i) e\<^sub>2))} \<subseteq> I"
    and beforex: "P,C,M \<rhd> ?xt/I,size vs" using TryThrow\<^sub>1.prems by simp+
-  have "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Throw a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a vs frs ls3 
+  have "PROP ?P e\<^sub>1 h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Throw a) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 E C M pc ics v a vs frs 
    {pc..<pc + length (compE\<^sub>2 e\<^sub>1)}" by fact
   moreover have "P,C,M \<rhd> compxE\<^sub>2 e\<^sub>1 pc (size vs)/{pc..<?pc\<^sub>1},size vs"
     using beforex I pcs_subset by(force elim!: beforex_appendD1)
     ultimately have
       "\<exists>pc\<^sub>1. pc \<le> pc\<^sub>1 \<and> pc\<^sub>1 < ?pc\<^sub>1 \<and>
              \<not> caught P pc\<^sub>1 h\<^sub>1 a (compxE\<^sub>2 e\<^sub>1 pc (size vs)) \<and>
-             P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1"
+             (\<exists>vs'. P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1)"
       using TryThrow\<^sub>1.prems nsub_RI_Jcc_pieces by auto
-    then obtain pc\<^sub>1 where
+    then obtain pc\<^sub>1 vs' where
       pc\<^sub>1_in_e\<^sub>1: "pc \<le> pc\<^sub>1" "pc\<^sub>1 < ?pc\<^sub>1" and
       pc\<^sub>1_not_caught: "\<not> caught P pc\<^sub>1 h\<^sub>1 a (compxE\<^sub>2 e\<^sub>1 pc (size vs))" and
-      0: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 vs ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1" by iprover
+      0: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle P C M a h\<^sub>1 (vs'@vs) ls\<^sub>1 pc\<^sub>1 ics frs sh\<^sub>1" by iprover
   show ?case (is "?N \<and> (?eq \<longrightarrow> ?err)")
   proof
     show ?N by simp
@@ -2992,7 +2709,7 @@ next
   let ?pc\<^sub>1 = "pc + length(compE\<^sub>2 e)"
   let ?\<sigma>\<^sub>0 = "(None,h\<^sub>0,(vs,ls\<^sub>0,C,M,pc,ics)#frs,sh\<^sub>0)"
   let ?\<sigma>\<^sub>1 = "(None,h\<^sub>1,(v#vs,ls\<^sub>1,C,M,?pc\<^sub>1,ics)#frs,sh\<^sub>1)"
-  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 [] C M pc ics v xa vs frs []
+  have IH: "PROP ?P e h\<^sub>0 ls\<^sub>0 sh\<^sub>0 (Val v) h\<^sub>1 ls\<^sub>1 sh\<^sub>1 [] C M pc ics v xa vs frs
     (I - pcs (compxEs\<^sub>2 es ?pc\<^sub>1 (Suc (length vs))))" by fact
   then have 1: "P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> ?\<sigma>\<^sub>1" using Jcc_pieces_Cons[OF _ Cons\<^sub>1.prems(1-5)] by auto
   let ?pc\<^sub>2 = "?pc\<^sub>1 + length(compEs\<^sub>2 es)"
@@ -3012,13 +2729,12 @@ next
     show ?Err (is "?throw \<longrightarrow> (\<exists>pc\<^sub>2. ?H pc\<^sub>2)")
     proof
       assume throw: ?throw
-      then obtain pc\<^sub>2 where
+      then obtain pc\<^sub>2 vs' where
         pc\<^sub>2: "?pc\<^sub>1 \<le> pc\<^sub>2 \<and> pc\<^sub>2 < ?pc\<^sub>2 \<and>
               \<not> caught P pc\<^sub>2 h\<^sub>2 xa (compxEs\<^sub>2 es ?pc\<^sub>1 (size vs + 1))" and
-        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (v#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
+        2: "P \<turnstile> ?\<sigma>\<^sub>1 -jvm\<rightarrow> handle P C M xa h\<^sub>2 (vs'@v#vs) ls\<^sub>2 pc\<^sub>2 ics frs sh\<^sub>2"
         using IHs Cons\<^sub>1.prems by(fastforce simp:Cons_eq_append_conv neq_Nil_conv)
-      have "?H pc\<^sub>2" using Cons\<^sub>1.prems pc\<^sub>2 jvm_trans[OF 1 2]
-        by (auto simp add: handle_Cons)
+      have "?H pc\<^sub>2" using Cons\<^sub>1.prems pc\<^sub>2 jvm_trans[OF 1 2] by(auto intro!: exI[where x="vs'@[v]"])
       thus "\<exists>pc\<^sub>2. ?H pc\<^sub>2" by iprover
     qed
   qed
@@ -3031,22 +2747,20 @@ next
   case InitFinal\<^sub>1 then show ?case using eval\<^sub>1_final_same[OF InitFinal\<^sub>1.hyps(1)] by clarsimp
 next
   case (InitNone\<^sub>1 sh C\<^sub>0 C' Cs e h l e' h' l' sh')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa
      (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitNone\<^sub>1.prems(1) by clarsimp
   let ?sh = "(sh(C\<^sub>0 \<mapsto> (sblank P\<^sub>1 C\<^sub>0, Prepared)))"
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,frs',?sh)"
-    using InitNone\<^sub>1 jvm_InitNone[where P = P]
-     apply(cases frs', simp) by(cases Cs, simp+)
+    using InitNone\<^sub>1 jvm_InitNone[where P = P] by(cases frs', simp+)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note 1
-      also have "P \<turnstile> (None,h,frs',?sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh')"
+      also have "P \<turnstile> (None,h,frs',?sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh')"
         using InitNone\<^sub>1.hyps(3)[of E] Jcc_pieces_InitNone[OF assms(1) pcs] InitNone\<^sub>1.prems val
          by clarsimp
       finally have ?jvm1 using pcs by simp
@@ -3055,32 +2769,32 @@ next
   next
     { assume throw: ?e2
       note 1
-      also have "P \<turnstile> (None,h,frs',?sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'"
-        using InitNone\<^sub>1.hyps(3)[of E] Jcc_pieces_InitNone[OF assms(1) pcs] throw by clarsimp
-      finally have ?err using pcs by simp
+      also obtain vs' where "P \<turnstile> (None,h,frs',?sh)
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
+        using InitNone\<^sub>1.hyps(3)[of E] Jcc_pieces_InitNone[OF assms(1) pcs] throw
+         by clarsimp presburger
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitDone\<^sub>1 sh C\<^sub>0 sfs C' Cs e h l e' h' l' sh')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa
      (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitDone\<^sub>1.prems(1) by clarsimp
-  let ?frs' = "(calling_to_called (hd frs'))#(tl frs')"
-  have IH: "PROP ?P (INIT C' (Cs,True) \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs ls3 I"
+  let ?frs' = "(calling_to_scalled (hd frs'))#(tl frs')"
+  have IH: "PROP ?P (INIT C' (Cs,True) \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs I"
     by fact
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,?frs',sh)"
-    using InitDone\<^sub>1 jvm_InitDP[where P = P] apply(cases frs', simp) apply(cases Cs, simp) by force
+    using InitDone\<^sub>1 jvm_InitDP[where P = P] by(cases frs', simp+)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh')"
+      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh')"
         using IH Jcc_pieces_InitDP[OF assms(1) pcs] InitDone\<^sub>1.prems val by clarsimp
       finally have ?jvm1 using pcs by simp
     }
@@ -3088,33 +2802,31 @@ next
   next
     { assume throw: ?e2
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'"
+      also obtain vs' where "P \<turnstile> (None,h,?frs',sh)
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
         using IH Jcc_pieces_InitDP[OF assms(1) pcs] InitDone\<^sub>1.prems throw by clarsimp
-      finally have ?err using pcs by simp
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitProcessing\<^sub>1 sh C\<^sub>0 sfs C' Cs e h l e' h' l' sh')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa
      (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitProcessing\<^sub>1.prems(1) by clarsimp
-  let ?frs' = "(calling_to_called (hd frs'))#(tl frs')"
-  have IH: "PROP ?P (INIT C' (Cs,True) \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs ls3 I"
+  let ?frs' = "(calling_to_scalled (hd frs'))#(tl frs')"
+  have IH: "PROP ?P (INIT C' (Cs,True) \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs I"
     by fact
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,?frs',sh)"
-    using InitProcessing\<^sub>1 jvm_InitDP[where P = P] apply(cases frs', simp) apply(cases Cs, simp)
-     by (metis jvm_InitDP list.sel(1) list.sel(3) list.simps(5)) (* by force *)
+    using InitProcessing\<^sub>1 jvm_InitDP[where P = P] by(cases frs', simp+)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh')"
+      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh')"
         using IH Jcc_pieces_InitDP[OF assms(1) pcs] InitProcessing\<^sub>1.prems val by clarsimp
       finally have ?jvm1 using pcs by simp
     }
@@ -3122,95 +2834,81 @@ next
   next
     { assume throw: ?e2
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'"
+      also obtain vs' where "P \<turnstile> (None,h,?frs',sh)
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
         using IH Jcc_pieces_InitDP[OF assms(1) pcs] InitProcessing\<^sub>1.prems throw by clarsimp
-      finally have ?err using pcs by simp
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitError\<^sub>1 sh C\<^sub>0 sfs Cs e h l e' h' l' sh' C')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa
      (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitError\<^sub>1.prems(1) by clarsimp
   let ?e\<^sub>0 = "THROW NoClassDefFoundError"
-  let ?frs' = "rinit_frame P C\<^sub>0 ?e\<^sub>0 #(calling_to_called (hd frs'))#(tl frs')"
-  have IH: "PROP ?P (RI (C\<^sub>0,?e\<^sub>0) ; Cs \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs ls3 I" by fact
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  let ?frs' = "(calling_to_sthrowing (hd frs') (addr_of_sys_xcpt NoClassDefFoundError))#(tl frs')"
+  have IH: "PROP ?P (RI (C\<^sub>0,?e\<^sub>0) ; Cs \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs I" by fact
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil"
+     and tl: "tl frs' = frs" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,?frs',sh)"
   proof(cases frs')
-    case (Cons a list) then show ?thesis using ics
-    proof(cases Cs)
-      case Nil
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = Calling C\<^sub>0" using Cons Nil ics by simp
-      then show ?thesis
-       using Cons Nil a IH InitError\<^sub>1.prems jvm_InitError0[where P = P] InitError\<^sub>1.hyps(1) by simp
-    next
-      case CCons: (Cons C' Cs')
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = ICalling C\<^sub>0" using Cons CCons ics by simp
-      then show ?thesis
-       using Cons CCons a IH InitError\<^sub>1.prems jvm_InitError1[where P = P] InitError\<^sub>1.hyps(1) by simp
-    qed
+    case (Cons a list)
+    obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
+    then have "ics' = Calling C\<^sub>0 Cs" using Cons ics by simp
+    then show ?thesis
+     using Cons a IH InitError\<^sub>1.prems jvm_InitError[where P = P] InitError\<^sub>1.hyps(1) by simp
   qed(simp)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
-      note 1
-      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh')"
-        using IH Jcc_pieces_InitError[OF assms(1) pcs InitError\<^sub>1.hyps(1)] val by simp
-      finally have ?jvm1 using pcs by simp
+      then have False using val rinit\<^sub>1_throw[OF InitError\<^sub>1.hyps(2)] by blast
+      then have ?jvm1 using pcs by simp
     }
     thus "?e1 \<longrightarrow> ?jvm1" by simp
   next
     { assume throw: ?e2
+      let ?frs = "(calling_to_throwing (hd frs') (addr_of_sys_xcpt NoClassDefFoundError))#(tl frs')"
+      have exec: "exec (P, (None,h,?frs,sh)) = Some (None,h,?frs',sh)"
+        using exec_ErrorThrowing[where sh=sh, OF InitError\<^sub>1.hyps(1)] ics by(cases "hd frs'", simp)
+      obtain vs' where 2: "P \<turnstile> (None,h,?frs,sh) -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
+        using IH Jcc_pieces_InitError[OF assms(1) pcs InitError\<^sub>1.hyps(1)] throw by clarsimp
+      have neq: "(None, h, ?frs, sh) \<noteq> handle P C M xa h' (vs' @ vs) l pc ics frs sh'"
+        using tl ics by(cases "hd frs'", simp add: handle_frs_tl_neq)
+
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'"
-        using IH Jcc_pieces_InitError[OF assms(1) pcs InitError\<^sub>1.hyps(1)] throw by simp
-      finally have ?err using pcs by simp
+      also have "P \<turnstile> (None,h,?frs',sh) -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
+        using exec_1_exec_all_conf[OF exec 2] neq by simp
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitObject\<^sub>1 sh C\<^sub>0 sfs sh' C' Cs e h l e' h' l' sh'')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l'
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l'
     (sh(C\<^sub>0 \<mapsto> (sfs, Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitObject\<^sub>1.prems(1) by clarsimp
-  let ?frs' = "(create_init_frame P C\<^sub>0)#(calling_to_called (hd frs'))#(tl frs')"
-  have IH: "PROP ?P (INIT C' (C\<^sub>0#Cs,True) \<leftarrow> e) h l sh' e' h' l' sh'' E C M pc ics v xa vs frs ls3 I"
+  let ?frs' = "(calling_to_called (hd frs'))#(tl frs')"
+  have IH: "PROP ?P (INIT C' (C\<^sub>0#Cs,True) \<leftarrow> e) h l sh' e' h' l' sh'' E C M pc ics v xa vs frs I"
     by fact
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,?frs',sh')"
   proof(cases frs')
-    case (Cons a list) then show ?thesis using ics
-    proof(cases Cs)
-      case Nil
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = Calling C\<^sub>0" using Cons Nil ics by simp
-      then show ?thesis
-       using Cons Nil a IH InitObject\<^sub>1 jvm_InitObj0[where P = P] by simp
-    next
-      case CCons: (Cons C' Cs')
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = ICalling C\<^sub>0" using Cons CCons ics by simp
-      then show ?thesis
-       using Cons CCons a IH InitObject\<^sub>1 jvm_InitObj1[where P = P] by simp
-    qed
+    case (Cons a list)
+    obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
+    then have "ics' = Calling C\<^sub>0 Cs" using Cons ics by simp
+    then show ?thesis
+     using Cons Nil a IH InitObject\<^sub>1 jvm_InitObj[where P = P] by simp
   qed(simp)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh') -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh'')"
+      also have "P \<turnstile> (None,h,?frs',sh') -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh'')"
         using IH Jcc_pieces_InitObj[OF assms(1) pcs] InitObject\<^sub>1 val by simp
       finally have ?jvm1 using pcs by simp
     }
@@ -3218,20 +2916,20 @@ next
   next
     { assume throw: ?e2
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh')
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh''"
-        using IH Jcc_pieces_InitObj[OF assms(1) pcs] InitObject\<^sub>1 throw by simp
-      finally have ?err using pcs by simp
+      also obtain vs' where "P \<turnstile> (None,h,?frs',sh')
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh''"
+        using IH Jcc_pieces_InitObj[OF assms(1) pcs] InitObject\<^sub>1 throw by clarsimp
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitNonObject\<^sub>1 sh C\<^sub>0 sfs D a b sh' C' Cs e h l e' h' l' sh'')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l'
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l'
     (sh(C\<^sub>0 \<mapsto> (sfs,Processing))) v xa (INIT C' (C\<^sub>0 # Cs,False) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitNonObject\<^sub>1.prems(1) by clarsimp
-  let ?frs' = "(calling_init_frame P C\<^sub>0 D)#(calling_to_called (hd frs'))#(tl frs')"
+  let ?frs' = "(calling_to_calling (hd frs') D)#(tl frs')"
   have cls1: "is_class P\<^sub>1 D" using InitNonObject\<^sub>1.hyps(2,3) class_wf wf wf_cdecl_supD by blast
   have cls_aux: "distinct (C\<^sub>0#Cs) \<and> supercls_lst P\<^sub>1 (C\<^sub>0#Cs)" using InitNonObject\<^sub>1.prems(1) by auto
   then have cls2: "D \<notin> set (C\<^sub>0 # Cs)"
@@ -3243,35 +2941,25 @@ next
   qed
   have cls3: "\<forall>C\<in>set (C\<^sub>0 # Cs). P\<^sub>1 \<turnstile> C \<preceq>\<^sup>* D" using InitNonObject\<^sub>1.hyps(2,3) cls_aux
     by (metis r_into_rtrancl rtrancl_into_rtrancl set_ConsD subcls1.subcls1I supercls_lst.simps(1))
-  have IH: "PROP ?P (INIT C' (D # C\<^sub>0 # Cs,False) \<leftarrow> e) h l sh' e' h' l' sh'' E C M pc ics v xa vs frs ls3 I"
+  have IH: "PROP ?P (INIT C' (D # C\<^sub>0 # Cs,False) \<leftarrow> e) h l sh' e' h' l' sh'' E C M pc ics v xa vs frs I"
     by fact
   obtain r where cls: "class P C\<^sub>0 = \<lfloor>(D, r)\<rfloor>" using InitNonObject\<^sub>1.hyps(3)
     by (metis assms class_compP compP\<^sub>2_def)
-  have ics: "ics_of(hd frs') = (case Cs of [] \<Rightarrow> Calling C\<^sub>0 | _ \<Rightarrow> ICalling C\<^sub>0)"
-   and frs\<^sub>1: "frs' \<noteq> Nil"
-    using Jcc_pieces_InitFalse_frs[OF assms(1) pcs] by clarsimp+
+  obtain ics: "ics_of(hd frs') = Calling C\<^sub>0 Cs"
+     and frs\<^sub>1: "frs' \<noteq> Nil" using pcs by clarsimp
   then have 1: "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h,?frs',sh')"
   proof(cases frs')
-    case (Cons a list) then show ?thesis using ics
-    proof(cases Cs)
-      case Nil
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = Calling C\<^sub>0" using Cons Nil ics by simp
-      then show ?thesis
-       using Cons Nil a IH InitNonObject\<^sub>1 jvm_InitNonObj0[OF _ _ cls] by simp
-    next
-      case CCons: (Cons C' Cs')
-      obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
-      then have "ics' = ICalling C\<^sub>0" using Cons CCons ics by simp
-      then show ?thesis
-       using Cons CCons a IH InitNonObject\<^sub>1 jvm_InitNonObj1[OF _ _ cls] by simp
-    qed
+    case (Cons a list)
+    obtain vs' l' C' M' pc' ics' where a: "a = (vs',l',C',M',pc',ics')" by(cases a)
+    then have "ics' = Calling C\<^sub>0 Cs" using Cons ics by simp
+    then show ?thesis
+     using Cons a IH InitNonObject\<^sub>1 jvm_InitNonObj[OF _ _ cls] by simp
   qed(simp)
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh') -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh'')"
+      also have "P \<turnstile> (None,h,?frs',sh') -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh'')"
         using IH Jcc_pieces_InitNonObj[OF assms(1) cls1 cls2 cls3 pcs] InitNonObject\<^sub>1 val by simp
       finally have ?jvm1 using pcs by simp
     }
@@ -3279,69 +2967,68 @@ next
   next
     { assume throw: ?e2
       note 1
-      also have "P \<turnstile> (None,h,?frs',sh')
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh''"
-        using IH Jcc_pieces_InitNonObj[OF assms(1) cls1 cls2 cls3 pcs] InitNonObject\<^sub>1 throw by simp
-      finally have ?err using pcs by simp
+      also obtain vs' where "P \<turnstile> (None,h,?frs',sh')
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh''"
+        using IH Jcc_pieces_InitNonObj[OF assms(1) cls1 cls2 cls3 pcs] InitNonObject\<^sub>1 throw by clarsimp
+      finally have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (InitRInit\<^sub>1 C\<^sub>0 Cs e h l sh e' h' l' sh' C')
-  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh' v xa
+  then obtain frs' err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh' v xa
      (INIT C' (C\<^sub>0 # Cs,True) \<leftarrow> e)
-    = (True, frs', (None, h', (vs, l, C, M, pc, Called) # frs, sh'), err)"
+    = (True, frs', (None, h', (vs, l, C, M, pc, Called []) # frs, sh'), err)"
     using InitRInit\<^sub>1.prems(1) by clarsimp
-  have IH: "PROP ?P (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs ls3 I"
+  have IH: "PROP ?P (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e) h l sh e' h' l' sh' E C M pc ics v xa vs frs I"
     by fact
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
-      have "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called)#frs,sh')"
+      have "P \<turnstile> (None,h,frs',sh) -jvm\<rightarrow> (None,h',(vs,l,C,M,pc,Called [])#frs,sh')"
         using IH Jcc_pieces_InitRInit[OF assms(1,2) pcs] InitRInit\<^sub>1.prems val by simp
       then have ?jvm1 using pcs by simp
     }
     thus "?e1 \<longrightarrow> ?jvm1" by simp
   next
     { assume throw: ?e2
-      have "P \<turnstile> (None,h,frs',sh)
-                     -jvm\<rightarrow> handle P C M xa h' vs l pc ics frs sh'"
-        using IH Jcc_pieces_InitRInit[OF assms(1,2) pcs] InitRInit\<^sub>1 throw by simp
-      then have ?err using pcs by simp
+      obtain vs' where "P \<turnstile> (None,h,frs',sh)
+                     -jvm\<rightarrow> handle P C M xa h' (vs'@vs) l pc ics frs sh'"
+        using IH Jcc_pieces_InitRInit[OF assms(1,2) pcs] InitRInit\<^sub>1 throw by clarsimp
+      then have ?err using pcs by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (RInit\<^sub>1 e h l sh v1 h' l' sh' C\<^sub>0 sfs i sh'' C' Cs e' e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1)
-  let ?frs' = "to_called_frames True (init_frames P C\<^sub>0 Cs @ [(vs,l,C,M,pc,Calling (last (C\<^sub>0#Cs)))])
-       @ frs"
+  let ?frs = "(vs,l,C,M,pc,Called (C\<^sub>0#Cs)) # frs"
+  let ?frs' = "(vs,l,C,M,pc,Called Cs) # frs"
   have clinit: "e = C\<^sub>0\<bullet>\<^sub>sclinit([])" using RInit\<^sub>1
     by (metis Jcc_cond.simps(2) eval\<^sub>1_final_same exp.distinct(101) final_def)
-  then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa
+  then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa
      (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e')
-    = (True, create_init_frame P C\<^sub>0 # ?frs', (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1), err)"
-    using RInit\<^sub>1.prems(1) by clarsimp
-  obtain vs1 l1 C1 M1 pc1 ics1 where fr1: "hd ?frs' = (vs1, l1, C1, M1, pc1, ics1)"
-    using calling_to_called.cases by blast
+    = (True, ?frs, (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1), err)"
+    using RInit\<^sub>1.prems(1) by simp
   have shC: "\<forall>C'\<in>set Cs. \<exists>sfs. sh C' = \<lfloor>(sfs, Processing)\<rfloor>" using RInit\<^sub>1.prems(1) clinit by clarsimp
   then have shC'': "\<forall>C'\<in>set Cs. \<exists>sfs. sh'' C' = \<lfloor>(sfs, Processing)\<rfloor>"
     using clinit\<^sub>1_proc_pres[OF wf] RInit\<^sub>1.hyps(1) clinit RInit\<^sub>1.hyps(4) RInit\<^sub>1.prems(1)
       by (auto simp: fun_upd_apply)
   have loc: "l = l'" using clinit\<^sub>1_loc_pres RInit\<^sub>1.hyps(1) clinit by simp
-  have IH: "PROP ?P e h l sh (Val v1) h' l' sh' E C1 M1 pc1 ics1 v1 xa vs1 (tl ?frs') l1 I" by fact
+  have IH: "PROP ?P e h l sh (Val v1) h' l' sh' E C M pc (Called Cs) v1 xa vs (tl ?frs') I" by fact
   then have IH':
-   "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (Val v1) h' l' sh' E C1 M1 pc1 ics1 v1 xa vs1 (tl ?frs') l1 I"
+   "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (Val v1) h' l' sh' E C M pc (Called Cs) v1 xa vs (tl ?frs') I"
     using clinit by simp
   have IH2: "PROP ?P (INIT C' (Cs,True) \<leftarrow> e') h' l' sh'' e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1 E C M
-    pc ics v xa vs frs ls3 I" by fact
-  have jvm1: "P \<turnstile> (None,h,create_init_frame P C\<^sub>0 # ?frs',sh)
-     -jvm\<rightarrow> (None,h',?frs',sh'')"
-     using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs fr1,of h' l' sh'] RInit\<^sub>1.hyps(3,4) by simp
+    pc ics v xa vs frs I" by fact
+  have "P \<turnstile> (None,h,?frs,sh) -jvm\<rightarrow> (None,h,create_init_frame P C\<^sub>0 # ?frs',sh)" by(rule jvm_Called)
+  also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h',?frs',sh'')"
+     using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs,of h' l' sh'] RInit\<^sub>1.hyps(3,4) by simp
+  finally have jvm1: "P \<turnstile> (None,h,?frs,sh) -jvm\<rightarrow> (None,h',?frs',sh'')" .
   show ?case (is "(?e1 \<longrightarrow> ?jvm1) \<and> (?e2 \<longrightarrow> ?err)")
   proof(rule conjI)
     { assume val: ?e1
       note jvm1
-      also have "P \<turnstile> (None,h',?frs',sh'') -jvm\<rightarrow> (None,h\<^sub>1,(vs,l,C,M,pc,Called)#frs,sh\<^sub>1)"
+      also have "P \<turnstile> (None,h',?frs',sh'') -jvm\<rightarrow> (None,h\<^sub>1,(vs,l,C,M,pc,Called [])#frs,sh\<^sub>1)"
         using IH2 Jcc_pieces_RInit_Init[OF assms(1-2) shC'' pcs,of h'] RInit\<^sub>1.hyps(5) loc val by auto
       finally have ?jvm1 using pcs clinit by simp
     }
@@ -3349,45 +3036,44 @@ next
   next
     { assume throw: ?e2
       note jvm1
-      also have "P \<turnstile> (None,h',?frs',sh'')
-                     -jvm\<rightarrow> handle P C M xa h\<^sub>1 vs l pc ics frs sh\<^sub>1"
+      also obtain vs' where "P \<turnstile> (None,h',?frs',sh'')
+                     -jvm\<rightarrow> handle P C M xa h\<^sub>1 (vs'@vs) l pc ics frs sh\<^sub>1"
         using IH2 Jcc_pieces_RInit_Init[OF assms(1-2) shC'' pcs,of h'] RInit\<^sub>1.hyps(5) loc throw by auto
-      finally have ?err using pcs clinit by simp
+      finally have ?err using pcs clinit by auto
     }
     thus "?e2 \<longrightarrow> ?err" by simp
   qed
 next
   case (RInitInitFail\<^sub>1 e h l sh a h' l' sh' C\<^sub>0 sfs i sh'' D Cs e' e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1)
-  let ?frs' = "to_called_frames True (init_frames P C\<^sub>0 (D#Cs) @ [(vs,l,C,M,pc,Calling (last (C\<^sub>0#D#Cs)))])
-       @ frs"
+  let ?frs = "(vs,l,C,M,pc,Called (C\<^sub>0#D#Cs)) # frs"
+  let ?frs' = "(vs,l,C,M,pc,Called (D#Cs)) # frs"
+  let "?frsT xa1" = "(vs,l,C,M,pc,Throwing (C\<^sub>0#D#Cs) xa1) # frs"
+  let "?frsT' xa1" = "(vs,l,C,M,pc,Throwing (D#Cs) xa1) # frs"
   obtain xa' where xa': "throw a = Throw xa'"
     by (metis RInitInitFail\<^sub>1.hyps(1) eval\<^sub>1_final exp.distinct(101) final_def)
-  obtain vs1 l1 C1 M1 pc1 ics1 where fr1:
-    "hd ?frs' = (vs1, l1, C1, M1, pc1, ics1)" using calling_to_called.cases by blast
-  then have ics1: "ics1 = No_ics"
-    apply(case_tac "method (compP compMb\<^sub>2 P\<^sub>1) D clinit") by clarsimp
   have e\<^sub>1: "e\<^sub>1 = Throw xa'" using xa' rinit\<^sub>1_throw RInitInitFail\<^sub>1.hyps(5) by simp
   show ?case
   proof(cases "e = C\<^sub>0\<bullet>\<^sub>sclinit([])")
     case clinit: True
-    then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa'
+    then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h\<^sub>1 l\<^sub>1 sh\<^sub>1 v xa'
        (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; D # Cs \<leftarrow> e')
-      = (True, create_init_frame P C\<^sub>0 # ?frs',
-           (None, h\<^sub>1, (vs, l, C, M, pc, Called) # frs, sh\<^sub>1), err)"
-      using RInitInitFail\<^sub>1.prems(1) by clarsimp
+      = (True, ?frs, (None, h\<^sub>1, (vs, l, C, M, pc, Called []) # frs, sh\<^sub>1), err)"
+      using RInitInitFail\<^sub>1.prems(1) by simp
     have loc: "l = l'" using clinit\<^sub>1_loc_pres RInitInitFail\<^sub>1.hyps(1) clinit by simp
-    have IH: "PROP ?P e h l sh (throw a) h' l' sh' E C1 M1 pc1 ics1 v xa' vs1 (tl ?frs') l1 I" by fact
+    have IH: "PROP ?P e h l sh (throw a) h' l' sh' E C M pc (Called (D#Cs)) v xa' vs frs I"
+     by fact
     then have IH':
-     "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (Throw xa') h' l' sh' E C1 M1 pc1 ics1 v xa' vs1 (tl ?frs') l1 I"
-      using clinit xa' by simp
+     "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (Throw xa') h' l' sh' E C M pc (Called (D#Cs)) v xa' vs
+       frs I"  using clinit xa' by simp
     have IH2: "PROP ?P (RI (D,throw a) ; Cs \<leftarrow> e') h' l' sh'' e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1 E C M
-      pc ics v xa' vs frs ls3 I" by fact
-    have "P \<turnstile> (None,h,create_init_frame P C\<^sub>0 # ?frs',sh)
-               -jvm\<rightarrow> (None,h',(vs1, l1, C1, M1, pc1, Throwing xa') # tl ?frs',sh'')"
-      using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs fr1,of h' l' sh'] RInitInitFail\<^sub>1.hyps(3,4) by simp
-    also have "P \<turnstile> ... -jvm\<rightarrow> handle P C M xa' h\<^sub>1 vs l pc ics frs sh\<^sub>1"
-      using IH2 pcs Jcc_pieces_RInit_RInit[OF assms(1) pcs fr1,of h' sh''] RInitInitFail\<^sub>1.hyps(3,4)
-        xa' loc e\<^sub>1 xa' by auto
+      pc ics v xa' vs frs I" by fact
+    have "P \<turnstile> (None,h,?frs,sh) -jvm\<rightarrow> (None,h,create_init_frame P C\<^sub>0 # ?frs',sh)" by(rule jvm_Called)
+    also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h',(vs, l, C, M, pc, Throwing (D#Cs) xa') # frs,sh'')"
+      using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs,of h' l' sh'] RInitInitFail\<^sub>1.hyps(3,4)
+        by simp
+    also obtain vs'' where "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M xa' h\<^sub>1 (vs''@vs) l pc ics frs sh\<^sub>1"
+      using IH2 pcs Jcc_pieces_RInit_RInit[OF assms(1) pcs] RInitInitFail\<^sub>1.hyps(3,4)
+        xa' loc e\<^sub>1 xa' by clarsimp
     finally show ?thesis using pcs e\<^sub>1 clinit by auto
   next
     case throw: False
@@ -3396,41 +3082,45 @@ next
     obtain a' where "class P\<^sub>1 C\<^sub>0 = \<lfloor>a'\<rfloor>" using RInitInitFail\<^sub>1.prems by(auto simp: is_class_def)
     then obtain stk' loc' M' pc' ics' where "create_init_frame P C\<^sub>0 = (stk',loc',C\<^sub>0,M',pc',ics')"
       using create_init_frame_wf_eq[OF wf] by(cases "create_init_frame P C\<^sub>0", simp)
-    then obtain rhs err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh'' v xa'
-       (RI (C\<^sub>0,e) ; D#Cs \<leftarrow> e')
-      = (True, (stk',loc',C\<^sub>0,M',pc',Throwing xa') # ?frs', rhs, err)"
+    then obtain rhs err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh'' v xa'
+       (RI (C\<^sub>0,e) ; D#Cs \<leftarrow> e') = (True, ?frsT xa', rhs, err)"
       using RInitInitFail\<^sub>1.prems(1) eT by clarsimp
     have IH2: "PROP ?P (RI (D,throw a) ; Cs \<leftarrow> e') h' l' sh'' e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1 E C M
-      pc ics v xa' vs frs ls3 I" by fact
-    have "P \<turnstile> (None,h,(stk',loc',C\<^sub>0,M',pc',Throwing xa') # ?frs',sh)
-        -jvm\<rightarrow> (None,h,(vs1, l1, C1, M1, pc1, Throwing xa') # tl ?frs',sh'')"
-      using RInitInitFail\<^sub>1.hyps(3,4) jvm_RInit_throw1[where C'=C\<^sub>0 and sh=sh] eT xa' fr1 ics1
-        apply(case_tac "method P D clinit") by clarsimp
-    also have "P \<turnstile> ... -jvm\<rightarrow> handle P C M xa' h\<^sub>1 vs l pc ics frs sh\<^sub>1"
-      using IH2 Jcc_pieces_RInit_RInit[OF assms(1) pcs fr1,of h' sh''] RInitInitFail\<^sub>1.hyps(3,4)
+      pc ics v xa' vs frs I" by fact
+    have "P \<turnstile> (None,h,?frsT xa',sh') -jvm\<rightarrow> (None,h,?frsT' xa',sh'(C\<^sub>0 \<mapsto> (fst (the (sh' C\<^sub>0)), Error)))"
+      by(rule jvm_Throwing)
+    also obtain vs' where "P \<turnstile> ... -jvm\<rightarrow> handle P C M xa' h\<^sub>1 (vs'@vs) l pc ics frs sh\<^sub>1"
+      using IH2 Jcc_pieces_RInit_RInit[OF assms(1) pcs] RInitInitFail\<^sub>1.hyps(3,4)
        eT e\<^sub>1 xa' by clarsimp
     finally show ?thesis using pcs e\<^sub>1 throw eT by auto
   qed
 next
   case (RInitFailFinal\<^sub>1 e h l sh a h' l' sh' C\<^sub>0 sfs i sh'' e'')
-  let ?frs' = "(vs,l,C,M,pc,Called) # frs"
+  let ?frs = "(vs,l,C,M,pc,Called [C\<^sub>0]) # frs"
+  let ?frs' = "(vs,l,C,M,pc,Called []) # frs"
+  let "?frsT xa1" = "(vs,l,C,M,pc,Throwing [C\<^sub>0] xa1) # frs"
+  let "?frsT' xa1" = "(vs,l,C,M,pc,Throwing [] xa1) # frs"
   obtain xa' where xa': "throw a = Throw xa'"
     by (metis RInitFailFinal\<^sub>1.hyps(1) eval\<^sub>1_final exp.distinct(101) final_def)
-  obtain vs1 l1 C1 M1 pc1 ics1 where fr1:
-    "hd ?frs' = (vs1, l1, C1, M1, pc1, ics1)" using calling_to_called.cases by blast
   show ?case
   proof(cases "e = C\<^sub>0\<bullet>\<^sub>sclinit([])")
     case clinit: True
-    then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh'' v xa'
-       (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; [] \<leftarrow> unit)
-      = (True, create_init_frame P C\<^sub>0 # ?frs', (None, h', ?frs', sh''), err)"
+    then obtain err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh'' v xa'
+       (RI (C\<^sub>0,C\<^sub>0\<bullet>\<^sub>sclinit([])) ; [] \<leftarrow> unit) = (True, ?frs, (None, h', ?frs', sh''), err)"
       using RInitFailFinal\<^sub>1.prems(1) by clarsimp
-    have IH: "PROP ?P e h l sh (throw a) h' l' sh' E C1 M1 pc1 ics1 v xa' vs1 frs l1 I" by fact
+    have IH: "PROP ?P e h l sh (throw a) h' l' sh' E C M pc (Called []) v xa' vs frs I" by fact
     then have IH':
-     "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (throw a) h' l' sh' E C1 M1 pc1 ics1 v xa' vs1 frs l1 I"
+     "PROP ?P (C\<^sub>0\<bullet>\<^sub>sclinit([])) h l sh (throw a) h' l' sh' E C M pc (Called []) v xa' vs frs I"
       using clinit by simp
-    show ?thesis using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs fr1,of h' l' sh']
-     RInitFailFinal\<^sub>1.hyps(3,4) xa' pcs clinit fr1 by clarsimp
+    have "P \<turnstile> (None,h,?frs,sh) -jvm\<rightarrow> (None,h,create_init_frame P C\<^sub>0 # ?frs',sh)"
+      by(rule jvm_Called)
+    also have "P \<turnstile> \<dots> -jvm\<rightarrow> (None,h',?frsT' xa',sh'')"
+      using IH' Jcc_pieces_RInit_clinit[OF assms(1-2) pcs,of h' l' sh'] xa'
+        RInitFailFinal\<^sub>1.hyps(3,4) by simp
+    also have
+       "P \<turnstile> \<dots> -jvm\<rightarrow> handle (compP compMb\<^sub>2 P\<^sub>1) C M xa' h' vs l pc No_ics frs sh''"
+      using RInitFailFinal\<^sub>1.hyps(3,4) jvm_RInit_throw[where h=h' and sh=sh''] by simp
+    finally show ?thesis using xa' pcs clinit by(clarsimp intro!: exI[where x="[]"])
   next
     case throw: False
     then have eT: "e = Throw xa'" "h = h'" "sh = sh'" using xa' RInitFailFinal\<^sub>1.prems(1)
@@ -3438,13 +3128,14 @@ next
     obtain a where "class P\<^sub>1 C\<^sub>0 = \<lfloor>a\<rfloor>" using RInitFailFinal\<^sub>1.prems by(auto simp: is_class_def)
     then obtain stk' loc' M' pc' ics' where "create_init_frame P C\<^sub>0 = (stk',loc',C\<^sub>0,M',pc',ics')"
       using create_init_frame_wf_eq[OF wf] by(cases "create_init_frame P C\<^sub>0", simp)
-    then obtain rhs err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs ls3 sh I h' l' sh'' v xa'
-       (RI (C\<^sub>0,e) ; [] \<leftarrow> unit) = (True, (stk',loc',C\<^sub>0,M',pc',Throwing xa') # ?frs', rhs, err)"
+    then obtain rhs err where pcs: "Jcc_pieces P\<^sub>1 E C M h vs l pc ics frs sh I h' l' sh'' v xa'
+       (RI (C\<^sub>0,e) ; [] \<leftarrow> unit) = (True, ?frsT xa', rhs, err)"
       using RInitFailFinal\<^sub>1.prems(1) eT by clarsimp
-    have "P \<turnstile> (None,h,(stk',loc',C\<^sub>0,M',pc',Throwing xa') # ?frs',sh)
-                        -jvm\<rightarrow> handle P C M xa' h' vs l pc No_ics frs sh''"
-      using RInitFailFinal\<^sub>1.hyps(3,4) jvm_RInit_throw0[where h=h and C'=C\<^sub>0 and sh=sh] eT xa' by simp
-    then show ?thesis using pcs xa' by clarsimp
+    have "P \<turnstile> (None,h,?frsT xa',sh) -jvm\<rightarrow> (None,h,?frsT' xa',sh(C\<^sub>0 \<mapsto> (fst (the (sh C\<^sub>0)), Error)))"
+      by(rule jvm_Throwing)
+    also have "P \<turnstile> \<dots> -jvm\<rightarrow> handle P C M xa' h' vs l pc No_ics frs sh''"
+      using RInitFailFinal\<^sub>1.hyps(3,4) jvm_RInit_throw[where h=h and sh=sh''] eT by simp
+    finally show ?thesis using pcs xa' by(clarsimp intro!: exI[where x="[]"])
   qed
 qed
 (*>*)
@@ -3486,11 +3177,11 @@ proof -
   }
   moreover
   { fix a assume [simp]: "e' = Throw a"
-    obtain pc where pc: "0 \<le> pc \<and> pc < size(compE\<^sub>2 body) \<and>
+    obtain pc vs' where pc: "0 \<le> pc \<and> pc < size(compE\<^sub>2 body) \<and>
           \<not> caught ?P pc h' a (compxE\<^sub>2 body 0 0)"
-    and 1: "?P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle ?P C M a h' [] ls' pc No_ics [] sh'"
+    and 1: "?P \<turnstile> ?\<sigma>\<^sub>0 -jvm\<rightarrow> handle ?P C M a h' vs' ls' pc No_ics [] sh'"
       using Jcc[OF wf eval cond] nsub_RI_Jcc_pieces[OF _ nsub] apply auto by meson
-    from pc have "handle ?P C M a h' [] ls' pc No_ics [] sh' = ?\<sigma>\<^sub>1" using xtab "method" nclinit
+    from pc have "handle ?P C M a h' vs' ls' pc No_ics [] sh' = ?\<sigma>\<^sub>1" using xtab "method" nclinit
       by(auto simp:handle_def compMb\<^sub>2_def)
     with 1 have ?thesis by simp
   } 

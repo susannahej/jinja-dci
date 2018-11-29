@@ -80,16 +80,17 @@ done
 lemma is_class_Object [simp]:
   "wf_prog wf_md P \<Longrightarrow> is_class P Object"
 (*<*)by (simp add: is_class_def)(*>*)
-(* Unused
+
 lemma is_class_supclass:
 assumes wf: "wf_prog wf_md P" and sub: "P \<turnstile> C \<preceq>\<^sup>* D"
 shows "is_class P C \<Longrightarrow> is_class P D"
 using sub apply(induct)
  apply assumption
-apply(fastforce simp:wf_cdecl_def subcls1_def is_class_def
-               dest:class_wf[OF _ wf])
+apply(auto simp:wf_cdecl_def is_class_def
+           dest!:class_wf[OF _ wf] subcls1D)
 done
 
+(*
 This is NOT true because P \<turnstile> NT \<le> Class C for any Class C
 lemma is_type_suptype: "\<lbrakk> wf_prog p P; is_type P T; P \<turnstile> T \<le> T' \<rbrakk>
  \<Longrightarrow> is_type P T'"
