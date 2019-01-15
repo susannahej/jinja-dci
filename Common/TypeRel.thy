@@ -286,9 +286,9 @@ where
   \<exists>Mm. P \<turnstile> C sees_methods Mm \<and> Mm M = Some((b,Ts,T,m),D)"
 
 definition has_method :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> staticb \<Rightarrow> bool"
-            ("_ \<turnstile> _ has _, _" [51,0,51,51] 50)
+            ("_ \<turnstile> _ has _, _" [51,0,0,51] 50)
 where
-  "P \<turnstile> C has M, b \<equiv> \<exists>Ts T m D b. P \<turnstile> C sees M,b:Ts\<rightarrow>T = m in D"
+  "P \<turnstile> C has M, b \<equiv> \<exists>Ts T m D. P \<turnstile> C sees M,b:Ts\<rightarrow>T = m in D"
 
 lemma sees_method_fun:
   "\<lbrakk>P \<turnstile> C sees M,b:TS\<rightarrow>T = m in D; P \<turnstile> C sees M,b':TS'\<rightarrow>T' = m' in D' \<rbrakk>
@@ -324,9 +324,12 @@ apply(blast intro:rtrancl_trans)
 done
 (*>*)
 
+lemma sees_methods_is_class: "P \<turnstile> C sees_methods Mm \<Longrightarrow> is_class P C"
+(*<*)by (auto simp add: is_class_def elim: Methods.induct)(*>*)
+
 lemma sees_method_is_class:
   "\<lbrakk> P \<turnstile> C sees M,b:Ts\<rightarrow>T=m in D \<rbrakk> \<Longrightarrow> is_class P C"
-(*<*)by (auto simp add: is_class_def Method_def elim: Methods.induct)(*>*)
+(*<*)by (auto simp add: is_class_def Method_def dest: sees_methods_is_class)(*>*)
 
 lemma sees_method_is_class':
   "\<lbrakk> P \<turnstile> C sees M,b:Ts\<rightarrow>T=m in D \<rbrakk> \<Longrightarrow> is_class P D"

@@ -16,9 +16,8 @@ theory JVMState imports "../Common/Objects" begin
 type_synonym 
   pc = nat
 
-definition start_sheap :: "'m prog \<Rightarrow> sheap"
-where
-  "start_sheap P = (\<lambda>x. None)"
+abbreviation start_sheap :: "sheap"
+where "start_sheap \<equiv> (\<lambda>x. None)(Start \<mapsto> (Map.empty,Done))"
 
 definition start_sheap_preloaded :: "'m prog \<Rightarrow> sheap"
 where

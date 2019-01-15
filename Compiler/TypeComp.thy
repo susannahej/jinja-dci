@@ -764,7 +764,7 @@ lemma (in TC2) wt_Invoke:
 (*<*)by(fastforce simp add: ty\<^sub>i'_def wt_defs)(*>*)
 
 lemma (in TC2) wt_Invokestatic:
-  "\<lbrakk> size ST < mxs; size es = size Ts';
+  "\<lbrakk> size ST < mxs; size es = size Ts'; M \<noteq> clinit;
      P \<turnstile> C sees M,Static: Ts\<rightarrow>T = m in D; P \<turnstile> Ts' [\<le>] Ts \<rbrakk>
   \<Longrightarrow> \<turnstile> [Invokestatic C M (size es)],[] [::] [ty\<^sub>i' (rev Ts' @ ST) E A, ty\<^sub>i' (T#ST) E A]"
 (*<*)by(fastforce simp add: ty\<^sub>i'_def wt_defs)(*>*)
@@ -1238,6 +1238,7 @@ next
   obtain D Ts m Ts' where "method": "P \<turnstile> C sees M,Static:Ts \<rightarrow> T = m in D"
     and wtes: "P,E \<turnstile>\<^sub>1 es [::] Ts'" and subs: "P \<turnstile> Ts' [\<le>] Ts"
     using SCall.prems by auto
+  from SCall.prems(1) have nclinit: "M \<noteq> clinit" by auto
   from wtes have same_size: "size es = size Ts'" by(rule WTs\<^sub>1_same_size)
   have mxs: "length ST < mxs" using WT\<^sub>1_nsub_RI[OF SCall.prems(1)] SCall.prems(4) by simp
   let ?A\<^sub>1 = "A \<squnion> \<A>s es"
@@ -1246,7 +1247,7 @@ next
   let ?\<tau>\<^sub>1 = "ty\<^sub>i' (rev Ts' @ ST) E ?A\<^sub>1"
   let ?\<tau>' = "ty\<^sub>i' (T # ST) E ?A\<^sub>1"
   have "\<turnstile> [Invokestatic C M (size es)],[] [::] [?\<tau>\<^sub>1,?\<tau>']"
-    by(rule wt_Invokestatic[OF mxs same_size "method" subs])
+    by(rule wt_Invokestatic[OF mxs same_size nclinit "method" subs])
   also
   have "PROP ?Ps es E Ts' A ST" by fact
   hence "\<turnstile> compEs\<^sub>2 es,compxEs\<^sub>2 es 0 (size ST) [::] ?\<tau> # ?\<tau>s\<^sub>e\<^sub>s"

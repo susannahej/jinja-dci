@@ -38,10 +38,6 @@ definition NoClassDefFoundC :: "'m cdecl"
 where
   "NoClassDefFoundC \<equiv> (NoClassDefFoundError, (Object,[],[]))"
 
-definition ExceptionInInitializerC :: "'m cdecl"
-where
-  "ExceptionInInitializerC \<equiv> (ExceptionInInitializerError, (Object,[],[]))"
-
 definition IncompatibleClassChangeC :: "'m cdecl"
 where
   "IncompatibleClassChangeC \<equiv> (IncompatibleClassChangeError, (Object,[],[]))"
@@ -61,7 +57,7 @@ where
 definition SystemClasses :: "'m cdecl list"
 where
   "SystemClasses \<equiv> [ObjectC, NullPointerC, ClassCastC, OutOfMemoryC, NoClassDefFoundC,
-  ExceptionInInitializerC, IncompatibleClassChangeC, NoSuchFieldC, NoSuchMethodC,
+  IncompatibleClassChangeC, NoSuchFieldC, NoSuchMethodC,
   AbstractMethodC]"
 
 end

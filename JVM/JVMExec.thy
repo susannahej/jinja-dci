@@ -198,28 +198,33 @@ proof(cases "\<exists>x. xp = \<lfloor>x\<rfloor> \<or> frs = []")
   qed(auto split: init_call_status.splits)
 qed(auto)
 
+definition start_method :: "cname \<Rightarrow> mname \<Rightarrow> jvm_method mdecl" where
+"start_method C M = (start_m, Static, [], Void, (1,0,[Invokestatic C M 0,Return],[]))"
+abbreviation start_clinit :: "jvm_method mdecl" where
+"start_clinit \<equiv> (clinit, Static, [], Void, (1,0,[Push Unit,Return],[]))"
+definition start_class :: "cname \<Rightarrow> mname \<Rightarrow> jvm_method cdecl" where
+"start_class C M = (Start, Object, [], [start_method C M, start_clinit])"
 
 text {*
-  The start configuration of the JVM: in the start heap, we call a 
-  method @{text M} of class @{text C} in program @{text P}. There is
-  no @{text this} pointer of the frame as the initial method must
-  be Static.
-  The sheap is set to have every class pre-prepared; this decision is not necessary.
-  We start with an init flag that calls for the initialization of
-  the initial class.
+  The start configuration of the JVM in program @{text P}:
+  in the start heap, we call the ``start'' method of the
+  ``Start''; this method performs @{text Invokestatic} on the
+  class and method given to create the start program's Start class.
+  This allows the initialization procedure to be called on the
+  initial class in a natural way before the initial method is performed. 
+  There is no @{text this} pointer of the frame as start is Static.
+  The start sheap has every class pre-prepared; this decision is not
+  necessary.
+  The starting program includes the added Start class, given a 
+  method @{text M} of class @{text C}, added to program @{text P}.
 *}
-definition start_state :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> jvm_state option" where
-  "start_state P C M =
- (if (\<exists>D Ts m. P \<turnstile> C sees M,Static:Ts \<rightarrow> Void = m in D)
-  then let (D,sb,Ts,T,mxs,mxl\<^sub>0,b) = method P C M
-       in (Some (None, start_heap P, [([], replicate mxl\<^sub>0 undefined, C, M, 0, Calling C [])], start_sheap P))
-  else None
- )"
+definition start_state :: "jvm_prog \<Rightarrow> jvm_state" where
+  "start_state P = (None, start_heap P, [([], [], Start, start_m, 0, No_ics)], start_sheap)"
+abbreviation start_prog :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> jvm_prog" where
+"start_prog P C M \<equiv> start_class C M # P"
 
 (* HERE: MOVE? *)
-lemma preallocated_start_state: "start_state P C M = Some \<sigma> \<Longrightarrow> preallocated (fst(snd \<sigma>))"
-using preallocated_start[of P]
- by(cases "\<exists>D Ts m. P \<turnstile> C sees M, Static :  Ts\<rightarrow>Void = m in D",
-     auto simp: start_state_def)
+lemma preallocated_start_state: "start_state P = \<sigma> \<Longrightarrow> preallocated (fst(snd \<sigma>))"
+using preallocated_start[of P] by(auto simp: start_state_def split_beta)
 
 end

@@ -44,6 +44,9 @@ where
 definition clinit :: "string" where "clinit = ''<clinit>''"
 definition init :: "string" where "init = ''<init>''"
 
+definition start_m :: "string" where "start_m = ''<start>''"
+definition Start :: "string" where "Start = ''<Start>''"
+
 (* Not difficult to prove, but useful for directing particular sequences of equality -SM *)
 lemma class_cons: "\<lbrakk> C \<noteq> fst x \<rbrakk> \<Longrightarrow> class (x # P) C = class P C"
  by (simp add: class_def)

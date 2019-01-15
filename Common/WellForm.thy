@@ -487,11 +487,34 @@ lemma wf_syscls:
 (*<*)
 apply (simp add: image_def SystemClasses_def wf_syscls_def sys_xcpts_def
                  ObjectC_def NullPointerC_def ClassCastC_def OutOfMemoryC_def
-                 NoClassDefFoundC_def ExceptionInInitializerC_def
+                 NoClassDefFoundC_def
                  IncompatibleClassChangeC_def NoSuchFieldC_def NoSuchMethodC_def
                  AbstractMethodC_def)
  apply force
 done
 (*>*)
+
+
+(* HERE: MOVE? *)
+lemma wf_subcls_nCls:
+assumes wf: "wf_prog wf_md P" and ns: "\<not> is_class P C"
+shows "\<lbrakk> P \<turnstile> D \<preceq>\<^sup>* D'; D \<noteq> C \<rbrakk> \<Longrightarrow> D' \<noteq> C"
+proof(induct rule: rtrancl.induct)
+  case (rtrancl_into_rtrancl a b c)
+  with ns show ?case by(clarsimp dest!: subcls1D wf_cdecl_supD[OF class_wf[OF _ wf]])
+qed(simp)
+
+lemma wf_subcls_nCls':
+assumes wf: "wf_prog wf_md P" and ns: "\<not>is_class P C\<^sub>0"
+shows "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C\<^sub>0"
+proof -
+  fix cd D' assume cd: "cd \<in> set P"
+  then have cls: "is_class P (fst cd)" using class_exists_equiv is_class_def by blast
+  with wf_subcls_nCls[OF wf ns] ns show "\<not>P \<turnstile> fst cd \<preceq>\<^sup>* C\<^sub>0" by(cases "fst cd = D'", auto)
+qed
+
+lemma wf_nclass_nsub:
+ "\<lbrakk> wf_prog wf_md P; is_class P C; \<not>is_class P C' \<rbrakk> \<Longrightarrow> \<not>P \<turnstile> C \<preceq>\<^sup>* C'"
+ by(rule notI, auto dest: wf_subcls_nCls[where C=C' and D=C])
 
 end

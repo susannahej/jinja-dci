@@ -33,10 +33,6 @@ definition NoClassDefFoundError :: cname
 where
   "NoClassDefFoundError \<equiv> ''NoClassDefFoundError''"
 
-definition ExceptionInInitializerError :: cname
-where
-  "ExceptionInInitializerError \<equiv> ''ExceptionInInitializerError''"
-
 definition IncompatibleClassChangeError :: cname
 where
   "IncompatibleClassChangeError \<equiv> ''IncompatibleClassChangeError''"
@@ -56,7 +52,7 @@ where
 definition sys_xcpts :: "cname set"
 where
   "sys_xcpts  \<equiv>  {NullPointer, ClassCast, OutOfMemory, NoClassDefFoundError,
-                    ExceptionInInitializerError, IncompatibleClassChangeError, 
+                    IncompatibleClassChangeError, 
                     NoSuchFieldError, NoSuchMethodError, AbstractMethodError}"
 
 definition addr_of_sys_xcpt :: "cname \<Rightarrow> addr"
@@ -65,11 +61,10 @@ where
                         if s = ClassCast then 1 else
                         if s = OutOfMemory then 2 else
                         if s = NoClassDefFoundError then 3 else
-                        if s = ExceptionInInitializerError then 4 else
-                        if s = IncompatibleClassChangeError then 5 else
-                        if s = NoSuchFieldError then 6 else
-                        if s = NoSuchMethodError then 7 else
-                        if s = AbstractMethodError then 8 else undefined"
+                        if s = IncompatibleClassChangeError then 4 else
+                        if s = NoSuchFieldError then 5 else
+                        if s = NoSuchMethodError then 6 else
+                        if s = AbstractMethodError then 7 else undefined"
 
 (* pre-linked version *)
 definition start_heap :: "'c prog \<Rightarrow> heap"
@@ -78,7 +73,6 @@ where
                         (addr_of_sys_xcpt ClassCast \<mapsto> blank G ClassCast)
                         (addr_of_sys_xcpt OutOfMemory \<mapsto> blank G OutOfMemory)
                         (addr_of_sys_xcpt NoClassDefFoundError \<mapsto> blank G NoClassDefFoundError)
-                        (addr_of_sys_xcpt ExceptionInInitializerError \<mapsto> blank G ExceptionInInitializerError)
                         (addr_of_sys_xcpt IncompatibleClassChangeError \<mapsto> blank G IncompatibleClassChangeError)
                         (addr_of_sys_xcpt NoSuchFieldError \<mapsto> blank G NoSuchFieldError)
                         (addr_of_sys_xcpt NoSuchMethodError \<mapsto> blank G NoSuchMethodError)
@@ -102,10 +96,15 @@ definition preallocated :: "heap \<Rightarrow> bool"
 where
   "preallocated h \<equiv> \<forall>C \<in> sys_xcpts. \<exists>fs. h(addr_of_sys_xcpt C) = Some (C,fs)"
 
+
+(* HERE: MOVE? *)
+abbreviation classes_above_xcpts :: "'m prog \<Rightarrow> cname set" where
+"classes_above_xcpts P \<equiv> \<Union>x\<in>sys_xcpts. classes_above P x"
+
 subsection "System exceptions"
 
 lemma [simp]: "NullPointer \<in> sys_xcpts \<and> OutOfMemory \<in> sys_xcpts \<and> ClassCast \<in> sys_xcpts
-   \<and> NoClassDefFoundError \<in> sys_xcpts \<and> ExceptionInInitializerError \<in> sys_xcpts
+   \<and> NoClassDefFoundError \<in> sys_xcpts
    \<and> IncompatibleClassChangeError \<in> sys_xcpts \<and> NoSuchFieldError \<in> sys_xcpts
    \<and> NoSuchMethodError \<in> sys_xcpts \<and> AbstractMethodError \<in> sys_xcpts"
 (*<*)by(simp add: sys_xcpts_def)(*>*)
@@ -113,7 +112,7 @@ lemma [simp]: "NullPointer \<in> sys_xcpts \<and> OutOfMemory \<in> sys_xcpts \<
 
 lemma sys_xcpts_cases [consumes 1, cases set]:
   "\<lbrakk> C \<in> sys_xcpts; P NullPointer; P OutOfMemory; P ClassCast; P NoClassDefFoundError;
-  P ExceptionInInitializerError; P IncompatibleClassChangeError; P NoSuchFieldError;
+  P IncompatibleClassChangeError; P NoSuchFieldError;
   P NoSuchMethodError; P AbstractMethodError \<rbrakk> \<Longrightarrow> P C"
 (*<*)by (auto simp add: sys_xcpts_def)(*>*)
 
@@ -177,10 +176,6 @@ lemma typeof_NullPointer [simp]:
 
 lemma typeof_NoClassDefFoundError [simp]:
   "preallocated h \<Longrightarrow> typeof\<^bsub>h\<^esub> (Addr(addr_of_sys_xcpt NoClassDefFoundError)) = Some(Class NoClassDefFoundError)" 
-(*<*)by (auto elim: preallocatedE)(*>*)
-
-lemma typeof_ExceptionInInitializerError [simp]:
-  "preallocated h \<Longrightarrow> typeof\<^bsub>h\<^esub> (Addr(addr_of_sys_xcpt ExceptionInInitializerError)) = Some(Class ExceptionInInitializerError)" 
 (*<*)by (auto elim: preallocatedE)(*>*)
 
 lemma typeof_IncompatibleClassChangeError [simp]:

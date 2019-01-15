@@ -212,7 +212,7 @@ fun app\<^sub>i :: "instr \<times> 'm prog \<times> pc \<times> nat \<times> ty 
                     P \<turnstile> rev (take n ST) [\<le>] Ts)))"
 | app\<^sub>i_Invokestatic:
     "app\<^sub>i (Invokestatic C M n, P, pc, mxs, T\<^sub>r, (ST,LT)) =
-    (length ST - n < mxs \<and> n \<le> length ST \<and>
+    (length ST - n < mxs \<and> n \<le> length ST \<and> M \<noteq> clinit \<and>
       (\<exists>D Ts T m. P \<turnstile> C sees M,Static:Ts \<rightarrow> T = m in D \<and>
                     P \<turnstile> rev (take n ST) [\<le>] Ts))"
     
