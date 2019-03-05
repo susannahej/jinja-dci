@@ -439,6 +439,17 @@ proof -
   then show ?thesis using sees wf by (meson assms(3) sees_method_fun)
 qed
 
+lemma wf_NonStatic_nclinit:
+assumes wf: "wf_prog wf_md P" and meth: "P \<turnstile> C sees M,NonStatic:Ts\<rightarrow>T=(mxs,mxl,ins,xt) in D"
+shows "M \<noteq> clinit"
+proof -
+  from sees_method_is_class[OF meth] obtain a where cls: "class P C = Some a"
+    by(clarsimp simp: is_class_def)
+  with wf wf_sees_clinit[OF wf cls]
+   obtain m where "P \<turnstile> C sees clinit,Static:[]\<rightarrow>Void=m in C" by clarsimp
+  with meth show ?thesis by(auto dest: sees_method_fun)
+qed
+
 subsection{* Well-formedness and field lookup *}
 
 lemma wf_Fields_Ex:
@@ -488,14 +499,14 @@ lemma wf_syscls:
 apply (simp add: image_def SystemClasses_def wf_syscls_def sys_xcpts_def
                  ObjectC_def NullPointerC_def ClassCastC_def OutOfMemoryC_def
                  NoClassDefFoundC_def
-                 IncompatibleClassChangeC_def NoSuchFieldC_def NoSuchMethodC_def
-                 AbstractMethodC_def)
+                 IncompatibleClassChangeC_def NoSuchFieldC_def NoSuchMethodC_def)
  apply force
 done
 (*>*)
 
 
-(* HERE: MOVE? *)
+subsection{* Well-formedness and subclassing *}
+
 lemma wf_subcls_nCls:
 assumes wf: "wf_prog wf_md P" and ns: "\<not> is_class P C"
 shows "\<lbrakk> P \<turnstile> D \<preceq>\<^sup>* D'; D \<noteq> C \<rbrakk> \<Longrightarrow> D' \<noteq> C"
@@ -516,5 +527,13 @@ qed
 lemma wf_nclass_nsub:
  "\<lbrakk> wf_prog wf_md P; is_class P C; \<not>is_class P C' \<rbrakk> \<Longrightarrow> \<not>P \<turnstile> C \<preceq>\<^sup>* C'"
  by(rule notI, auto dest: wf_subcls_nCls[where C=C' and D=C])
+
+lemma wf_sys_xcpt_nsub_Start:
+assumes wf: "wf_prog wf_md P" and ns: "\<not>is_class P Start" and sx: "C \<in> sys_xcpts"
+shows "\<not>P \<turnstile> C \<preceq>\<^sup>* Start"
+proof -
+  have Cns: "C \<noteq> Start" using Start_nsys_xcpts sx by clarsimp
+  show ?thesis using wf_subcls_nCls[OF wf ns _ Cns] by auto
+qed
 
 end

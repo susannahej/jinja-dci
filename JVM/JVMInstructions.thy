@@ -60,26 +60,4 @@ translations
   (type) "jvm_prog" <= (type) "jvm_method prog"
 (*>*)
 
-(*
-fun instr_class :: "instr \<Rightarrow> cname option" where
-  "instr_class (New C) = Some C"
-| "instr_class (Getfield F C) = Some C"
-| "instr_class (Getstatic F C) = Some C"
-| "instr_class (Putfield F C) = Some C"
-| "instr_class (Putstatic F C) = Some C"
-| "instr_class (Checkcast C) = Some C"
-| "instr_class (Invoke M C n) = Some C"
-| "instr_class (Invokestatic M C n) = Some C"
-| "instr_class _ = None"
-
-fun ins_of :: "jvm_method \<Rightarrow> bytecode" where
-"ins_of (mxs,mxl\<^sub>0,ins,xt) = ins"
-
-fun mins_of :: "cname \<times> staticb \<times> ty list \<times> ty \<times> jvm_method \<Rightarrow> bytecode" where
-"mins_of (D, b, Ts, T, m) = ins_of m"
-
-fun fin_of :: "jvm_prog \<Rightarrow> frame \<Rightarrow> instr" where
-"fin_of P (stk, loc, C, M, pc, ics) = (mins_of (method P C M)) ! pc"
-*)
-
 end

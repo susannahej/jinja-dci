@@ -93,4 +93,13 @@ lemma wt_jvm_prog_impl_wt_start:
   done
 (*>*)
 
+lemma wf_jvm_prog_nclinit:
+assumes wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P"
+  and meth:  "P \<turnstile> C sees M, b :  Ts\<rightarrow>T = (mxs, mxl\<^sub>0, ins, xt) in D"
+  and wt:    "P,T,mxs,size ins,xt \<turnstile> ins!pc,pc :: \<Phi> C M"
+  and pc:    "pc < length ins" and \<Phi>: "\<Phi> C M ! pc = Some(ST,LT)"
+  and ins:   "ins ! pc = Invokestatic C\<^sub>0 M\<^sub>0 n"
+shows "M\<^sub>0 \<noteq> clinit"
+ using assms by(simp add: wf_jvm_prog_phi_def wt_instr_def app_def)
+
 end

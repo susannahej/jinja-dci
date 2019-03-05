@@ -223,8 +223,4 @@ definition start_state :: "jvm_prog \<Rightarrow> jvm_state" where
 abbreviation start_prog :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> jvm_prog" where
 "start_prog P C M \<equiv> start_class C M # P"
 
-(* HERE: MOVE? *)
-lemma preallocated_start_state: "start_state P = \<sigma> \<Longrightarrow> preallocated (fst(snd \<sigma>))"
-using preallocated_start[of P] by(auto simp: start_state_def split_beta)
-
 end

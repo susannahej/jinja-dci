@@ -4,8 +4,7 @@
     Copyright   2002 Technische Universitaet Muenchen
 *)
 (*
-  Expanded to include more error types in support of statics and dynamic
- class initialization.
+  Expanded to include more error types in support of statics and dynamic class initialization.
   Susannah Mansky
   2016-17, UIUC
 *)
@@ -45,15 +44,11 @@ definition NoSuchMethodError :: cname
 where
   "NoSuchMethodError \<equiv> ''NoSuchMethodError''"
 
-definition AbstractMethodError :: cname
-where
-  "AbstractMethodError \<equiv> ''AbstractMethodError''"
-
 definition sys_xcpts :: "cname set"
 where
   "sys_xcpts  \<equiv>  {NullPointer, ClassCast, OutOfMemory, NoClassDefFoundError,
                     IncompatibleClassChangeError, 
-                    NoSuchFieldError, NoSuchMethodError, AbstractMethodError}"
+                    NoSuchFieldError, NoSuchMethodError}"
 
 definition addr_of_sys_xcpt :: "cname \<Rightarrow> addr"
 where
@@ -63,8 +58,22 @@ where
                         if s = NoClassDefFoundError then 3 else
                         if s = IncompatibleClassChangeError then 4 else
                         if s = NoSuchFieldError then 5 else
-                        if s = NoSuchMethodError then 6 else
-                        if s = AbstractMethodError then 7 else undefined"
+                        if s = NoSuchMethodError then 6 else undefined"
+
+
+lemmas sys_xcpts_defs = NullPointer_def ClassCast_def OutOfMemory_def NoClassDefFoundError_def
+                       IncompatibleClassChangeError_def NoSuchFieldError_def NoSuchMethodError_def
+
+lemma Start_nsys_xcpts: "Start \<notin> sys_xcpts"
+ by(simp add: Start_def sys_xcpts_def sys_xcpts_defs)
+lemma [simp]: "Start \<noteq> NullPointer" "Start \<noteq> ClassCast" "Start \<noteq> OutOfMemory"
+ "Start \<noteq> NoClassDefFoundError" "Start \<noteq> IncompatibleClassChangeError"
+ "Start \<noteq> NoSuchFieldError" "Start \<noteq> NoSuchMethodError"
+using Start_nsys_xcpts by(auto simp: sys_xcpts_def)
+lemma [simp]: "NullPointer \<noteq> Start" "ClassCast \<noteq> Start" "OutOfMemory \<noteq> Start"
+ "NoClassDefFoundError \<noteq> Start" "IncompatibleClassChangeError \<noteq> Start"
+ "NoSuchFieldError \<noteq> Start" "NoSuchMethodError \<noteq> Start"
+using Start_nsys_xcpts by(auto simp: sys_xcpts_def dest: sym)
 
 (* pre-linked version *)
 definition start_heap :: "'c prog \<Rightarrow> heap"
@@ -75,66 +84,32 @@ where
                         (addr_of_sys_xcpt NoClassDefFoundError \<mapsto> blank G NoClassDefFoundError)
                         (addr_of_sys_xcpt IncompatibleClassChangeError \<mapsto> blank G IncompatibleClassChangeError)
                         (addr_of_sys_xcpt NoSuchFieldError \<mapsto> blank G NoSuchFieldError)
-                        (addr_of_sys_xcpt NoSuchMethodError \<mapsto> blank G NoSuchMethodError)
-                        (addr_of_sys_xcpt AbstractMethodError \<mapsto> blank G AbstractMethodError)"
-
-(* added below def to allow exception classes to be linked only when needed; paired with
- the ability in the semantics to initialize exception types when used - SM *)
-definition unlinked_start_heap :: "heap"
-where
-  "unlinked_start_heap \<equiv> Map.empty"
-
-(* HERE: what if we want to create an instance with an argument? *)
-(*
-definition exception_call :: "'c prog \<Rightarrow> cname \<Rightarrow> heap \<Rightarrow> heap" where
-"exception_call P xpn h \<equiv>
- case h(addr_of_sys_xcpt xpn) of \<lfloor>x\<rfloor> \<Rightarrow> h | None \<Rightarrow> h (addr_of_sys_xcpt xpn \<mapsto> blank P xpn)"
-*)
-
+                        (addr_of_sys_xcpt NoSuchMethodError \<mapsto> blank G NoSuchMethodError)"
 
 definition preallocated :: "heap \<Rightarrow> bool"
 where
   "preallocated h \<equiv> \<forall>C \<in> sys_xcpts. \<exists>fs. h(addr_of_sys_xcpt C) = Some (C,fs)"
-
-
-(* HERE: MOVE? *)
-abbreviation classes_above_xcpts :: "'m prog \<Rightarrow> cname set" where
-"classes_above_xcpts P \<equiv> \<Union>x\<in>sys_xcpts. classes_above P x"
 
 subsection "System exceptions"
 
 lemma [simp]: "NullPointer \<in> sys_xcpts \<and> OutOfMemory \<in> sys_xcpts \<and> ClassCast \<in> sys_xcpts
    \<and> NoClassDefFoundError \<in> sys_xcpts
    \<and> IncompatibleClassChangeError \<in> sys_xcpts \<and> NoSuchFieldError \<in> sys_xcpts
-   \<and> NoSuchMethodError \<in> sys_xcpts \<and> AbstractMethodError \<in> sys_xcpts"
+   \<and> NoSuchMethodError \<in> sys_xcpts"
 (*<*)by(simp add: sys_xcpts_def)(*>*)
 
 
 lemma sys_xcpts_cases [consumes 1, cases set]:
   "\<lbrakk> C \<in> sys_xcpts; P NullPointer; P OutOfMemory; P ClassCast; P NoClassDefFoundError;
   P IncompatibleClassChangeError; P NoSuchFieldError;
-  P NoSuchMethodError; P AbstractMethodError \<rbrakk> \<Longrightarrow> P C"
-(*<*)by (auto simp add: sys_xcpts_def)(*>*)
+  P NoSuchMethodError \<rbrakk> \<Longrightarrow> P C"
+(*<*)by (auto simp: sys_xcpts_def)(*>*)
 
-lemma num_neq_aux:
- "(0::nat)\<noteq>1" "(0::nat)\<noteq>2" "(0::nat)\<noteq>3" "(0::nat)\<noteq>4" "(0::nat)\<noteq>5" "(0::nat)\<noteq>6" "(0::nat)\<noteq>7" "(0::nat)\<noteq>8"
- "(1::nat)\<noteq>2" "(1::nat)\<noteq>3" "(1::nat)\<noteq>4" "(1::nat)\<noteq>5" "(1::nat)\<noteq>6" "(1::nat)\<noteq>7" "(1::nat)\<noteq>8"
- "(2::nat)\<noteq>3" "(2::nat)\<noteq>4" "(2::nat)\<noteq>5" "(2::nat)\<noteq>6" "(2::nat)\<noteq>7" "(2::nat)\<noteq>8"
- "(3::nat)\<noteq>4" "(3::nat)\<noteq>5" "(3::nat)\<noteq>6" "(3::nat)\<noteq>7" "(3::nat)\<noteq>8"
- "(4::nat)\<noteq>5" "(4::nat)\<noteq>6" "(4::nat)\<noteq>7" "(4::nat)\<noteq>8"
- "(5::nat)\<noteq>6" "(5::nat)\<noteq>7" "(5::nat)\<noteq>8"
- "(6::nat)\<noteq>7" "(6::nat)\<noteq>8"
- "(7::nat)\<noteq>8"
- by auto
-
-(* HERE: MAKE THIS BETTER *)
 lemma start_heap_sys_xcpts:
 assumes "C \<in> sys_xcpts"
 shows "start_heap P (addr_of_sys_xcpt C) = Some(blank P C)"
 apply(rule sys_xcpts_cases[OF assms])
-apply(auto simp only: start_heap_def sys_xcpts_def fun_upd_apply
-                     addr_of_sys_xcpt_def preallocated_def)
-apply (smt num_neq_aux)+ (* HERE: spins a little while but finishes *)
+apply(auto simp add: start_heap_def sys_xcpts_def addr_of_sys_xcpt_def sys_xcpts_defs)
 done
 
 subsection "@{term preallocated}"
@@ -146,7 +121,7 @@ lemma preallocated_dom [simp]:
 
 lemma preallocatedD:
   "\<lbrakk> preallocated h; C \<in> sys_xcpts \<rbrakk> \<Longrightarrow> \<exists>fs. h(addr_of_sys_xcpt C) = Some (C, fs)"
-(*<*)by(auto simp add: preallocated_def sys_xcpts_def)(*>*)
+(*<*)by(auto simp: preallocated_def sys_xcpts_def)(*>*)
 
 
 lemma preallocatedE [elim?]:
@@ -190,10 +165,6 @@ lemma typeof_NoSuchMethodError [simp]:
   "preallocated h \<Longrightarrow> typeof\<^bsub>h\<^esub> (Addr(addr_of_sys_xcpt NoSuchMethodError)) = Some(Class NoSuchMethodError)" 
 (*<*)by (auto elim: preallocatedE)(*>*)
 
-lemma typeof_AbstractMethodError [simp]:
-  "preallocated h \<Longrightarrow> typeof\<^bsub>h\<^esub> (Addr(addr_of_sys_xcpt AbstractMethodError)) = Some(Class AbstractMethodError)" 
-(*<*)by (auto elim: preallocatedE)(*>*)
-
 lemma preallocated_hext:
   "\<lbrakk> preallocated h; h \<unlhd> h' \<rbrakk> \<Longrightarrow> preallocated h'"
 (*<*)by (simp add: preallocated_def hext_def)(*>*)
@@ -203,16 +174,15 @@ lemmas preallocated_upd_obj = preallocated_hext [OF _ hext_upd_obj]
 lemmas preallocated_new  = preallocated_hext [OF _ hext_new]
 (*>*)
 
-
-(* HERE: Extremely slow to prove with any number of exceptions above 4 or 5.
- Do we need/use this? Is there a better way to prove it? *)
-(* lemma preallocated_start:
-  "preallocated (start_heap P)"
-(*<*) apply (auto simp only: start_heap_def blank_def sys_xcpts_def fun_upd_apply
-                     addr_of_sys_xcpt_def preallocated_def)(*>*)
-oops (* true, but costly to prove *) *)
 lemma preallocated_start:
   "preallocated (start_heap P)"
  by(auto simp: start_heap_sys_xcpts blank_def preallocated_def)
+
+lemma start_heap_classes:
+ "start_heap P a = Some(C,fs) \<Longrightarrow> C \<in> sys_xcpts"
+ by(simp add: start_heap_def blank_def split: if_split_asm)
+
+lemma start_heap_nStart: "start_heap P a = Some obj \<Longrightarrow> fst(obj) \<noteq> Start"
+ by(cases obj, auto dest!: start_heap_classes simp: Start_nsys_xcpts)
 
 end

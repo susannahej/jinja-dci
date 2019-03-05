@@ -279,6 +279,18 @@ next
 qed
 (*>*)
 
+lemma sees_methods_is_class_Object:
+ "P \<turnstile> D sees_methods Mm \<Longrightarrow> is_class P Object"
+ by(induct rule: Methods.induct; simp add: is_class_def)
+
+lemma sees_methods_sub_Obj: "P \<turnstile> C sees_methods Mm \<Longrightarrow> P \<turnstile> C \<preceq>\<^sup>* Object"
+proof(induct rule: Methods.induct)
+  case (sees_methods_rec C D fs ms Mm Mm') show ?case
+  using subcls1I[OF sees_methods_rec.hyps(1,2)] sees_methods_rec.hyps(4)
+   by(rule converse_rtrancl_into_rtrancl)
+qed(simp)
+
+
 definition Method :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> staticb \<Rightarrow> ty list \<Rightarrow> ty \<Rightarrow> 'm \<Rightarrow> cname \<Rightarrow> bool"
             ("_ \<turnstile> _ sees _, _ :  _\<rightarrow>_ = _ in _" [51,51,51,51,51,51,51,51] 50)
 where
@@ -334,6 +346,9 @@ lemma sees_method_is_class:
 lemma sees_method_is_class':
   "\<lbrakk> P \<turnstile> C sees M,b:Ts\<rightarrow>T=m in D \<rbrakk> \<Longrightarrow> is_class P D"
 (*<*)by(drule sees_method_idemp, rule sees_method_is_class, assumption)(*>*)
+
+lemma sees_method_sub_Obj: "P \<turnstile> C sees M,b:  Ts\<rightarrow>T = m in D \<Longrightarrow> P \<turnstile> C \<preceq>\<^sup>* Object"
+ by(auto simp: Method_def sees_methods_sub_Obj)
 
 subsection{* Field lookup *}
 
@@ -502,6 +517,15 @@ proof(cases "C = Object")
 qed(auto dest: has_fields_Object has_fields_fun)
 
 
+lemma has_fields_is_class_Object:
+ "P \<turnstile> D has_fields FDTs \<Longrightarrow> is_class P Object"
+ by(induct rule: Fields.induct; simp add: is_class_def)
+
+lemma Object_fields:
+ "\<lbrakk> P \<turnstile> Object has_fields FDTs; C \<noteq> Object \<rbrakk> \<Longrightarrow> map_of FDTs (F,C) = None"
+ by(drule Fields.cases, auto simp: map_of_reinsert_neq_None)
+
+
 (* FIXME why is Field not displayed correctly? TypeRel qualifier seems to confuse printer*)
 definition has_field :: "'m prog \<Rightarrow> cname \<Rightarrow> vname \<Rightarrow> staticb \<Rightarrow> ty \<Rightarrow> cname \<Rightarrow> bool"
                    ("_ \<turnstile> _ has _,_:_ in _" [51,51,51,51,51,51] 50)
@@ -666,6 +690,18 @@ lemma field_def2 [simp]: "P \<turnstile> C sees F,b:T in D \<Longrightarrow> fie
 lemma method_def2 [simp]: "P \<turnstile> C sees M,b: Ts\<rightarrow>T = m in D \<Longrightarrow> method P C M = (D,b,Ts,T,m)"
 (*<*)by (unfold method_def) (auto dest: sees_method_fun)(*>*)
 
+
+definition seeing_class :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> cname option" where
+"seeing_class P C M =
+  (if \<exists>Ts T m D. P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D
+ then Some (fst(method P C M))
+ else None)"
+
+lemma seeing_class_def2[simp]:
+ "P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D \<Longrightarrow> seeing_class P C M = Some D"
+ by(fastforce simp: seeing_class_def)
+
+
 (* the two below are the fields for initializing an object (non-static fields) and
  a class (just that class's static fields), respectively *)
 definition ifields :: "'m prog \<Rightarrow> cname \<Rightarrow> ((vname \<times> cname) \<times> staticb \<times> ty) list" 
@@ -696,6 +732,7 @@ lemma has_field_is_class:
 lemma has_field_is_class':
  "P \<turnstile> C has F,b:T in D \<Longrightarrow> is_class P D"
 (*<*)by(drule has_field_idemp, rule has_field_is_class, assumption)(*>*)
+
 
 subsection "Code generator setup"
 

@@ -1446,14 +1446,12 @@ proof -
   proof(cases b\<^sub>2)
     case True then show ?thesis by simp
   next
-    case False then show ?thesis apply simp apply(rule r_into_rtrancl)
-      using assms(3,4) by(auto elim: SCallInitDoneRed)
+    case False then show ?thesis using assms(3,4) by(auto elim: SCallInitDoneRed)
   qed
   have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(es),s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>C\<bullet>\<^sub>sM(map Val vs),(h\<^sub>2,l\<^sub>2,sh\<^sub>2),b\<^sub>2\<rangle>"
     by(rule SCallRedsParams)(rule assms(2))
   also have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),b\<^sub>2\<rangle> \<rightarrow>* \<langle>blocks(pns, Ts, vs, body), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),False\<rangle>"
-    apply(rule rtrancl_into_rtrancl[OF b2T])
-    by(rule RedSCall)(auto simp: assms wf, rule assms(3))
+    by(auto intro!: rtrancl_into_rtrancl[OF b2T] RedSCall assms(3) simp: assms wf)
   also (rtrancl_trans) have "P \<turnstile> \<langle>blocks(pns, Ts, vs, body), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),False\<rangle>
                  \<rightarrow>* \<langle>ef,(h\<^sub>3,override_on (l\<^sub>2++l\<^sub>3) l\<^sub>2 (set pns),sh\<^sub>3),b\<^sub>3\<rangle>"
     by(rule blocksRedsFinal, insert assms wf body', simp_all)
@@ -1609,8 +1607,7 @@ proof -
   have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(es),s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>C\<bullet>\<^sub>sM(map Val vs),(h\<^sub>2,l\<^sub>2,sh\<^sub>2),b\<^sub>2\<rangle>"
     by(rule SCallRedsParams)(rule assms(2))
   also have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),b\<^sub>2\<rangle> \<rightarrow>* \<langle>blocks(pns, Ts, vs, body), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),False\<rangle>"
-    apply(rule rtrancl_into_rtrancl[OF b2T])
-    by(rule RedSCall)(auto simp: assms wf, rule assms(3))
+    by(auto intro!: rtrancl_into_rtrancl[OF b2T] RedSCall assms(3) simp: assms wf)
   also (rtrancl_trans) have "P \<turnstile> \<langle>blocks(pns, Ts, vs, body), (h\<^sub>2,l\<^sub>2,sh\<^sub>2),False\<rangle>
                  \<rightarrow>* \<langle>ef,(h\<^sub>3,override_on (l\<^sub>2++l\<^sub>3) l\<^sub>2 (set pns),sh\<^sub>3),b\<^sub>3\<rangle>"
     by(rule blocksRedsFinal, insert assms wf body', simp_all)
@@ -2539,9 +2536,8 @@ next
 next
   case (InitFinal e s e' s' C b')
   then have "\<not>sub_RI e" by simp
-  then show ?case using InitFinal RedInit[of e C b' s b P] apply simp
-    by (meson InitFinal.hyps(2) InitFinal.prems(1) InitFinal.prems(2) converse_rtrancl_into_rtrancl
-     nsub_RI_iconf red_preserves_bconf red_reds.RedInit) (* HERE: make this proof more human-readable *)
+  then show ?case using InitFinal RedInit[of e C b' s b P]
+    by (meson converse_rtrancl_into_rtrancl nsub_RI_iconf red_preserves_bconf RedInit)
 next
   case (InitNone sh C C' Cs e h l e' s')
   then have init: "P \<turnstile> \<langle>INIT C' (C # Cs,False) \<leftarrow> e,(h, l, sh(C \<mapsto> (sblank P C, Prepared))),b\<rangle> \<rightarrow>* \<langle>e',s',False\<rangle>"
@@ -2921,8 +2917,10 @@ next
       eval_evals.Call[OF IHe[OF fve] IHps[OF fvps] _ "method" same_len l\<^sub>2']
     by (simp add:subset_insertI)
 next
-  case SCallNone thus ?case
-    by (smt UnCI eval_evals.SCallNone fv.simps(12) subsetCE subsetI subset_iff)
+  case (SCallNone ps h l sh vs h' l' sh' C M)
+  have "P \<turnstile> \<langle>ps,(h, l |` W, sh)\<rangle> [\<Rightarrow>] \<langle>map Val vs,(h', l' |` W, sh')\<rangle>"
+    using SCallNone.hyps(2) SCallNone.prems by auto
+  then show ?case using SCallNone.hyps(3) eval_evals.SCallNone by auto
 next
   case SCallNonStatic thus ?case by (metis eval_evals.SCallNonStatic fv.simps(12))
 next
@@ -2992,8 +2990,7 @@ next
 next
   case ConsThrow thus ?case by simp (blast intro: eval_evals.ConsThrow)
 next
-  case InitFinal thus ?case
-    by (simp add: eval_evals.InitFinal) (* by(blast intro: eval_evals.InitFinal*)
+  case InitFinal thus ?case by (simp add: eval_evals.InitFinal)
 next
   case InitNone thus ?case by(blast intro: eval_evals.InitNone)
 next
@@ -3226,8 +3223,8 @@ shows eval_init_return: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<la
    \<and> (throw_of e' = Some a \<longrightarrow> (\<exists>sfs i. shp s' C' = \<lfloor>(sfs,Error)\<rfloor>))"
 and "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> True"
 proof(induct rule: eval_evals.inducts)
-  case (InitFinal e s e' s' C b) then show ?case (* HERE: clean this up *)
-    apply(clarsimp simp: initPD_def) apply(drule eval_final_same, simp) by fastforce
+  case (InitFinal e s e' s' C b) then show ?case
+    by(fastforce simp: initPD_def dest: eval_final_same)
 next
   case (InitDone sh C sfs C' Cs e h l e' s')
   then have "final e'" using eval_final by simp
@@ -3265,9 +3262,8 @@ next
         obtain ccss :: "char list list" and bb :: bool where
           "INIT C' (C # Cs,False) \<leftarrow> e = INIT C' (ccss,bb) \<leftarrow> unit"
           using InitError.prems(2) by blast
-        then show ?thesis
-          by (metis (no_types) InitError.hyps(2) e' exp.distinct(101) exp.inject(19) rinit_throwE)
-      qed (*by (metis exp.simps(122) rinit_throwE*)
+        then show ?thesis using InitError.hyps(2) e' by(auto dest!: rinit_throwE)
+      qed
     next
       fix a assume e': "e' = throw a"
       then show ?thesis using Cons InitError cons_to_append[of list] by clarsimp
@@ -3289,19 +3285,19 @@ next
     case Nil show ?thesis using final
     proof(rule finalE)
       fix v assume e': "e\<^sub>1 = Val v" show ?thesis
-      using RInit Nil apply clarsimp by(meson fun_upd_same initPD_def)
+      using RInit Nil by(auto simp: fun_upd_same initPD_def)
     next
       fix a assume e': "e\<^sub>1 = throw a" show ?thesis
-      using RInit Nil apply clarsimp by(meson fun_upd_same initPD_def)
+      using RInit Nil by(auto simp: fun_upd_same initPD_def)
     qed
   next
-    case (Cons a list) show ?thesis using final
-    proof(rule finalE)
+    case (Cons a list) show ?thesis
+    proof(rule finalE[OF final])
       fix v assume e': "e\<^sub>1 = Val v" then show ?thesis
-      using RInit Cons apply clarsimp by (metis last.simps last_appendR list.distinct(1))
+      using RInit Cons by clarsimp (metis last.simps last_appendR list.distinct(1))
     next
       fix a assume e': "e\<^sub>1 = throw a" then show ?thesis
-      using RInit Cons apply clarsimp by (metis last.simps last_appendR list.distinct(1))
+      using RInit Cons by clarsimp (metis last.simps last_appendR list.distinct(1))
     qed
   qed
 next
@@ -3310,13 +3306,13 @@ next
   then show ?case
   proof(rule finalE)
     fix v assume e': "e\<^sub>1 = Val v" then show ?thesis
-    using RInitInitFail apply clarsimp by (meson exp.distinct(101) rinit_throwE)
+    using RInitInitFail by clarsimp (meson exp.distinct(101) rinit_throwE)
   next
     fix a' assume e': "e\<^sub>1 = Throw a'"
     then have "iconf P (sh'(C \<mapsto> (sfs, Error))) a"
       using RInitInitFail.hyps(1) eval_final by fastforce
     then show ?thesis using RInitInitFail e'
-      apply clarsimp by (meson Cons_eq_append_conv list.inject)
+      by clarsimp (meson Cons_eq_append_conv list.inject)
   qed
 qed(auto simp: fun_upd_same)
 
@@ -3344,9 +3340,7 @@ apply(drule_tac C' = C' and a = a in eval_init_return, simp_all)
  apply (metis append_butlast_last_id)
 done
 
-(* HERE: MOVE: shouldn't actually be necessary after make_big stuff is fully cleaned up,
-  but this is a good patch for now *)
-(* ACTUALLY: make this unnecessary *)
+(* HERE: can this be made unnecessary? *)
 lemma eval_init_seq': "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i) \<or> (\<exists>C e\<^sub>0 Cs e\<^sub>i. e = RI(C,e\<^sub>0);Cs \<leftarrow> e\<^sub>i)
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i \<and> P \<turnstile> \<langle>(INIT C (Cs,b) \<leftarrow> unit);; e\<^sub>i,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>)
@@ -3355,34 +3349,37 @@ and "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rang
 proof(induct rule: eval_evals.inducts)
   case InitFinal then show ?case by(auto simp: Seq[OF eval_evals.InitFinal[OF Val[where v=Unit]]])
 next
-  case (InitNone sh C C' Cs e h l e' s')
-  then show ?case by (smt eval_evals.InitNone exp.distinct(379) exp.inject(19) seq_ext)
+  case (InitNone sh) then show ?case
+   using seq_ext[OF eval_evals.InitNone[where sh=sh and e=unit, OF InitNone.hyps(1)]] by fastforce
 next
-  case (InitDone sh C sfs C' Cs e h l e' s')
-  then show ?case by (smt eval_evals.InitDone exp.distinct(379) exp.inject(19) seq_ext)
+  case (InitDone sh) then show ?case
+   using seq_ext[OF eval_evals.InitDone[where sh=sh and e=unit, OF InitDone.hyps(1)]] by fastforce
 next
-  case (InitProcessing sh C sfs C' Cs e h l e' s')
-  then show ?case by (smt eval_evals.InitProcessing exp.distinct(379) exp.inject(19) seq_ext)
+  case (InitProcessing sh) then show ?case
+   using seq_ext[OF eval_evals.InitProcessing[where sh=sh and e=unit, OF InitProcessing.hyps(1)]]
+     by fastforce
 next
-  case (InitError sh C sfs Cs e h l e' s' C')
-  then show ?case by (smt eval_evals.InitError exp.distinct(379) exp.inject(20) seq_ext)
+  case (InitError sh) then show ?case
+   using seq_ext[OF eval_evals.InitError[where sh=sh and e=unit, OF InitError.hyps(1)]] by fastforce
 next
-  case (InitObject sh C sfs sh' C' Cs e h l e' s')
-  then show ?case by (smt eval_evals.InitObject exp.distinct(379) exp.inject(19) seq_ext)
+  case (InitObject sh) then show ?case
+   using seq_ext[OF eval_evals.InitObject[where sh=sh and e=unit, OF InitObject.hyps(1)]]
+     by fastforce
 next
-  case (InitNonObject sh C sfs D r sh' C' Cs e h l e' s')
-  then show ?case by (smt eval_evals.InitNonObject exp.distinct(379) exp.inject(19) seq_ext)
+  case (InitNonObject sh) then show ?case
+   using seq_ext[OF eval_evals.InitNonObject[where sh=sh and e=unit, OF InitNonObject.hyps(1)]]
+     by fastforce
 next
-  case (InitRInit C Cs e h l sh e' s' C')
-  then show ?case by (smt eval_evals.InitRInit exp.distinct(379) exp.inject(20) seq_ext)
+  case (InitRInit C Cs e h l sh e' s' C') then show ?case
+   using seq_ext[OF eval_evals.InitRInit[where e=unit]] by fastforce
 next
-  case (RInit e' s v h' l' sh' C sfs i sh'' C' Cs e e\<^sub>1 s\<^sub>1)
-  then show ?case by (smt eval_evals.RInit exp.distinct(379) exp.inject(19) seq_ext)
+  case RInit then show ?case
+   using seq_ext[OF eval_evals.RInit[where e=unit, OF RInit.hyps(1)]] by fastforce
 next
-  case (RInitInitFail e' s a h' l' sh' C sfs i sh'' D Cs e e\<^sub>1 s\<^sub>1)
-  then show ?case by (smt eval_evals.RInitInitFail exp.inject(20) exp.simps(400) seq_ext)
+  case RInitInitFail then show ?case
+   using seq_ext[OF eval_evals.RInitInitFail[where e=unit, OF RInitInitFail.hyps(1)]] by fastforce
 next
-  case (RInitFailFinal e' s a h' l' sh' C sfs i sh'' e)
+  case RInitFailFinal
   then show ?case using eval_evals.RInitFailFinal eval_evals.SeqThrow by auto
 qed(auto)
 
@@ -3439,10 +3436,8 @@ proof (induct rule: red_reds.inducts)
   have "P \<turnstile> \<langle>(addr a)\<bullet>M(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>" by (rule Call)
   with s' id show ?case by simp
 next
-  case (CastRed e s b e' s' b' C)
-  then show ?case
-    apply(cases s, cases s') apply(simp, erule eval_cases, auto intro: eval_evals.intros)
-    using CastFail by blast
+  case CastRed then show ?case
+    by(fastforce elim!: eval_cases intro: eval_evals.intros intro!: CastFail)
 next
   case RedCastNull
   then show ?case
@@ -3456,13 +3451,8 @@ next
   then show ?case
     by (auto elim!: eval_cases intro: eval_evals.intros)
 next
-  case (BinOpRed1 e s b e' s' b' bop e\<^sub>2)
-  then show ?case
-    apply(cases s'') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    using BinOp apply blast
-    apply (simp add: BinOpRed1.hyps(2) eval_evals.BinOpThrow1)
-    using eval_evals.BinOpThrow2 apply blast
-    by (simp add: val_no_step)
+  case BinOpRed1 then show ?case
+    by(fastforce elim!: eval_cases intro: eval_evals.intros simp: val_no_step)
 next
   case BinOpRed2
   thus ?case
@@ -3476,77 +3466,45 @@ next
   thus ?case
     by (fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (LAssRed e s b e' s' b' V)
-  thus ?case
-    apply(cases s'') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    using LAss apply auto
-    by (simp add: LAssRed.hyps(2) eval_evals.LAssThrow)
+  case LAssRed thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
   case RedLAss
   thus ?case
     by (fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (FAccRed e s b e' s' b' F D)
-  then show ?case
-    apply(cases s'') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    using FAcc apply blast
-    apply (simp add: FAccNull FAccRed.hyps(2))
-    apply (simp add: FAccRed.hyps(2) eval_evals.FAccThrow)
-    apply (meson FAccNone FAccRed.hyps(2))
-    using FAccRed.hyps(2) FAccStatic by blast
+  case FAccRed thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (RedFAcc h a C fs F D v l sh b)
-  then show ?case
+  case RedFAcc then show ?case
     by (fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (RedFAccNull F D s b)
-  then show ?case
+  case RedFAccNull then show ?case
     by (fastforce elim!: eval_cases intro: eval_evals.intros)
 next
-  case (RedFAccNone C F D a s b)
-  then show ?case
-    apply(cases s'') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    apply (metis FAccNone Val eval_cases(3))
-    using eval_cases(3) apply blast
-    using eval_cases(3) by blast
+  case RedFAccNone thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (RedFAccStatic h C F t D a l sh b)
-  then show ?case
-    apply(cases s') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    apply (metis FAccStatic Val eval_cases(3))
-    using eval_cases(3) apply blast defer
-    using eval_cases(3) by blast
+  case RedFAccStatic thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case RedSFAccNone
-  then show ?case
-    apply(cases s') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    apply (metis SFAccNone eval_cases(3))
-    using eval_cases(3) apply blast
-    using eval_cases(3) by blast
+  case RedSFAccNone thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case RedSFAccNonStatic
-  then show ?case
-    apply(cases s') apply(simp,erule eval_cases,auto intro: eval_evals.intros)
-    using SFAccNonStatic Val eval_cases(3) apply blast
-    using eval_cases(3) apply blast
-    using eval_cases(3) by blast
+  case RedSFAccNonStatic thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case FAssRed1
-  thus ?case
-    apply(cases s') apply(simp,erule eval_cases, auto intro: eval_evals.intros simp: val_no_step)
-    apply (meson FAss)
-    using FAssNull apply blast
-    using eval_evals.FAssThrow2 apply blast
-    apply (meson FAssNone)
-    using FAssStatic by blast
+  case (FAssRed1 e s b e1 s1 b1 F D e\<^sub>2)
+  obtain h' l' sh' where "s'=(h',l',sh')" by(cases s')
+  with FAssRed1 show ?case
+    by(fastforce elim!: eval_cases(9)[where e\<^sub>1=e1] intro: eval_evals.intros simp: val_no_step
+                 intro!: FAss FAssNull FAssNone FAssStatic FAssThrow2)
 next
   case FAssRed2
-  thus ?case
-    apply(cases s') apply(auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
-    apply (meson FAss Val)
-    using FAssNull FAssRed2.hyps(2) Val apply blast
-    apply (meson FAssNone Val)
-    by (meson FAssStatic Val)
+  obtain h' l' sh' where "s'=(h',l',sh')" by(cases s')
+  with FAssRed2 show ?case
+    by(auto elim!: eval_cases intro: eval_evals.intros
+            intro!: FAss FAssNull FAssNone FAssStatic FAssThrow2 Val)
 next
   case RedFAss
   thus ?case
@@ -3564,45 +3522,42 @@ next
   then show ?case
     by(auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
 next
-  case (SFAssRed e s b e'' s'' b'' C F D s')
-  then obtain h l sh where s: "s = (h,l,sh)" by(cases s)
-  then have "val_of e = None" using val_no_step SFAssRed.hyps(1) by(meson option.exhaust)
-  then have bconf: "P,sh \<turnstile>\<^sub>b (e,b) \<surd>" using SFAssRed s by simp
-  then show ?case using SFAssRed s
-   apply(simp) apply(erule eval_cases, auto simp: eval_evals.intros)
-    using SFAss apply auto[1]
-    apply (meson SFAssInit)
-    apply (meson SFAssInitThrow)
-    using SFAssRed.hyps(2) eval_evals.SFAssThrow apply auto[1]
-    apply (meson SFAssNone)
-    using SFAssNonStatic by blast
+  case (SFAssRed e s b e'' s'' b'' C F D)
+  obtain h l sh where [simp]: "s = (h,l,sh)" by(cases s)
+  obtain h' l' sh' where [simp]: "s'=(h',l',sh')" by(cases s')
+  have "val_of e = None" using val_no_step SFAssRed.hyps(1) by(meson option.exhaust)
+  then have bconf: "P,sh \<turnstile>\<^sub>b (e,b) \<surd>" using SFAssRed by simp
+  show ?case using SFAssRed.prems(2) SFAssRed bconf
+  proof cases
+    case 2 with SFAssRed bconf show ?thesis by(auto intro!: SFAssInit)
+  next
+    case 3 with SFAssRed bconf show ?thesis by(auto intro!: SFAssInitThrow)
+  qed(auto intro: eval_evals.intros intro!: SFAss SFAssInit SFAssNone SFAssNonStatic)
 next
-  case (RedSFAssNone C F D v s b)
-  then show ?case
-    apply(cases s) by(auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
+  case (RedSFAssNone C F D v s b) then show ?case
+    by(cases s) (auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
 next
-  case (RedSFAssNonStatic C F t D v s b)
-  then show ?case
-    apply(cases s) by(auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
+  case (RedSFAssNonStatic C F t D v s b) then show ?case
+    by(cases s) (auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
 next
   case CallObj
-  thus ?case
-    apply(auto elim!: eval_cases intro: eval_evals.intros simp: val_no_step)
-    apply (simp add: CallObj.hyps(2) CallObjThrow)
-    using CallParamsThrow apply blast
-    using CallNull apply blast
-    apply(rule CallNone, fast, simp, simp, fast)
-    apply (meson CallStatic)
-    by (metis Call)
+  note val_no_step[simp]
+  from CallObj.prems(2) CallObj show ?case
+  proof cases
+    case 2 with CallObj show ?thesis by(fastforce intro!: CallParamsThrow)
+  next
+    case 3 with CallObj show ?thesis by(fastforce intro!: CallNull)
+  next
+    case 4 with CallObj show ?thesis by(fastforce intro!: CallNone)
+  next
+    case 5 with CallObj show ?thesis by(fastforce intro!: CallStatic)
+  qed(fastforce intro!: CallObjThrow Call)+
 next
   case (CallParams es s b es'' s'' b'' v M s')
-  thus ?case apply(cases s')
-   apply(auto elim!: eval_cases)
-    using CallParamsThrow Val apply blast
-    using CallNull Val apply blast
-    apply(rule CallNone, rule eval_finalId, simp, fast, simp, fast)
-    apply(meson CallStatic Val)
-    by (smt eval_evals.Call Val)
+  then obtain h' l' sh' where "s' = (h',l',sh')" by(cases s')
+  with CallParams show ?case
+   by(auto elim!: eval_cases intro!: CallNone eval_finalId CallStatic Val)
+     (auto intro!: CallParamsThrow CallNull Call Val)
 next
   case RedCallNull
   thus ?case
@@ -3623,18 +3578,20 @@ next
   then show ?case using RedCallStatic CallStatic tes by fastforce
 next
   case (SCallParams es s b es'' s'' b' C M s')
-  then obtain h l sh where s: "s = (h,l,sh)" by(cases s)
-  then have es: "map_vals_of es = None" using vals_no_step SCallParams.hyps(1) by (meson not_Some_eq)
-  then have bconf: "P,sh \<turnstile>\<^sub>b (es,b) \<surd>" using s SCallParams.prems(1)
-    by (metis bconf_SCall o_apply prod.sel(2) shp_def)
-  then show ?case using SCallParams s bconf
-   apply(simp) apply(erule eval_cases, auto simp: eval_evals.intros)
-    apply(cases s') using SCallParamsThrow apply metis
-    using eval_evals.SCallNone apply (metis old.prod.exhaust)
-    using es SCallParams.hyps(2) SCallParams.prems(1) s apply (metis bconf_SCall eval_evals.SCallNonStatic)
-    using es SCallInitThrow apply meson
-    using SCallInit apply meson
-    using SCall by metis+
+  obtain h' l' sh' where s'[simp]: "s' = (h',l',sh')" by(cases s')
+  obtain h l sh where s[simp]: "s = (h,l,sh)" by(cases s)
+  have es: "map_vals_of es = None" using vals_no_step SCallParams.hyps(1) by (meson not_Some_eq)
+  have bconf: "P,sh \<turnstile>\<^sub>b (es,b) \<surd>" using s SCallParams.prems(1) by (simp add: bconf_SCall[OF es])
+  from SCallParams.prems(2) SCallParams bconf show ?case
+  proof cases
+    case 2 with SCallParams bconf show ?thesis by(auto intro!: SCallNone)
+  next
+    case 3 with SCallParams bconf show ?thesis by(auto intro!: SCallNonStatic)
+  next
+    case 4 with SCallParams bconf show ?thesis by(auto intro!: SCallInitThrow)
+  next
+    case 5 with SCallParams bconf show ?thesis by(auto intro!: SCallInit)
+  qed(auto intro!: SCallParamsThrow SCall)
 next
   case (RedSCallNone C M vs s b)
   then have tes: "THROW NoSuchMethodError = e' \<and> s = s'"
@@ -3649,9 +3606,9 @@ next
   then show ?case using RedSCallNonStatic eval_evals.SCallNonStatic tes by auto
 next
   case InitBlockRed
-  thus ?case apply(simp add: assigned_def)
+  thus ?case
     by (fastforce elim!: eval_cases intro: eval_evals.intros eval_finalId
-                 simp add: map_upd_triv fun_upd_same)
+                  simp: assigned_def map_upd_triv fun_upd_same)
 next
   case (RedInitBlock V T v u s b)
   then have "P \<turnstile> \<langle>Val u,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by simp
@@ -3731,11 +3688,8 @@ next
   thus ?case
     by (fastforce elim: eval_cases intro: eval_evals.intros)
 next
-  case (TryRed e s b e' s' b' C V e\<^sub>2)
-  thus ?case
-    apply (cases s, cases s'', auto elim!: eval_cases intro: eval_evals.intros)
-    using Try TryRed.hyps(2) apply auto[1]
-    using TryCatch by blast
+  case TryRed thus ?case
+    by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
   case RedTryCatch
   thus ?case
@@ -4114,7 +4068,7 @@ next
     then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
       by(simp add: InitFinal InitProcessing Val)
     have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>addr a,(h(a \<mapsto> blank P C),l,sh)\<rangle>"
-      apply(rule NewInit[OF _ init]) using RedNew shC' by simp_all
+      using RedNew shC' by(auto intro: NewInit[OF _ init])
     then show ?thesis using e' s' by simp
   qed(auto)
 next
@@ -4133,7 +4087,7 @@ next
     then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
       by(simp add: InitFinal InitProcessing Val)
     have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>THROW OutOfMemory,(h,l,sh)\<rangle>"
-      apply(rule NewInitOOM[OF _ init]) using RedNewFail shC' by simp_all
+      using RedNewFail shC' by(auto intro: NewInitOOM[OF _ init])
     then show ?thesis using e' s' by simp
   qed(auto)
 next
@@ -4170,8 +4124,7 @@ next
     then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
       by(simp add: InitFinal InitProcessing Val)
     have "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D} := Val v,(h, l, sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh(D \<mapsto> (?sfs', i)))\<rangle>"
-      apply(rule SFAssInit[OF Val RedSFAss.hyps(1) shC' init shP])
-      using Processing by simp+
+      using Processing by(auto intro: SFAssInit[OF Val RedSFAss.hyps(1) shC' init shP])
     then show ?thesis using e' s' by simp
   qed(auto)
 next
@@ -4185,7 +4138,7 @@ next
   obtain sfs i where shC: "sh D = \<lfloor>(sfs, i)\<rfloor>"
    using RedSCall s by(auto simp: bconf_def initPD_def dest: sees_method_fun)
   then have iDP: "i = Done \<or> i = Processing" using RedSCall s
-    apply(clarsimp simp: bconf_def initPD_def) by(drule sees_method_fun, auto)
+    by (auto simp: bconf_def initPD_def dest: sees_method_fun[OF RedSCall.hyps(1)])
   have "method": "P \<turnstile> C sees M,Static: Ts\<rightarrow>T = (pns, body) in D" by fact
   have same_len\<^sub>1: "length Ts = length pns" and fv: "fv (body) \<subseteq> set pns"
     using "method" wf by (fastforce dest!:sees_wf_mdecl simp:wf_mdecl_def)+
@@ -4337,22 +4290,31 @@ subsection {* Lifting type safety to @{text"\<Rightarrow>"} *}
 text{* \dots and now to the big step semantics, just for fun. *}
 
 lemma eval_preserves_sconf:
-  "\<lbrakk> wf_J_prog P; P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>; iconf P (shp s) e;
-     P,E \<turnstile> e::T; P,E \<turnstile> s\<surd> \<rbrakk> \<Longrightarrow> P,E \<turnstile> s'\<surd>"
+fixes s::state and s'::state
+assumes  "wf_J_prog P" and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "iconf P (shp s) e"
+ and "P,E \<turnstile> e::T" and "P,E \<turnstile> s\<surd>"
+shows "P,E \<turnstile> s'\<surd>"
 (*<*)
-apply(subgoal_tac "P,shp s \<turnstile>\<^sub>b (e,False) \<surd>") prefer 2 apply(simp add: bconf_def)
-by(blast intro:Red_preserves_sconf Red_preserves_iconf Red_preserves_bconf big_by_small
-     WT_implies_WTrt wf_prog_wwf_prog)
+proof -
+  have "P,shp s \<turnstile>\<^sub>b (e,False) \<surd>" by(simp add: bconf_def)
+  with assms show ?thesis
+    by(blast intro:Red_preserves_sconf Red_preserves_iconf Red_preserves_bconf big_by_small
+                   WT_implies_WTrt wf_prog_wwf_prog)
+qed
 (*>*)
 
 
-lemma eval_preserves_type: assumes wf: "wf_J_prog P"
-shows "\<lbrakk> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>; P,E \<turnstile> s\<surd>; iconf P (shp s) e; P,E \<turnstile> e::T \<rbrakk>
-   \<Longrightarrow> \<exists>T'. P \<turnstile> T' \<le> T \<and> P,E,hp s',shp s' \<turnstile> e':T'"
+lemma eval_preserves_type:
+fixes s::state
+assumes wf: "wf_J_prog P"
+ and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "P,E \<turnstile> s\<surd>" and "iconf P (shp s) e" and "P,E \<turnstile> e::T"
+shows "\<exists>T'. P \<turnstile> T' \<le> T \<and> P,E,hp s',shp s' \<turnstile> e':T'"
 (*<*)
-apply(subgoal_tac "P,shp s \<turnstile>\<^sub>b (e,False) \<surd>") prefer 2 apply(simp add: bconf_def)
-by(blast dest:big_by_small[OF wf_prog_wwf_prog[OF wf]]
-              WT_implies_WTrt Red_preserves_type[OF wf])
+proof -
+  have "P,shp s \<turnstile>\<^sub>b (e,False) \<surd>" by(simp add: bconf_def)
+  with assms show ?thesis by(blast dest:big_by_small[OF wf_prog_wwf_prog[OF wf]]
+                                        WT_implies_WTrt Red_preserves_type[OF wf])
+qed
 (*>*)
 
 

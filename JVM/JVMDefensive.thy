@@ -1,8 +1,10 @@
 (*  Title:      HOL/MicroJava/JVM/JVMDefensive.thy
     Author:     Gerwin Klein
     Copyright   GPL
+
+    Expanded to include static instructions by Susannah Mansky
+    2018, UIUC
 *)
-(* HERE: Made to run compile on static instructions, but not yet confirmed written as intended *)
 
 section {* A Defensive JVM *}
 

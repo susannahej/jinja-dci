@@ -15,16 +15,6 @@ lemma cons_to_append: "list \<noteq> [] \<longrightarrow> (\<exists>ls. a # list
 
 subsection{*Expression Conformance*}
 
-definition seeing_class :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> cname option" where
-"seeing_class P C M =
-  (if \<exists>Ts T m D. P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D
- then Some (fst(method P C M))
- else None)"
-
-lemma seeing_class_def2[simp]:
- "P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D \<Longrightarrow> seeing_class P C M = Some D"
- by(fastforce simp: seeing_class_def)
-
 fun init_class :: "'m prog \<Rightarrow> 'a exp \<Rightarrow> cname option" where
 "init_class P (new C) = Some C" |
 "init_class P (C\<bullet>\<^sub>sF{D}) = Some D" |
@@ -156,18 +146,7 @@ lemma iconfs_map_throw: "iconfs P sh (map Val vs @ throw e # es') \<Longrightarr
 lemma nsub_RI_iconf_aux:
  "(\<not>sub_RI (e::'a exp) \<longrightarrow> (\<forall>e'. e' \<in> subexp e \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<longrightarrow> iconf P sh e)
  \<and> (\<not>sub_RIs (es::'a exp list) \<longrightarrow> (\<forall>e'. e' \<in> subexps es \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<longrightarrow> iconfs P sh es)"
-proof(induct rule: sub_RI_sub_RIs.induct)
-(*next
-  case Block:(13 V T e')
-  show ?case
-  proof(cases "assigned V e'")
-    case True
-    then obtain v e2 where "e' = V:=Val v;;e2" by(clarsimp simp: assigned_def)
-    then show ?thesis using Block True by clarsimp
-  next
-    case False then show ?thesis using Block by simp
-  qed*)
-qed(auto)
+proof(induct rule: sub_RI_sub_RIs.induct) qed(auto)
 
 lemma nsub_RI_iconf_aux':
  "(\<And>e'. subexp_of e' e \<Longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<Longrightarrow> (\<not>sub_RI e \<Longrightarrow> iconf P sh e)"
@@ -273,7 +252,7 @@ proof(cases b)
     case None
     then obtain vs where "es = map Val vs" using ss_exps_Vals_NoneI by auto
     then have mv: "map_vals_of es = \<lfloor>vs\<rfloor>" by simp
-    then show ?thesis by(auto simp: bconf_def, simp add: bconfs_def)
+    then show ?thesis by(auto simp: bconf_def) (simp add: bconfs_def)
   next
     case (Some a)
     then show ?thesis by(auto simp: bconf_def, auto simp: bconfs_def icheck_init_class)
@@ -315,20 +294,10 @@ qed(simp add: bconf_def bconfs_def)
 lemma bconf_InitBlock[iff]:
  "P,sh \<turnstile>\<^sub>b ({V:T; V:=Val v;; e\<^sub>2},b) \<surd> \<longleftrightarrow> P,sh \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>"
  by(unfold bconf_def, cases b, auto simp: assigned_def)
-(*apply(drule val_of_spec, simp)+
-done *)
 
 lemma bconf_Block[iff]:
  "P,sh \<turnstile>\<^sub>b ({V:T; e},b) \<surd> \<longleftrightarrow> P,sh \<turnstile>\<^sub>b (e,b) \<surd>"
  by(unfold bconf_def, cases b, auto)
-
-(*lemma bconf_Block2[iff]:
- "assigned V e \<Longrightarrow> P,sh \<turnstile>\<^sub>b ({V:T; e},b) \<surd> \<longleftrightarrow> P,sh \<turnstile>\<^sub>b (snd(the(seq_of e)),b) \<surd>"
-proof -
-  assume assm: "assigned V e"
-  then obtain v e2 where "e = V:=Val v;;e2" by(clarsimp simp: assigned_def)
-  then show ?thesis by simp
-qed*)
 
 lemma bconf_Seq[iff]:
  "P,sh \<turnstile>\<^sub>b (e1;;e2,b) \<surd>

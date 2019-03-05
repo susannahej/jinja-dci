@@ -11,7 +11,7 @@
 
 section {* Objects and the Heap *}
 
-theory Objects imports TypeRel Value Subcls begin
+theory Objects imports TypeRel Value begin
 
 subsection{* Objects *}
 
@@ -75,13 +75,6 @@ definition cast_ok :: "'m prog \<Rightarrow> cname \<Rightarrow> heap \<Rightarr
 where
   "cast_ok P C h v  \<equiv>  v = Null \<or> P \<turnstile> cname_of h (the_Addr v) \<preceq>\<^sup>* C"
 
-(* HERE: might want to move this definition -SM *)
-definition checkcast_class_collect :: "'m prog \<Rightarrow> cname \<Rightarrow> heap \<Rightarrow> val \<Rightarrow> cname set" where
-"checkcast_class_collect P C h v \<equiv> if v = Null then {}
-                                   (* else if P \<turnstile> cname_of h (the_Addr v) \<preceq>\<^sup>* C
-                                        then classes_between P (cname_of h (the_Addr v)) C *)
-                                        else classes_above P (cname_of h (the_Addr v))"
-
 definition hext :: "heap \<Rightarrow> heap \<Rightarrow> bool" ("_ \<unlhd> _" [51,51] 50)
 where
   "h \<unlhd> h'  \<equiv>  \<forall>a C fs. h a = Some(C,fs) \<longrightarrow> (\<exists>fs'. h' a = Some(C,fs'))"
@@ -96,7 +89,7 @@ where
 
 lemma new_Addr_SomeD:
   "new_Addr h = Some a \<Longrightarrow> h a = None"
- (*<*)by(fastforce simp add:new_Addr_def split:if_splits intro:LeastI)(*>*)
+ (*<*)by(fastforce simp: new_Addr_def split:if_splits intro:LeastI)(*>*)
 
 lemma [simp]: "(typeof\<^bsub>h\<^esub> v = Some Boolean) = (\<exists>b. v = Bool b)"
  (*<*)by(induct v) auto(*>*)

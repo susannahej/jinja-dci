@@ -50,14 +50,9 @@ definition NoSuchMethodC :: "'m cdecl"
 where
   "NoSuchMethodC \<equiv> (NoSuchMethodError, (Object,[],[]))"
 
-definition AbstractMethodC :: "'m cdecl"
-where
-  "AbstractMethodC \<equiv> (AbstractMethodError, (Object,[],[]))"
-
 definition SystemClasses :: "'m cdecl list"
 where
   "SystemClasses \<equiv> [ObjectC, NullPointerC, ClassCastC, OutOfMemoryC, NoClassDefFoundC,
-  IncompatibleClassChangeC, NoSuchFieldC, NoSuchMethodC,
-  AbstractMethodC]"
+  IncompatibleClassChangeC, NoSuchFieldC, NoSuchMethodC]"
 
 end

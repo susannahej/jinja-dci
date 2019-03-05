@@ -47,6 +47,10 @@ definition init :: "string" where "init = ''<init>''"
 definition start_m :: "string" where "start_m = ''<start>''"
 definition Start :: "string" where "Start = ''<Start>''"
 
+lemma [simp]: "start_m \<noteq> clinit" by(simp add: start_m_def clinit_def)
+lemma [simp]: "Object \<noteq> Start" by(simp add: Object_def Start_def)
+lemma [simp]: "Start \<noteq> Object" by(simp add: Object_def Start_def)
+
 (* Not difficult to prove, but useful for directing particular sequences of equality -SM *)
 lemma class_cons: "\<lbrakk> C \<noteq> fst x \<rbrakk> \<Longrightarrow> class (x # P) C = class P C"
  by (simp add: class_def)

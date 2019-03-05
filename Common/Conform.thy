@@ -3,11 +3,16 @@
     Author:     David von Oheimb, Tobias Nipkow
     Copyright   1999 Technische Universitaet Muenchen
 *)
+(*
+  Expanded to include statics
+  Susannah Mansky
+  2017-18, UIUC
+*)
 
 section {* Conformance Relations for Type Soundness Proofs *}
 
 theory Conform
-imports Exceptions "../MapOfThy"
+imports Exceptions
 begin
 
 definition conf :: "'m prog \<Rightarrow> heap \<Rightarrow> val \<Rightarrow> ty \<Rightarrow> bool"   ("_,_ \<turnstile> _ :\<le> _"  [51,51,51,51] 50)

@@ -15,25 +15,21 @@ lemma err_mono: "A \<subseteq> B \<Longrightarrow> err A \<subseteq> err B"
 lemma opt_mono: "A \<subseteq> B \<Longrightarrow> opt A \<subseteq> opt B"
  by(unfold opt_def) auto
 
-(* HERE: MOVE ! ! *)
-lemma Object_fields:
- "\<lbrakk> P \<turnstile> Object has_fields FDTs; C \<noteq> Object \<rbrakk> \<Longrightarrow> map_of FDTs (F,C) = None"
- by(drule Fields.cases, auto simp: map_of_reinsert_neq_None)
+lemma list_mono:
+assumes "A \<subseteq> B" shows "list n A \<subseteq> list n B"
+proof(rule)
+  fix xs assume "xs \<in> list n A"
+  then obtain size: "size xs = n" and inA: "set xs \<subseteq> A" by simp
+  with assms have "set xs \<subseteq> B" by simp
+  with size show "xs \<in> list n B" by(clarsimp intro!: listI)
+qed
 
-(* HERE: MOVE! *)
-lemma has_fields_is_class_Object:
- "P \<turnstile> D has_fields FDTs \<Longrightarrow> is_class P Object"
- by(induct rule: Fields.induct; simp add: is_class_def)
-
-(* HERE: MOVE! *)
-lemma sees_methods_is_class_Object:
- "P \<turnstile> D sees_methods Mm \<Longrightarrow> is_class P Object"
- by(induct rule: Methods.induct; simp add: is_class_def)
-
-(******************)
+(****************************************************************)
 
 abbreviation class_add :: "jvm_prog \<Rightarrow> jvm_method cdecl \<Rightarrow> jvm_prog" where
 "class_add P cd \<equiv> cd#P"
+
+(*** Fields ***)
 
 lemma class_add_has_fields:
 assumes fs: "P \<turnstile> D has_fields FDTs" and nc: "\<not>is_class P C"
@@ -77,7 +73,7 @@ lemma class_add_has_field_rev:
 assumes has: "class_add P (C, cdec) \<turnstile> C\<^sub>0 has F,b:T in D"
  and ncp: "\<And>D'. P \<turnstile> C\<^sub>0 \<preceq>\<^sup>* D' \<Longrightarrow> D' \<noteq> C"
 shows "P \<turnstile> C\<^sub>0 has F,b:T in D"
-using assms by(auto simp add: has_field_def dest!: class_add_has_fields_rev)
+using assms by(auto simp: has_field_def dest!: class_add_has_fields_rev)
 
 lemma class_add_sees_field:
 assumes "P \<turnstile> C\<^sub>0 sees F,b:T in D" and "\<not> is_class P C"
@@ -88,12 +84,14 @@ lemma class_add_sees_field_rev:
 assumes has: "class_add P (C, cdec) \<turnstile> C\<^sub>0 sees F,b:T in D"
  and ncp: "\<And>D'. P \<turnstile> C\<^sub>0 \<preceq>\<^sup>* D' \<Longrightarrow> D' \<noteq> C"
 shows "P \<turnstile> C\<^sub>0 sees F,b:T in D"
-using assms by(auto simp add: sees_field_def dest!: class_add_has_fields_rev)
+using assms by(auto simp: sees_field_def dest!: class_add_has_fields_rev)
 
 lemma class_add_field:
 assumes fd: "P \<turnstile> C\<^sub>0 sees F,b:T in D" and "\<not> is_class P C"
 shows "field P C\<^sub>0 F = field (class_add P (C, cdec)) C\<^sub>0 F"
 using class_add_sees_field[OF assms, of cdec] fd by simp
+
+(*** Methods ***)
 
 lemma class_add_sees_methods:
 assumes ms: "P \<turnstile> D sees_methods Mm" and nc: "\<not>is_class P C"
@@ -163,7 +161,7 @@ qed
 lemma class_add_sees_method:
 assumes "P \<turnstile> C\<^sub>0 sees M\<^sub>0, b : Ts\<rightarrow>T = m in D" and "\<not> is_class P C"
 shows "class_add P (C, cdec) \<turnstile> C\<^sub>0 sees M\<^sub>0, b : Ts\<rightarrow>T = m in D"
-using assms by(auto simp add: Method_def dest!: class_add_sees_methods[of P C\<^sub>0])
+using assms by(auto simp: Method_def dest!: class_add_sees_methods[of P C\<^sub>0])
 
 lemma class_add_method:
 assumes md: "P \<turnstile> C\<^sub>0 sees M\<^sub>0, b : Ts\<rightarrow>T = m in D" and "\<not> is_class P C"
@@ -179,12 +177,14 @@ lemma class_add_sees_method_rev:
 lemma class_add_sees_method_Obj:
  "\<lbrakk> P \<turnstile> Object sees M\<^sub>0, b : Ts\<rightarrow>T = m in D; C \<noteq> Object \<rbrakk>
   \<Longrightarrow> class_add P (C, cdec) \<turnstile> Object sees M\<^sub>0, b : Ts\<rightarrow>T = m in D"
- by(auto simp add: Method_def dest!: class_add_sees_methods_Obj[where P=P])
+ by(auto simp: Method_def dest!: class_add_sees_methods_Obj[where P=P])
 
 lemma class_add_sees_method_rev_Obj:
  "\<lbrakk> class_add P (C, cdec) \<turnstile> Object sees M\<^sub>0, b : Ts\<rightarrow>T = m in D; C \<noteq> Object \<rbrakk>
   \<Longrightarrow> P \<turnstile> Object sees M\<^sub>0, b : Ts\<rightarrow>T = m in D"
- by(auto simp add: Method_def dest!: class_add_sees_methods_rev_Obj[where P=P])
+ by(auto simp: Method_def dest!: class_add_sees_methods_rev_Obj[where P=P])
+
+(*** Types/states ***)
 
 lemma class_add_is_type:
  "is_type P T \<Longrightarrow> is_type (class_add P (C, cdec)) T"
@@ -198,27 +198,10 @@ lemma class_add_states:
  "states P mxs mxl \<subseteq> states (class_add P (C, cdec)) mxs mxl"
 proof -
   let ?A = "types P" and ?B = "types (class_add P (C, cdec))"
-  have "?A \<subseteq> ?B" by(rule class_add_types)
-  then show ?thesis
-  apply(clarsimp simp: JVM_states_unfold intro!: err_mono opt_mono)
-  apply(unfold err_def list_def) apply(auto simp: Sigma_mono)
-  proof - (* ACTUALLY : make this proof better *)
-    fix a :: "ty list" and b :: "ty err list" and x :: "ty err"
-    assume a1: "x \<noteq> Err"
-    assume a2: "set b \<subseteq> insert Err {OK x |x. is_type P x}"
-    assume a3: "x \<in> set b"
-    assume a4: "types P \<subseteq> types (class_add P (C, cdec))"
-    have f5: "\<exists>t. x = OK t \<and> is_type P t" using a3 a2 a1 by blast
-    obtain tt :: "ty err \<Rightarrow> ty" where
-      f6: "((\<nexists>t. x = OK t \<and> is_type P t) \<or> x = OK (tt x) \<and> is_type P (tt x)) \<and> ((\<exists>t. x = OK t \<and> is_type P t) \<or> (\<forall>t. x \<noteq> OK t \<or> \<not> is_type P t))"
-      by moura
-    then have "tt x \<in> types P"
-      using f5 by blast
-    then have "is_type (class_add P (C, cdec)) (tt x)"
-      using a4 by blast
-    then show "\<exists>t. x = OK t \<and> is_type (class_add P (C, cdec)) t"
-      using f6 f5 by force
-  qed
+  have ab: "?A \<subseteq> ?B" by(rule class_add_types)
+  moreover have "\<And>n. list n ?A \<subseteq> list n ?B" using ab by(rule list_mono)
+  moreover have "list mxl (err ?A) \<subseteq> list mxl (err ?B)" using err_mono[OF ab] by(rule list_mono)
+  ultimately show ?thesis by(auto simp: JVM_states_unfold intro!: err_mono opt_mono)
 qed
 
 lemma class_add_check_types:
@@ -282,6 +265,166 @@ lemma class_add_sup_state_opt:
  \<Longrightarrow> class_add P (C, cdec) \<turnstile> \<tau> \<le>' \<tau>'"
  by(auto simp: sup_state_opt_def Opt.le_def lesub_def class_add_widens
                class_add_sup_ty_opt list_all2_mono)
+
+(*** Effect ***)
+
+lemma class_add_is_relevant_class:
+ "\<lbrakk> is_relevant_class i P C\<^sub>0; \<not> is_class P C \<rbrakk>
+  \<Longrightarrow> is_relevant_class i (class_add P (C, cdec)) C\<^sub>0"
+  by(cases i, auto simp: class_add_subcls)
+
+lemma class_add_is_relevant_class_rev:
+assumes irc: "is_relevant_class i (class_add P (C, cdec)) C\<^sub>0"
+  and ncp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C"
+  and wfxp: "wf_syscls P"
+shows "is_relevant_class i P C\<^sub>0"
+using assms
+proof(cases i)
+  case (Getfield F D) with assms
+  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
+next
+  case (Putfield F D) with assms
+  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
+next
+  case (Checkcast D) with assms
+  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
+qed(simp_all)
+
+lemma class_add_is_relevant_entry:
+ "\<lbrakk> is_relevant_entry P i pc e; \<not> is_class P C \<rbrakk>
+  \<Longrightarrow> is_relevant_entry (class_add P (C, cdec)) i pc e"
+ by(clarsimp simp: is_relevant_entry_def class_add_is_relevant_class)
+
+lemma class_add_is_relevant_entry_rev:
+ "\<lbrakk> is_relevant_entry (class_add P (C, cdec)) i pc e; 
+    \<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C;
+    wf_syscls P \<rbrakk>
+  \<Longrightarrow> is_relevant_entry P i pc e"
+ by(auto simp: is_relevant_entry_def dest!: class_add_is_relevant_class_rev)
+
+lemma class_add_relevant_entries:
+ "\<not> is_class P C
+  \<Longrightarrow> set (relevant_entries P i pc xt) \<subseteq> set (relevant_entries (class_add P (C, cdec)) i pc xt)"
+ by(clarsimp simp: relevant_entries_def class_add_is_relevant_entry)
+
+lemma class_add_relevant_entries_eq:
+assumes wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
+shows "relevant_entries P i pc xt = relevant_entries (class_add P (C, cdec)) i pc xt"
+proof -
+  have ncp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C"
+   by(rule wf_subcls_nCls'[OF assms])
+  moreover from wf have wfsys: "wf_syscls P" by(simp add: wf_prog_def)
+  moreover
+  note class_add_is_relevant_entry[OF _ nclass, of i pc _ cdec]
+       class_add_is_relevant_entry_rev[OF _ ncp wfsys, of cdec i pc]
+  ultimately show ?thesis by (metis filter_cong relevant_entries_def)
+qed
+
+lemma class_add_norm_eff_pc:
+assumes ne: "\<forall>(pc',\<tau>') \<in> set (norm_eff i P pc \<tau>). pc' < mpc"
+shows "\<forall>(pc',\<tau>') \<in> set (norm_eff i (class_add P (C, cdec)) pc \<tau>). pc' < mpc"
+using assms by(cases i, auto simp: norm_eff_def)
+
+lemma class_add_norm_eff_sup_state_opt:
+assumes ne: "\<forall>(pc',\<tau>') \<in> set (norm_eff i P pc \<tau>). P \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
+   and nclass: "\<not> is_class P C" and app: "app\<^sub>i (i, P, pc, mxs, T, \<tau>)"
+shows "\<forall>(pc',\<tau>') \<in> set (norm_eff i (class_add P (C, cdec)) pc \<tau>). (class_add P (C, cdec)) \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
+proof -
+  obtain ST LT where "\<tau> = (ST,LT)" by(cases \<tau>)
+  with assms show ?thesis proof(cases i)
+  qed(fastforce simp: norm_eff_def
+                dest!: class_add_field[where cdec=cdec] class_add_method[where cdec=cdec]
+                       class_add_sup_loc[OF _ nclass] class_add_subtype[OF _ nclass]
+                       class_add_widens[OF _ nclass] class_add_sup_state_opt[OF _ nclass])+
+qed
+
+lemma class_add_xcpt_eff_eq:
+assumes wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
+shows "xcpt_eff i P pc \<tau> xt = xcpt_eff i (class_add P (C, cdec)) pc \<tau> xt"
+using class_add_relevant_entries_eq[OF assms, of i pc xt cdec] by(cases \<tau>, simp add: xcpt_eff_def)
+
+lemma class_add_eff_pc:
+assumes eff: "\<forall>(pc',\<tau>') \<in> set (eff i P pc xt (Some \<tau>)). pc' < mpc"
+  and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
+shows "\<forall>(pc',\<tau>') \<in> set (eff i (class_add P (C, cdec)) pc xt (Some \<tau>)). pc' < mpc"
+using eff class_add_norm_eff_pc class_add_xcpt_eff_eq[OF wf nclass]
+  by(auto simp: norm_eff_def eff_def)
+
+lemma class_add_eff_sup_state_opt:
+assumes eff: "\<forall>(pc',\<tau>') \<in> set (eff i P pc xt (Some \<tau>)). P \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
+  and wf: "wf_prog wf_md P"and nclass: "\<not> is_class P C"
+  and app: "app\<^sub>i (i, P, pc, mxs, T, \<tau>)"
+shows "\<forall>(pc',\<tau>') \<in> set (eff i (class_add P (C, cdec)) pc xt (Some \<tau>)).
+         (class_add P (C, cdec)) \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
+proof -
+  from eff have ne: "\<forall>(pc', \<tau>')\<in>set (norm_eff i P pc \<tau>). P \<turnstile> \<tau>' \<le>' \<tau>s ! pc'"
+   by(simp add: norm_eff_def eff_def)
+  from eff have "\<forall>(pc', \<tau>')\<in>set (xcpt_eff i P pc \<tau> xt). P \<turnstile> \<tau>' \<le>' \<tau>s ! pc'"
+   by(simp add: xcpt_eff_def eff_def)
+  with class_add_norm_eff_sup_state_opt[OF ne nclass app]
+       class_add_xcpt_eff_eq[OF wf nclass]class_add_sup_state_opt[OF _ nclass]
+    show ?thesis by(cases cdec, auto simp: eff_def norm_eff_def xcpt_app_def)
+qed
+
+
+lemma class_add_app\<^sub>i:
+assumes "app\<^sub>i (i, P, pc, mxs, T\<^sub>r, ST, LT)" and "\<not> is_class P C"
+shows "app\<^sub>i (i, class_add P (C, cdec), pc, mxs, T\<^sub>r, ST, LT)"
+using assms
+proof(cases i)
+  case New then show ?thesis using assms by(fastforce simp: is_class_def class_def fun_upd_apply)
+next
+  case Getfield then show ?thesis using assms
+   by(auto simp: class_add_subtype dest!: class_add_sees_field[where P=P])
+next
+  case Getstatic then show ?thesis using assms by(auto dest!: class_add_sees_field[where P=P])
+next
+  case Putfield then show ?thesis using assms
+   by(auto dest!: class_add_subtype[where P=P] class_add_sees_field[where P=P])
+next
+  case Putstatic then show ?thesis using assms
+   by(auto dest!: class_add_subtype[where P=P] class_add_sees_field[where P=P])
+next
+  case Checkcast then show ?thesis using assms
+   by(clarsimp simp: is_class_def class_def fun_upd_apply)
+next
+  case Invoke then show ?thesis using assms
+    by(fastforce dest!: class_add_widens[where P=P] class_add_sees_method[where P=P])
+next
+  case Invokestatic then show ?thesis using assms
+    by(fastforce dest!: class_add_widens[where P=P] class_add_sees_method[where P=P])
+next
+  case Return then show ?thesis using assms by(clarsimp simp: class_add_subtype)
+qed(simp+)
+
+lemma class_add_xcpt_app:
+assumes xa: "xcpt_app i P pc mxs xt \<tau>"
+ and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
+shows "xcpt_app i (class_add P (C, cdec)) pc mxs xt \<tau>"
+using xa class_add_relevant_entries_eq[OF wf nclass] nclass
+ by(auto simp: xcpt_app_def is_class_def class_def fun_upd_apply) auto
+
+lemma class_add_app:
+assumes app: "app i P mxs T pc mpc xt t"
+ and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
+shows "app i (class_add P (C, cdec)) mxs T pc mpc xt t"
+proof(cases t)
+  case (Some \<tau>)
+  let ?P = "class_add P (C, cdec)"
+  from assms Some have eff: "\<forall>(pc', \<tau>')\<in>set (eff i P pc xt \<lfloor>\<tau>\<rfloor>). pc' < mpc" by(simp add: app_def)
+  from assms Some have app\<^sub>i: "app\<^sub>i (i,P,pc,mxs,T,\<tau>)" by(simp add: app_def)
+  with class_add_app\<^sub>i[OF _ nclass] Some have "app\<^sub>i (i,?P,pc,mxs,T,\<tau>)" by(cases \<tau>,simp)
+  moreover
+  from app class_add_xcpt_app[OF _ wf nclass] Some
+  have "xcpt_app i ?P pc mxs xt \<tau>" by(simp add: app_def del: xcpt_app_def)
+  moreover
+  from app class_add_eff_pc[OF eff wf nclass] Some
+  have "\<forall>(pc',\<tau>') \<in> set (eff i ?P pc xt t). pc' < mpc" by auto
+  moreover note app Some
+  ultimately show ?thesis by(simp add: app_def)
+qed(simp)
+
+(*** well-formedness/typedness ***)
 
 lemma class_add_wf_mdecl:
   "\<lbrakk> wf_mdecl wf_md P C\<^sub>0 md;
@@ -401,165 +544,10 @@ proof -
   ultimately show ?thesis by(simp add: wf_cdecl_def)
 qed
 
-lemma class_add_app\<^sub>i:
-assumes "app\<^sub>i (i, P, pc, mxs, T\<^sub>r, ST, LT)" and "\<not> is_class P C"
-shows "app\<^sub>i (i, class_add P (C, cdec), pc, mxs, T\<^sub>r, ST, LT)"
-using assms
-proof(cases i)
-  case New then show ?thesis using assms by(fastforce simp: is_class_def class_def fun_upd_apply)
-next
-  case Getfield then show ?thesis using assms
-   by(auto simp: class_add_subtype dest!: class_add_sees_field[where P=P])
-next
-  case Getstatic then show ?thesis using assms by(auto dest!: class_add_sees_field[where P=P])
-next
-  case Putfield then show ?thesis using assms
-   by(auto dest!: class_add_subtype[where P=P] class_add_sees_field[where P=P])
-next
-  case Putstatic then show ?thesis using assms
-   by(auto dest!: class_add_subtype[where P=P] class_add_sees_field[where P=P])
-next
-  case Checkcast then show ?thesis using assms
-   by(clarsimp simp: is_class_def class_def fun_upd_apply)
-next
-  case Invoke then show ?thesis using assms
-    by(fastforce dest!: class_add_widens[where P=P] class_add_sees_method[where P=P])
-next
-  case Invokestatic then show ?thesis using assms
-    by(fastforce dest!: class_add_widens[where P=P] class_add_sees_method[where P=P])
-next
-  case Return then show ?thesis using assms by(clarsimp simp: class_add_subtype)
-qed(simp+)
-
 lemma class_add_wt_start:
  "\<lbrakk> wt_start P C\<^sub>0 b Ts mxl \<tau>s; \<not> is_class P C \<rbrakk>
  \<Longrightarrow> wt_start (class_add P (C, cdec)) C\<^sub>0 b Ts mxl \<tau>s"
 using class_add_sup_state_opt by(clarsimp simp: wt_start_def split: staticb.splits)
-
-lemma class_add_is_relevant_class:
- "\<lbrakk> is_relevant_class i P C\<^sub>0; \<not> is_class P C \<rbrakk>
-  \<Longrightarrow> is_relevant_class i (class_add P (C, cdec)) C\<^sub>0"
-  by(cases i, auto simp: class_add_subcls)
-
-lemma class_add_is_relevant_class_rev:
-assumes irc: "is_relevant_class i (class_add P (C, cdec)) C\<^sub>0"
-  and ncp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C"
-  and wfxp: "wf_syscls P"
-shows "is_relevant_class i P C\<^sub>0"
-using assms
-proof(cases i)
-  case (Getfield F D) with assms
-  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
-next
-  case (Putfield F D) with assms
-  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
-next
-  case (Checkcast D) with assms
-  show ?thesis by(fastforce simp: wf_syscls_def sys_xcpts_def dest!: class_add_subcls_rev)
-qed(simp_all)
-
-lemma class_add_is_relevant_entry:
- "\<lbrakk> is_relevant_entry P i pc e; \<not> is_class P C \<rbrakk>
-  \<Longrightarrow> is_relevant_entry (class_add P (C, cdec)) i pc e"
- by(clarsimp simp: is_relevant_entry_def class_add_is_relevant_class)
-
-lemma class_add_is_relevant_entry_rev:
- "\<lbrakk> is_relevant_entry (class_add P (C, cdec)) i pc e; 
-    \<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C;
-    wf_syscls P \<rbrakk>
-  \<Longrightarrow> is_relevant_entry P i pc e"
- by(auto simp: is_relevant_entry_def dest!: class_add_is_relevant_class_rev)
-
-lemma class_add_relevant_entries:
- "\<not> is_class P C
-  \<Longrightarrow> set (relevant_entries P i pc xt) \<subseteq> set (relevant_entries (class_add P (C, cdec)) i pc xt)"
- by(clarsimp simp: relevant_entries_def class_add_is_relevant_entry)
-
-lemma class_add_relevant_entries_eq:
-assumes wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
-shows "relevant_entries P i pc xt = relevant_entries (class_add P (C, cdec)) i pc xt"
-proof -
-  have ncp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C"
-   by(rule wf_subcls_nCls'[OF assms])
-  moreover from wf have wfsys: "wf_syscls P" by(simp add: wf_prog_def)
-  moreover
-  note class_add_is_relevant_entry[OF _ nclass, of i pc _ cdec]
-       class_add_is_relevant_entry_rev[OF _ ncp wfsys, of cdec i pc]
-  ultimately show ?thesis by (metis filter_cong relevant_entries_def)
-qed
-
-lemma class_add_xcpt_app:
-assumes xa: "xcpt_app i P pc mxs xt \<tau>"
- and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
-shows "xcpt_app i (class_add P (C, cdec)) pc mxs xt \<tau>"
-using xa class_add_relevant_entries_eq[OF wf nclass] nclass
- by(auto simp: xcpt_app_def is_class_def class_def fun_upd_apply) auto
-
-lemma class_add_norm_eff_pc:
-assumes ne: "\<forall>(pc',\<tau>') \<in> set (norm_eff i P pc \<tau>). pc' < mpc"
-shows "\<forall>(pc',\<tau>') \<in> set (norm_eff i (class_add P (C, cdec)) pc \<tau>). pc' < mpc"
-using assms by(cases i, auto simp: norm_eff_def)
-
-lemma class_add_norm_eff_sup_state_opt:
-assumes ne: "\<forall>(pc',\<tau>') \<in> set (norm_eff i P pc \<tau>). P \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
-   and nclass: "\<not> is_class P C" and app: "app\<^sub>i (i, P, pc, mxs, T, \<tau>)"
-shows "\<forall>(pc',\<tau>') \<in> set (norm_eff i (class_add P (C, cdec)) pc \<tau>). (class_add P (C, cdec)) \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
-proof -
-  obtain ST LT where "\<tau> = (ST,LT)" by(cases \<tau>)
-  with assms show ?thesis proof(cases i)
-  qed(fastforce simp: norm_eff_def
-                dest!: class_add_field[where cdec=cdec] class_add_method[where cdec=cdec]
-                       class_add_sup_loc[OF _ nclass] class_add_subtype[OF _ nclass]
-                       class_add_widens[OF _ nclass] class_add_sup_state_opt[OF _ nclass])+
-qed
-
-lemma class_add_xcpt_eff_eq:
-assumes wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
-shows "xcpt_eff i P pc \<tau> xt = xcpt_eff i (class_add P (C, cdec)) pc \<tau> xt"
-using class_add_relevant_entries_eq[OF assms, of i pc xt cdec] by(cases \<tau>, simp add: xcpt_eff_def)
-
-lemma class_add_eff_pc:
-assumes eff: "\<forall>(pc',\<tau>') \<in> set (eff i P pc xt (Some \<tau>)). pc' < mpc"
-  and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
-shows "\<forall>(pc',\<tau>') \<in> set (eff i (class_add P (C, cdec)) pc xt (Some \<tau>)). pc' < mpc"
-using eff class_add_norm_eff_pc class_add_xcpt_eff_eq[OF wf nclass]
-  by(auto simp: norm_eff_def eff_def)
-
-lemma class_add_eff_sup_state_opt:
-assumes eff: "\<forall>(pc',\<tau>') \<in> set (eff i P pc xt (Some \<tau>)). P \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
-  and wf: "wf_prog wf_md P"and nclass: "\<not> is_class P C"
-  and app: "app\<^sub>i (i, P, pc, mxs, T, \<tau>)"
-shows "\<forall>(pc',\<tau>') \<in> set (eff i (class_add P (C, cdec)) pc xt (Some \<tau>)).
-         (class_add P (C, cdec)) \<turnstile> \<tau>' \<le>' \<tau>s!pc'"
-proof -
-  from eff have ne: "\<forall>(pc', \<tau>')\<in>set (norm_eff i P pc \<tau>). P \<turnstile> \<tau>' \<le>' \<tau>s ! pc'"
-   by(simp add: norm_eff_def eff_def)
-  from eff have "\<forall>(pc', \<tau>')\<in>set (xcpt_eff i P pc \<tau> xt). P \<turnstile> \<tau>' \<le>' \<tau>s ! pc'"
-   by(simp add: xcpt_eff_def eff_def)
-  with class_add_norm_eff_sup_state_opt[OF ne nclass app]
-       class_add_xcpt_eff_eq[OF wf nclass]class_add_sup_state_opt[OF _ nclass]
-    show ?thesis by(cases cdec, auto simp: eff_def norm_eff_def xcpt_app_def)
-qed
-
-lemma class_add_app:
-assumes app: "app i P mxs T pc mpc xt t"
- and wf: "wf_prog wf_md P" and nclass: "\<not> is_class P C"
-shows "app i (class_add P (C, cdec)) mxs T pc mpc xt t"
-proof(cases t)
-  case (Some \<tau>)
-  let ?P = "class_add P (C, cdec)"
-  from assms Some have eff: "\<forall>(pc', \<tau>')\<in>set (eff i P pc xt \<lfloor>\<tau>\<rfloor>). pc' < mpc" by(simp add: app_def)
-  from assms Some have app\<^sub>i: "app\<^sub>i (i,P,pc,mxs,T,\<tau>)" by(simp add: app_def)
-  with class_add_app\<^sub>i[OF _ nclass] Some have "app\<^sub>i (i,?P,pc,mxs,T,\<tau>)" by(cases \<tau>,simp)
-  moreover
-  from app class_add_xcpt_app[OF _ wf nclass] Some
-  have "xcpt_app i ?P pc mxs xt \<tau>" by(simp add: app_def del: xcpt_app_def)
-  moreover
-  from app class_add_eff_pc[OF eff wf nclass] Some
-  have "\<forall>(pc',\<tau>') \<in> set (eff i ?P pc xt t). pc' < mpc" by auto
-  moreover note app Some
-  ultimately show ?thesis by(simp add: app_def)
-qed(simp)
 
 lemma class_add_wt_instr:
 assumes wti: "P,T,mxs,mpc,xt \<turnstile> i,pc :: \<tau>s"
@@ -610,37 +598,20 @@ lemma class_add_wt_method':
             (class_add P (C, cdec)) C\<^sub>0 md"
  by(clarsimp simp: class_add_wt_method)
 
+(*** distinct_fst ***)
+
 lemma class_add_distinct_fst:
 "\<lbrakk> distinct_fst P; \<not> is_class P C \<rbrakk>
   \<Longrightarrow> distinct_fst (class_add P (C, cdec))"
- by(clarsimp simp add: distinct_fst_def is_class_def class_def)
+ by(clarsimp simp: distinct_fst_def is_class_def class_def)
 
-(**********************************************)
+(*** conformance ***)
 
-(* HERE: MOVE *)
-lemma class_add_classes_above:
-assumes ns: "\<not> is_class P C" and "\<not>P \<turnstile> D \<preceq>\<^sup>* C"
-shows "classes_above (class_add P (C, cdec)) D = classes_above P D"
-using assms by(auto intro: class_add_subcls class_add_subcls_rev)
-
-(* HERE: MOVE *)
-lemma class_add_classes_above_xcpts:
-assumes ns: "\<not> is_class P C"
- and ncp: "\<And>D. D \<in> sys_xcpts \<Longrightarrow> \<not>P \<turnstile> D \<preceq>\<^sup>* C"
-shows "classes_above_xcpts (class_add P (C, cdec)) = classes_above_xcpts P"
-using assms class_add_classes_above by simp
-
-(*****************************************************************************)
-
-(***)
-
-(* HERE: MOVE ! ! *)
 lemma class_add_conf:
  "\<lbrakk> P,h \<turnstile> v :\<le> T; \<not> is_class P C \<rbrakk>
  \<Longrightarrow> class_add P (C, cdec),h \<turnstile> v :\<le> T"
  by(clarsimp simp: conf_def class_add_subtype)
 
-(* HERE: MOVE ! ! -- will not need fixes if above correct_state def *)
 lemma class_add_oconf:
 fixes obj::obj
 assumes oc: "P,h \<turnstile> obj \<surd>" and ns: "\<not> is_class P C"
@@ -662,7 +633,6 @@ proof -
   then show ?thesis by(simp add: oconf_def)
 qed
 
-(* HERE: MOVE ! ! *)
 lemma class_add_soconf:
 assumes soc: "P,h,C\<^sub>0 \<turnstile>\<^sub>s sfs \<surd>" and ns: "\<not> is_class P C"
   and ncp: "\<And>D'. P \<turnstile> C\<^sub>0 \<preceq>\<^sup>* D' \<Longrightarrow> D' \<noteq> C"
@@ -704,7 +674,7 @@ lemma class_add_shconf_wf:
 assumes wf: "wf_prog wf_md P" and "P,h \<turnstile>\<^sub>s sh \<surd>" and "\<not> is_class P C"
  and "\<And>C sobj. sh C = Some sobj \<Longrightarrow> C \<noteq> C"
 shows "class_add P (C, cdec),h \<turnstile>\<^sub>s sh \<surd>"
-using wf_subcls_nCls[OF wf] assms by(fastforce simp add: shconf_def)
+using wf_subcls_nCls[OF wf] assms by(fastforce simp: shconf_def)
 
 (******************************************)
 

@@ -118,7 +118,7 @@ where
 | SFAccInit:
   "\<lbrakk> P \<turnstile> C has F,Static:t in D;
      \<nexists>sfs. sh D = Some (sfs,Done); P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>Val v',(h',l',sh')\<rangle>;
-     sh' D = Some (sfs,i); (* sfs = fst(the(sh' D)); *)
+     sh' D = Some (sfs,i);
      sfs F = Some v \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},(h,l,sh)\<rangle> \<Rightarrow> \<langle>Val v,(h',l',sh')\<rangle>"
 
@@ -173,7 +173,7 @@ where
   "\<lbrakk> P \<turnstile> \<langle>e\<^sub>2,s\<^sub>0\<rangle> \<Rightarrow> \<langle>Val v,(h\<^sub>1,l\<^sub>1,sh\<^sub>1)\<rangle>;
      P \<turnstile> C has F,Static:t in D;
      \<nexists>sfs. sh\<^sub>1 D = Some(sfs,Done); P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1,l\<^sub>1,sh\<^sub>1)\<rangle> \<Rightarrow> \<langle>Val v',(h',l',sh')\<rangle>;
-     sh' D = Some(sfs,i); (* sfs = fst(the(sh' D)); i = snd(the(sh' D)); *)
+     sh' D = Some(sfs,i);
      sfs' = sfs(F\<mapsto>v); sh'' = sh'(D\<mapsto>(sfs',i)) \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D}:=e\<^sub>2,s\<^sub>0\<rangle> \<Rightarrow> \<langle>unit,(h',l',sh'')\<rangle>"
 
@@ -373,7 +373,7 @@ where
 | InitNonObject:
   "\<lbrakk> sh C = Some(sfs,Prepared);
      C \<noteq> Object;
-     (* P \<turnstile> C \<prec>\<^sup>1 D; *) class P C = Some (D,r);
+     class P C = Some (D,r);
      sh' = sh(C \<mapsto> (sfs,Processing));
      P \<turnstile> \<langle>INIT C' (D#C#Cs,False) \<leftarrow> e,(h,l,sh')\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>INIT C' (C#Cs,False) \<leftarrow> e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -444,11 +444,7 @@ lemma eval_finalId:  "final e \<Longrightarrow> P \<turnstile> \<langle>e,s\<ran
 (*<*)by (erule finalE) (iprover intro: eval_evals.intros)+(*>*)
 
 lemma eval_final_same: "\<lbrakk> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>; final e \<rbrakk> \<Longrightarrow> e = e' \<and> s = s'"
-(*<*)
-apply(erule finalE)
- using eval_cases(3) apply blast
-  by (metis eval_cases(17) eval_cases(3) exp.distinct(101) exp.inject(3) val.distinct(13))
-(*>*)
+(*<*)by(auto elim!: finalE eval_cases)(*>*)
 
 lemma eval_finalsId:
 assumes finals: "finals es" shows "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es,s\<rangle>"

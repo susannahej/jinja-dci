@@ -117,15 +117,6 @@ abbreviation
   THROW :: "cname \<Rightarrow> 'a exp" where
   "THROW xc == Throw(addr_of_sys_xcpt xc)"
 
-abbreviation notINIT :: "'a exp \<Rightarrow> bool" where
- "notINIT e \<equiv> case e of INIT C (Cs,b) \<leftarrow> e \<Rightarrow> False | _ \<Rightarrow> True"
-
-(* abbreviation primed :: "'a exp \<Rightarrow> bool" where
- "primed e \<equiv> case e of new' C \<Rightarrow> True
-                     | SFAcc' C F D \<Rightarrow> True
-                     | SFAss' C F D e\<^sub>2 \<Rightarrow> True
-                     | SCall' C M es \<Rightarrow> True
-                     | _ \<Rightarrow> False" *)
 
 subsection{*Free Variables*}
 
@@ -159,22 +150,7 @@ lemma [simp]: "fvs(es\<^sub>1 @ es\<^sub>2) = fvs es\<^sub>1 \<union> fvs es\<^s
 lemma [simp]: "fvs(map Val vs) = {}"
 (*<*)by (induct vs) auto(*>*)
 
-lemma not_notINIT[simp]: "\<not>notINIT e \<Longrightarrow> \<exists>C Cs b e'. e = INIT C (Cs,b) \<leftarrow> e'"
- by(case_tac e, auto)
-
 (**********)
-
-fun unit_of :: "'a exp \<Rightarrow> bool" where
-"unit_of unit = True" |
-"unit_of _ = False"
-
-lemma unit_of_spec:
-assumes "unit_of e"
-shows "e = unit"
-using assms proof(cases e)
-  case(Val v) then show ?thesis using assms
-  proof(cases v) qed(auto)
-qed(auto)
 
 fun val_of :: "'a exp \<Rightarrow> val option" where
 "val_of (Val v) = Some v" |
@@ -250,13 +226,6 @@ fun throw_of :: "'a exp \<Rightarrow> 'a exp option" where
 
 lemma throw_of_spec: "throw_of e = Some e' \<Longrightarrow> e = throw e'"
 proof(cases e) qed(auto)
-
-fun seq_of :: "'a exp \<Rightarrow> ('a exp \<times> 'a exp) option" where
-"seq_of (e;;e') = Some(e,e')" |
-"seq_of _ = None"
-
-lemma seq_of_spec: "seq_of e = \<lfloor>a\<rfloor> \<Longrightarrow> e = fst a;;snd a"
-proof(cases e, auto) qed
 
 subsection{*Initializing Classes*}
 
@@ -384,14 +353,6 @@ proof(induct rule: subexp_subexps.induct)
 next
   case SCall:12 then show ?case using not_less_eq size_list_estimation by fastforce
 qed(auto)
-(*
-lemma subexp_trans: "e' \<in> subexp e \<Longrightarrow> subexp e' \<subseteq> subexp e"
-apply(cases e, simp_all)
-sorry
-
-lemma subexp_of_trans: "\<lbrakk> subexp_of e' e; subexp_of e'' e' \<rbrakk> \<Longrightarrow> subexp_of e'' e"
- by(drule subexp_trans, fast)
-*)
 
 lemma subexps_def2: "subexps es = set es \<union> (\<Union>e \<in> set es. subexp e)" by(induct es, auto)
 
@@ -403,14 +364,12 @@ and subexps_induct[consumes 1]:
  "(\<And>es. subexps es = {} \<Longrightarrow> Rs es) \<Longrightarrow> (\<And>e. (\<And>e'. e' \<in> subexp e \<Longrightarrow> R e') \<Longrightarrow> R e)
    \<Longrightarrow> (\<And>es. (\<And>e'. e' \<in> subexps es \<Longrightarrow> R e') \<Longrightarrow> Rs es) \<Longrightarrow> (\<forall>e'. e' \<in> subexps es \<longrightarrow> R e') \<and> Rs es"
 proof(induct rule: subexp_subexps_induct)
-  case (Cast x1 x2) (*then show ?case
-    by (metis (no_types, lifting) UnE singletonD subexp.simps(2))*)
+  case (Cast x1 x2)
   then have "(\<forall>e'. subexp_of e' x2 \<longrightarrow> R e') \<and> R x2" by fast
   then have "(\<forall>e'. subexp_of e' (Cast x1 x2) \<longrightarrow> R e')" by auto
   then show ?case using Cast.prems(2) by fast
 next
-  case (BinOp x1 x2 x3)(* then show ?case
-    by (smt UnE insertE singletonD subexp.simps(4))*)
+  case (BinOp x1 x2 x3)
   then have "(\<forall>e'. subexp_of e' x1 \<longrightarrow> R e') \<and> R x1" and "(\<forall>e'. subexp_of e' x3 \<longrightarrow> R e') \<and> R x3"
    by fast+
   then have "(\<forall>e'. subexp_of e' (x1 \<guillemotleft>x2\<guillemotright> x3) \<longrightarrow> R e')" by auto

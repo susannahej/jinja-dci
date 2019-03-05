@@ -321,14 +321,6 @@ corollary welltyped_commutes:
   apply (erule welltyped_aggressive_imp_defensive [OF wf conforms])
   done
 
-(* HERE: MOVE *)
-fun \<Phi>_start :: "ty\<^sub>P \<Rightarrow> ty\<^sub>P" where
-"\<Phi>_start \<Phi> C M = (if C=Start \<and> (M=start_m \<or> M=clinit) then start_\<phi>\<^sub>m else \<Phi> C M)"
-
-lemma \<Phi>_start: "\<And>C. C \<noteq> Start \<Longrightarrow> \<Phi>_start \<Phi> C = \<Phi> C"
- "\<Phi>_start \<Phi> Start start_m = start_\<phi>\<^sub>m" "\<Phi>_start \<Phi> Start clinit = start_\<phi>\<^sub>m"
- by auto
-
 corollary welltyped_initial_commutes:
   assumes wf: "wf_jvm_prog P"
   assumes nstart: "\<not> is_class P Start"

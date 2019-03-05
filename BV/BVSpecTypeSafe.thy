@@ -10,7 +10,7 @@
 section {* BV Type Safety Proof \label{sec:BVSpecTypeSafe} *}
 
 theory BVSpecTypeSafe
-imports BVConform ClassAdd
+imports BVConform StartProg
 begin
 
 text {*
@@ -39,7 +39,7 @@ lemma Invoke_handlers:
   "match_ex_table P C pc xt = Some (pc',d') \<Longrightarrow> 
   \<exists>(f,t,D,h,d) \<in> set (relevant_entries P (Invoke n M) pc xt). 
    P \<turnstile> C \<preceq>\<^sup>* D \<and> pc \<in> {f..<t} \<and> pc' = h \<and> d' = d"
-  by (induct xt) (auto simp add: relevant_entries_def matches_ex_entry_def 
+  by (induct xt) (auto simp: relevant_entries_def matches_ex_entry_def 
                                  is_relevant_entry_def split: if_split_asm)
 
 text {*
@@ -50,7 +50,7 @@ lemma Invokestatic_handlers:
   "match_ex_table P C pc xt = Some (pc',d') \<Longrightarrow> 
   \<exists>(f,t,D,h,d) \<in> set (relevant_entries P (Invokestatic C\<^sub>0 n M) pc xt). 
    P \<turnstile> C \<preceq>\<^sup>* D \<and> pc \<in> {f..<t} \<and> pc' = h \<and> d' = d"
-  by (induct xt) (auto simp add: relevant_entries_def matches_ex_entry_def 
+  by (induct xt) (auto simp: relevant_entries_def matches_ex_entry_def 
                                  is_relevant_entry_def split: if_split_asm)
 
 text {*
@@ -61,15 +61,8 @@ lemma Called_set_handlers:
   "match_ex_table P C pc xt = Some (pc',d') \<Longrightarrow> i \<in> Called_set \<Longrightarrow>
   \<exists>(f,t,D,h,d) \<in> set (relevant_entries P i pc xt). 
    P \<turnstile> C \<preceq>\<^sup>* D \<and> pc \<in> {f..<t} \<and> pc' = h \<and> d' = d"
-  by (induct xt) (auto simp add: relevant_entries_def matches_ex_entry_def 
+  by (induct xt) (auto simp: relevant_entries_def matches_ex_entry_def 
                                  is_relevant_entry_def split: if_split_asm)
-
-(* HERE: MOVE! *)
-lemma conf_f_Throwing:
-assumes "conf_f P h sh (ST, LT) is (stk, loc, C, M, pc, Called Cs)"
-  and "is_class P C'" and "h xcp = Some obj" and "sh C' = Some(sfs,Processing)"
-shows "conf_f P h sh (ST, LT) is (stk, loc, C, M, pc, Throwing (C' # Cs) xcp)"
-using assms by(auto simp: conf_f_def2)
 
 text {*
   We can prove separately that the recursive search for exception
@@ -135,12 +128,12 @@ next
 
     from wt meth cr' [simplified]
     have wti: "P,T,mxs,size ins,xt \<turnstile> ins!pc,pc :: \<Phi> C M" 
-      by (fastforce simp add: correct_state_def conf_f_def
+      by (fastforce simp: correct_state_def conf_f_def
                    dest: sees_method_fun
                    elim!: wt_jvm_prog_impl_wt_instr)
     
     from cr' obtain ST LT where \<Phi>: "\<Phi> C M ! pc = Some (ST, LT)"
-        by(fastforce dest: sees_method_fun simp add: correct_state_def)
+        by(fastforce dest: sees_method_fun simp: correct_state_def)
 
     from cr' \<Phi> meth have conf': "conf_f P h sh (ST, LT) ins f'"
       by (unfold correct_state_def) (fastforce dest: sees_method_fun)
@@ -151,7 +144,7 @@ next
     from cr meth pr
     obtain D n M' where
       ins: "ins!pc = Invoke n M' \<or> ins!pc = Invokestatic D n M'" (is "_ = ?i \<or> _ = ?i'")
-      by(fastforce dest: sees_method_fun simp add: correct_state_def)
+      by(fastforce dest: sees_method_fun simp: correct_state_def)
     
     with match obtain f1 t D where
       rel: "(f1,t,D,pc',d') \<in> set (relevant_entries P (ins!pc) pc xt)" and
@@ -161,15 +154,15 @@ next
     from rel have 
       "(pc', Some (Class D # drop (size ST - d') ST, LT)) \<in> set (xcpt_eff (ins!pc) P pc (ST,LT) xt)"
       (is "(_, Some (?ST',_)) \<in> _")
-      by (force simp add: xcpt_eff_def image_def)      
+      by (force simp: xcpt_eff_def image_def)      
     with wti \<Phi> obtain 
       pc: "pc' < size ins" and
       "P \<turnstile> Some (?ST', LT) \<le>' \<Phi> C M ! pc'"
-      by (clarsimp simp add: defs1) blast
+      by (clarsimp simp: defs1) blast
     then obtain ST' LT' where
       \<Phi>': "\<Phi> C M ! pc' = Some (ST',LT')" and
       less: "P \<turnstile> (?ST', LT) \<le>\<^sub>i (ST',LT')"
-      by (auto simp add: sup_state_opt_any_Some)   
+      by (auto simp: sup_state_opt_any_Some)   
 
     let ?f = "(Addr xcp # drop (length stk - d') stk, loc, C, M, pc',No_ics)"
     have "conf_f P h sh (ST',LT') ins ?f" 
@@ -216,7 +209,7 @@ proof -
   with pre show ?thesis 
   proof (cases "ins!pc")
     case Throw with xcpt wt pre show ?thesis 
-      by (clarsimp iff: list_all2_Cons2 simp add: defs1) 
+      by (clarsimp iff: list_all2_Cons2 simp: defs1) 
          (auto dest: non_npD simp: is_refT_def elim: preallocatedE)
   qed (auto elim: preallocatedE)
 qed
@@ -239,7 +232,7 @@ proof -
   { fix Cs a assume [simp]: "ics = Throwing Cs a"
     with xcpt have eq: "a = xcp" by(cases Cs; simp)
 
-    from correct have "P,h,sh \<turnstile>\<^sub>i (C,M,pc,ics)" by(auto simp add: defs1)
+    from correct have "P,h,sh \<turnstile>\<^sub>i (C,M,pc,ics)" by(auto simp: defs1)
     with eq have ?thesis by simp
   }
   moreover
@@ -257,149 +250,6 @@ lemma match_ex_table_SomeD:
   "match_ex_table P C pc xt = Some (pc',d') \<Longrightarrow> 
   \<exists>(f,t,D,h,d) \<in> set xt. matches_ex_entry P C pc (f,t,D,h,d) \<and> h = pc' \<and> d=d'"
   by (induct xt) (auto split: if_split_asm)
-
-(* HERE: MOVE! *)
-lemma valid_ics_shupd:
-assumes "P,h,sh \<turnstile>\<^sub>i (C, M, pc, ics)" and "distinct (C'#ics_classes ics)"
-shows "P,h,sh(C' \<mapsto> (sfs, i')) \<turnstile>\<^sub>i (C, M, pc, ics)"
-using assms by(cases ics; clarsimp simp: fun_upd_apply) fastforce
-
-(* HERE: MOVE ! *)
-lemma conf_f_shupd:
-assumes "conf_f P h sh (ST,LT) ins f"
- and "i = Processing
-       \<or> (distinct (C#ics_classes (ics_of f)) \<and> (curr_method f = clinit \<longrightarrow> C \<noteq> curr_class f))"
-shows "conf_f P h (sh(C \<mapsto> (sfs, i))) (ST,LT) ins f"
-using assms
- by(cases f, cases "ics_of f"; clarsimp simp: conf_f_def2 fun_upd_apply) fastforce+
-
-(* HERE: MOVE ! *)
-lemma conf_f_shupd':
-assumes "conf_f P h sh (ST,LT) ins f"
- and "sh C = Some(sfs,i)"
-shows "conf_f P h (sh(C \<mapsto> (sfs', i))) (ST,LT) ins f"
-using assms
- by(cases f, cases "ics_of f"; clarsimp simp: conf_f_def2 fun_upd_apply) fastforce+
-
-(* HERE: MOVE ! *)
-lemma conf_fs_shupd:
-assumes "conf_fs P h sh \<Phi> C\<^sub>0 M n T frs"
- and dist: "distinct (C#clinit_classes frs)"
-shows "conf_fs P h (sh(C \<mapsto> (sfs, i))) \<Phi> C\<^sub>0 M n T frs"
-using assms proof(induct frs arbitrary: C\<^sub>0 C M n T)
-  case (Cons f' frs')
-  then obtain stk' loc' C' M' pc' ics' where f': "f' = (stk',loc',C',M',pc',ics')" by(cases f')
-  with assms Cons obtain ST LT b Ts T1 mxs mxl\<^sub>0 ins xt where
-    ty: "\<Phi> C' M' ! pc' = Some (ST,LT)" and
-    meth: "P \<turnstile> C' sees M',b:Ts \<rightarrow> T1 = (mxs,mxl\<^sub>0,ins,xt) in C'" and
-    conf: "conf_f P h sh (ST, LT) ins f'" and
-    confs: "conf_fs P h sh \<Phi> C' M' (size Ts) T1 frs'" by clarsimp
-
-  from f' Cons.prems(2) have
-   "distinct (C#ics_classes (ics_of f')) \<and> (curr_method f' = clinit \<longrightarrow> C \<noteq> curr_class f')"
-     by fastforce
-  with conf_f_shupd[where C=C, OF conf] have
-    conf': "conf_f P h (sh(C \<mapsto> (sfs, i))) (ST, LT) ins f'" by simp
-
-  from Cons.prems(2) have dist': "distinct (C # clinit_classes frs')"
-    by(auto simp: distinct_length_2_or_more)
-  from Cons.hyps[OF confs dist'] have
-    confs': "conf_fs P h (sh(C \<mapsto> (sfs, i))) \<Phi> C' M' (length Ts) T1 frs'" by simp
-
-  from conf' confs' ty meth f' Cons.prems show ?case by(fastforce dest: sees_method_fun)
-qed(simp)
-
-(* HERE: MOVE ! *)
-lemma conf_fs_shupd':
-assumes "conf_fs P h sh \<Phi> C\<^sub>0 M n T frs"
- and shC: "sh C = Some(sfs,i)"
-shows "conf_fs P h (sh(C \<mapsto> (sfs', i))) \<Phi> C\<^sub>0 M n T frs"
-using assms proof(induct frs arbitrary: C\<^sub>0 C M n T sfs i sfs')
-  case (Cons f' frs')
-  then obtain stk' loc' C' M' pc' ics' where f': "f' = (stk',loc',C',M',pc',ics')" by(cases f')
-  with assms Cons obtain ST LT b Ts T1 mxs mxl\<^sub>0 ins xt where
-    ty: "\<Phi> C' M' ! pc' = Some (ST,LT)" and
-    meth: "P \<turnstile> C' sees M',b:Ts \<rightarrow> T1 = (mxs,mxl\<^sub>0,ins,xt) in C'" and
-    conf: "conf_f P h sh (ST, LT) ins f'" and
-    confs: "conf_fs P h sh \<Phi> C' M' (size Ts) T1 frs'" and
-    shC': "sh C = Some(sfs,i)" by clarsimp
-
-  have conf': "conf_f P h (sh(C \<mapsto> (sfs', i))) (ST, LT) ins f'" by(rule conf_f_shupd'[OF conf shC'])
-
-  from Cons.hyps[OF confs shC'] have
-    confs': "conf_fs P h (sh(C \<mapsto> (sfs', i))) \<Phi> C' M' (length Ts) T1 frs'" by simp
-
-  from conf' confs' ty meth f' Cons.prems show ?case by(fastforce dest: sees_method_fun)
-qed(simp)
-
-(* HERE: MOVE ! *)
-lemma conf_clinit_shupd:
-assumes "conf_clinit P sh frs"
- and dist: "distinct (C#clinit_classes frs)"
-shows "conf_clinit P (sh(C \<mapsto> (sfs, i))) frs"
-using assms by(simp add: conf_clinit_def fun_upd_apply)
-
-(* HERE: MOVE ! *)
-lemma conf_clinit_shupd':
-assumes "conf_clinit P sh frs"
- and "sh C = Some(sfs,i)"
-shows "conf_clinit P (sh(C \<mapsto> (sfs', i))) frs"
-using assms by(fastforce simp: conf_clinit_def fun_upd_apply)
-
-(* HERE: MOVE ! *)
-lemma conf_clinit_shupd_Called:
-assumes "conf_clinit P sh ((stk,loc,C,M,pc,Calling C' Cs)#frs)"
- and dist: "distinct (C'#clinit_classes ((stk,loc,C,M,pc,Calling C' Cs)#frs))"
- and cls: "is_class P C'"
-shows "conf_clinit P (sh(C' \<mapsto> (sfs, Processing))) ((stk,loc,C,M,pc,Called (C'#Cs))#frs)"
-using assms by(clarsimp simp add: conf_clinit_def fun_upd_apply distinct_clinit_def)
-
-(* HERE: MOVE ! *)
-lemma conf_clinit_shupd_Calling:
-assumes "conf_clinit P sh ((stk,loc,C,M,pc,Calling C' Cs)#frs)"
- and dist: "distinct (C'#clinit_classes ((stk,loc,C,M,pc,Calling C' Cs)#frs))"
- and cls: "is_class P C'"
-shows "conf_clinit P (sh(C' \<mapsto> (sfs, Processing)))
-         ((stk,loc,C,M,pc,Calling (fst(the(class P C'))) (C'#Cs))#frs)"
-using assms by(clarsimp simp add: conf_clinit_def fun_upd_apply distinct_clinit_def)
-
-(* HERE: MOVE *) (* HERE: unused *)
-lemma correct_state_shupd:
-assumes cs: "P,\<Phi> |- (xp,h,frs,sh) [ok]" and shC: "sh C = Some(sfs,i)"
- and dist: "distinct (C#clinit_classes frs)"
-shows "P,\<Phi> |- (xp,h,frs,sh(C \<mapsto> (sfs, i'))) [ok]"
-using assms
-proof(cases xp)
-  case None with assms show ?thesis
-  proof(cases frs)
-    case (Cons f' frs')
-    let ?sh = "sh(C \<mapsto> (sfs, i'))"
-
-    obtain stk' loc' C' M' pc' ics' where f': "f' = (stk',loc',C',M',pc',ics')" by(cases f')
-    with cs Cons None obtain b Ts T mxs mxl\<^sub>0 ins xt ST LT where
-         meth: "P \<turnstile> C' sees M',b:Ts\<rightarrow>T = (mxs,mxl\<^sub>0,ins,xt) in C'"
-     and ty: "\<Phi> C' M' ! pc' = Some (ST,LT)" and conf: "conf_f P h sh (ST,LT) ins f'"
-     and confs: "conf_fs P h sh \<Phi> C' M' (size Ts) T frs'"
-     and confc: "conf_clinit P sh frs"
-     and h_ok: "P\<turnstile> h\<surd>" and sh_ok: "P,h \<turnstile>\<^sub>s sh \<surd>"
-    by(auto simp: correct_state_def)
-
-    from Cons dist have dist': "distinct (C#clinit_classes frs')"
-     by(auto simp: distinct_length_2_or_more)
-
-    from shconf_upd_obj[OF sh_ok shconfD[OF sh_ok shC]] have sh_ok': "P,h \<turnstile>\<^sub>s ?sh \<surd>"
-      by simp
-
-    from conf f' valid_ics_shupd Cons dist have conf': "conf_f P h ?sh (ST,LT) ins f'"
-     by(auto simp: conf_f_def2 fun_upd_apply)
-    have confs': "conf_fs P h ?sh \<Phi> C' M' (size Ts) T frs'" by(rule conf_fs_shupd[OF confs dist'])
-
-    have confc': "conf_clinit P ?sh frs" by(rule conf_clinit_shupd[OF confc dist])
-
-    with h_ok sh_ok' meth ty conf' confs' f' Cons None show ?thesis
-     by(fastforce simp: correct_state_def)
-  qed(simp add: correct_state_def)
-qed(simp add: correct_state_def)
 
 text {*
   Finally we can state that, whenever an exception occurs, the
@@ -475,7 +325,7 @@ proof -
     from wt \<Phi>_pc have
       eff: "\<forall>(pc', s')\<in>set (xcpt_eff (ins!pc) P pc (ST,LT) xt).
              pc' < size ins \<and> P \<turnstile> s' \<le>' \<Phi> C M!pc'"
-      by (auto simp add: defs1)
+      by (auto simp: defs1)
 
     from some_handler obtain f t D where
       xt: "(f,t,D,pc',d') \<in> set xt" and
@@ -507,7 +357,7 @@ proof -
         \<Phi>_pc': "\<Phi> C M ! pc' = Some (ST', LT')" and
         pc':   "pc' < size ins" and
         less:  "P \<turnstile> (Class D # drop (size ST - d') ST, LT) \<le>\<^sub>i (ST', LT')"
-        by (fastforce simp add: xcpt_eff_def sup_state_opt_any_Some)
+        by (fastforce simp: xcpt_eff_def sup_state_opt_any_Some)
   
       with conf loc stk conf_f_def2 frame ics have "conf_f P h sh (ST',LT') ins ?f" 
         by (auto simp: defs1 intro: list_all2_dropI)
@@ -541,16 +391,16 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       next
         case Getfield with xp ics
         have xcp: "xcp = addr_of_sys_xcpt NullPointer \<or> xcp = addr_of_sys_xcpt NoSuchFieldError
           \<or> xcp = addr_of_sys_xcpt IncompatibleClassChangeError"
           by (cases ics; simp add: split_beta split: if_split_asm staticb.splits)
         with Getfield match preh have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
-          by (fastforce simp add: is_relevant_entry_def)
+          by (fastforce simp: is_relevant_entry_def)
         with match preh xt xcp
-        show ?thesis by(fastforce simp add: relevant_entries_def intro: that)
+        show ?thesis by(fastforce simp: relevant_entries_def intro: that)
       next
         case Getstatic with xp match 
         have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
@@ -560,16 +410,16 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       next
         case Putfield with xp ics
         have xcp: "xcp = addr_of_sys_xcpt NullPointer \<or> xcp = addr_of_sys_xcpt NoSuchFieldError
           \<or> xcp = addr_of_sys_xcpt IncompatibleClassChangeError"
           by (cases ics; simp add: split_beta split: if_split_asm staticb.splits)
         with Putfield match preh have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
-          by (fastforce simp add: is_relevant_entry_def)
+          by (fastforce simp: is_relevant_entry_def)
         with match preh xt xcp
-        show ?thesis by (fastforce simp add: relevant_entries_def intro: that)
+        show ?thesis by (fastforce simp: relevant_entries_def intro: that)
       next
         case Putstatic with xp match 
         have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
@@ -579,7 +429,7 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       next
         case Checkcast with xp ics
         have [simp]: "xcp = addr_of_sys_xcpt ClassCast" 
@@ -587,7 +437,7 @@ proof -
         with Checkcast match preh have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
           by (simp add: is_relevant_entry_def)
         with match preh xt
-        show ?thesis by (fastforce simp add: relevant_entries_def intro: that)
+        show ?thesis by (fastforce simp: relevant_entries_def intro: that)
       next
         case Invoke with xp match 
         have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
@@ -597,7 +447,7 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       next
         case Invokestatic with xp match 
         have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
@@ -607,7 +457,7 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       next
         case Throw with xp match preh 
         have "is_relevant_entry P (ins!pc) pc (f,t,D,pc',d')"
@@ -617,17 +467,17 @@ proof -
           by (blast dest: exec_step_xcpt_h[OF _ ins])
         ultimately
         show ?thesis using xt match
-          by (auto simp add: relevant_entries_def conf_def case_prod_unfold intro: that)
+          by (auto simp: relevant_entries_def conf_def case_prod_unfold intro: that)
       qed(cases ics, (auto)[5])+
   
       with eff obtain ST' LT' where
         \<Phi>_pc': "\<Phi> C M ! pc' = Some (ST', LT')" and
         pc':   "pc' < size ins" and
         less:  "P \<turnstile> (Class D # drop (size ST - d') ST, LT) \<le>\<^sub>i (ST', LT')"
-        by (fastforce simp add: xcpt_eff_def sup_state_opt_any_Some)
+        by (fastforce simp: xcpt_eff_def sup_state_opt_any_Some)
   
       with conf loc stk conf_f_def2 frame ics have "conf_f P h sh (ST',LT') ins ?f" 
-        by (auto simp add: defs1 intro: list_all2_dropI)
+        by (auto simp: defs1 intro: list_all2_dropI)
       with meth h_ok frames \<Phi>_pc' \<sigma>' sh_ok confc ics
       have ?thesis
         by (unfold correct_state_def) (auto dest: sees_method_fun conf_clinit_diff'; fastforce)
@@ -712,7 +562,7 @@ proof -
       from wt \<Phi>_pc have
         eff: "\<forall>(pc1, s')\<in>set (xcpt_eff (ins!pc) P pc (ST,LT) xt).
                pc1 < size ins \<and> P \<turnstile> s' \<le>' \<Phi> C M!pc1"
-        by (auto simp add: defs1)
+        by (auto simp: defs1)
 
       from match_ex_table_SomeD[OF sh'] obtain f t D where
         xt: "(f,t,D,pc1,d1) \<in> set xt" and
@@ -728,16 +578,16 @@ proof -
        by(auto simp: relevant_entries_def is_relevant_entry_def)
 
       with h match xt xp ics have conf: "P,h \<turnstile> Addr xcp :\<le> Class D"
-        by (auto simp add: relevant_entries_def conf_def case_prod_unfold)
+        by (auto simp: relevant_entries_def conf_def case_prod_unfold)
 
       with eff res obtain ST1 LT1 where
         \<Phi>_pc1: "\<Phi> C M ! pc1 = Some (ST1, LT1)" and
         pc1:   "pc1 < size ins" and
         less1:  "P \<turnstile> (Class D # drop (size ST - d1) ST, LT) \<le>\<^sub>i (ST1, LT1)"
-        by (fastforce simp add: xcpt_eff_def sup_state_opt_any_Some)
+        by (fastforce simp: xcpt_eff_def sup_state_opt_any_Some)
  
       with conf loc stk conf_f_def2 frame ics have frame1: "conf_f P h sh (ST1,LT1) ins ?f" 
-        by (auto simp add: defs1 intro: list_all2_dropI)
+        by (auto simp: defs1 intro: list_all2_dropI)
 
       from \<Phi>_pc1 h_ok sh_ok meth frame1 frames conf_clinit_diff'[OF confc] have
         "P,\<Phi> |- (None, h, ?f # frs, sh) [ok]" by(fastforce simp: correct_state_def)
@@ -757,13 +607,6 @@ qed
 declare defs1 [simp]
 
 subsection {* Non-instruction single steps *}
-
-(* HERE: MOVE *)
-lemma conf_clinit_nProc_dist:
-assumes "conf_clinit P sh frs"
-  and "\<forall>sfs. sh C \<noteq> Some(sfs,Processing)"
-shows "distinct (C # clinit_classes frs)"
-using assms by(auto simp: conf_clinit_def distinct_clinit_def)
 
 lemma Calling_correct:
   fixes \<sigma>' :: jvm_state
@@ -925,7 +768,7 @@ proof -
   with ics have confc\<^sub>0: "conf_clinit P sh ((stk,loc,C,M,pc,Throwing (C'#Cs) a)#frs)" by simp
 
   from frame ics mC have
-   cc: "\<exists>C1. Called_context P C1 (ins ! pc)" by(clarsimp simp add: conf_f_def2)
+   cc: "\<exists>C1. Called_context P C1 (ins ! pc)" by(clarsimp simp: conf_f_def2)
 
   from frame ics obtain obj where ha: "h a = Some obj" by(auto simp: conf_f_def2)
 
@@ -982,7 +825,7 @@ proof -
 
   from frame mC obtain C1 sobj where
     ss: "Called_context P C1 (ins ! pc)" and
-    shC1: "sh C1 = Some sobj"  by(clarsimp simp add: conf_f_def2)
+    shC1: "sh C1 = Some sobj"  by(clarsimp simp: conf_f_def2)
 
   from confc wf_sees_clinit[OF wf] obtain mxs' mxl' ins' xt' where
    clinit: "P \<turnstile> C' sees clinit,Static: [] \<rightarrow> Void=(mxs',mxl',ins',xt') in C'"
@@ -999,7 +842,7 @@ proof -
   obtain start: "wt_start P C' Static [] mxl' (\<Phi> C' clinit)" and ins': "ins' \<noteq> []"
     by (auto dest: wt_jvm_prog_impl_wt_start)
   then obtain LT\<^sub>0 where LT\<^sub>0: "\<Phi> C' clinit ! 0 = Some ([], LT\<^sub>0)"
-    by (clarsimp simp add: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
+    by (clarsimp simp: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
   moreover
   have "conf_f P h sh ([], LT\<^sub>0) ins' ?if"
   proof -
@@ -1023,18 +866,6 @@ text {*
   Since we have already handled exceptions above, we can now assume that
   no exception occurs in this step.
 *}
-
-(* HERE: MOVE ! ! *)
-lemma wf_NonStatic_nclinit:
-assumes wf: "wf_prog wf_md P" and meth: "P \<turnstile> C sees M,NonStatic:Ts\<rightarrow>T=(mxs,mxl,ins,xt) in D"
-shows "M \<noteq> clinit"
-proof -
-  from sees_method_is_class[OF meth] obtain a where cls: "class P C = Some a"
-    by(clarsimp simp: is_class_def)
-  with wf wf_sees_clinit[OF wf cls]
-   obtain m where "P \<turnstile> C sees clinit,Static:[]\<rightarrow>Void=m in C" by clarsimp
-  with meth show ?thesis by(auto dest: sees_method_fun)
-qed
 
 lemma Invoke_correct: 
   fixes \<sigma>' :: jvm_state
@@ -1092,14 +923,14 @@ proof -
       LT': "P \<turnstile> LT [\<le>\<^sub>\<top>] LT'" and
       ST': "P \<turnstile> (T # drop (n+1) ST) [\<le>] ST'" and
       b[simp]: "b = NonStatic"
-      by (clarsimp simp add: sup_state_opt_any_Some)
+      by (clarsimp simp: sup_state_opt_any_Some)
 
     from frame obtain 
     stk: "P,h \<turnstile> stk [:\<le>] ST" and
     loc: "P,h \<turnstile> loc [:\<le>\<^sub>\<top>] LT" by simp
     
     from n stk D have "P,h \<turnstile> stk!n :\<le> Class D"
-      by (auto simp add: list_all2_conv_all_nth)
+      by (auto simp: list_all2_conv_all_nth)
     with Null obtain a C' fs where
       Addr:   "stk!n = Addr a" and
       obj:    "h a = Some (C',fs)" and
@@ -1136,7 +967,7 @@ proof -
     obtain start: "wt_start P D'' NonStatic Ts' mxl' (\<Phi> D'' M')" and ins': "ins' \<noteq> []"
       by (auto dest: wt_jvm_prog_impl_wt_start)    
     then obtain LT\<^sub>0 where LT\<^sub>0: "\<Phi> D'' M' ! 0 = Some ([], LT\<^sub>0)"
-      by (clarsimp simp add: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
+      by (clarsimp simp: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
     moreover
     have "conf_f P h sh ([], LT\<^sub>0) ins' ?f'"
     proof -
@@ -1203,7 +1034,7 @@ proof -
     LT': "P \<turnstile> LT [\<le>\<^sub>\<top>] LT'" and
     ST': "P \<turnstile> (T # drop n ST) [\<le>] ST'" and
     b[simp]: "b = Static"
-    by (clarsimp simp add: sup_state_opt_any_Some)
+    by (clarsimp simp: sup_state_opt_any_Some)
 
   from frame obtain 
   stk: "P,h \<turnstile> stk [:\<le>] ST" and
@@ -1227,7 +1058,7 @@ proof -
   obtain start: "wt_start P D' Static Ts mxl' (\<Phi> D' M')" and ins': "ins' \<noteq> []"
     by (auto dest: wt_jvm_prog_impl_wt_start)
   then obtain LT\<^sub>0 where LT\<^sub>0: "\<Phi> D' M' ! 0 = Some ([], LT\<^sub>0)"
-    by (clarsimp simp add: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
+    by (clarsimp simp: wt_start_def defs1 sup_state_opt_any_Some split: staticb.splits)
   moreover
   have "conf_f P h sh ([], LT\<^sub>0) ins' ?f'"
   proof -
@@ -1296,7 +1127,7 @@ proof -
   have cls: "is_class P D'" by(rule sees_method_is_class'[OF m_D])
 
   from confc have confc': "conf_clinit P sh (?f#frs)"
-    by(auto simp add: conf_clinit_def distinct_clinit_def split: if_split_asm)
+    by(auto simp: conf_clinit_def distinct_clinit_def split: if_split_asm)
   with s' \<Phi>_pc approx meth_C m_D ins nclinit stk loc pc cls frames
   show ?thesis by(fastforce dest: sees_method_fun [of _ C])
 qed
@@ -1342,7 +1173,7 @@ proof -
     obtain U ST\<^sub>0 where "ST = U # ST\<^sub>0" "P \<turnstile> U \<le> T"
       by (simp add: wt_instr_def app_def) blast    
     with wf frame 
-    have hd_stk: "P,h \<turnstile> hd stk :\<le> T" by (auto simp add: conf_f_def)
+    have hd_stk: "P,h \<turnstile> hd stk :\<le> T" by (auto simp: conf_f_def)
 
     from f frs' frames meth
     obtain ST' LT' b' Ts'' T'' mxs' mxl\<^sub>0' ins' xt' where
@@ -1386,7 +1217,7 @@ proof -
         \<Phi>_suc:   "\<Phi> C' M' ! Suc pc' = Some (ST'', LT'')" and
         less:    "P \<turnstile> (T' # drop (size Ts+1) ST', LT') \<le>\<^sub>i (ST'', LT'')" and
         suc_pc': "Suc pc' < size ins'" 
-        by (clarsimp simp add: sup_state_opt_any_Some)
+        by (clarsimp simp: sup_state_opt_any_Some)
   
       from hd_stk T' have hd_stk': "P,h \<turnstile> hd stk :\<le> T'"  ..
   
@@ -1435,7 +1266,7 @@ proof -
         \<Phi>_suc:   "\<Phi> C' M' ! Suc pc' = Some (ST'', LT'')" and
         less:    "P \<turnstile> (T' # drop (size Ts) ST', LT') \<le>\<^sub>i (ST'', LT'')" and
         suc_pc': "Suc pc' < size ins'" 
-        by (clarsimp simp add: sup_state_opt_any_Some)
+        by (clarsimp simp: sup_state_opt_any_Some)
   
       from hd_stk T' have hd_stk': "P,h \<turnstile> hd stk :\<le> T'"  ..
   
@@ -1572,7 +1403,7 @@ lemma Cast_conf2:
      apply simp
     apply simp
    apply simp  
-  apply (clarsimp simp add: conf_def obj_ty_def)
+  apply (clarsimp simp: conf_def obj_ty_def)
   apply (cases v)
   apply (auto intro: rtrancl_trans)
   done
@@ -1590,7 +1421,7 @@ lemma Checkcast_correct:
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
   apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
-  apply (clarsimp simp add: wf_jvm_prog_phi_def split: if_split_asm)
+  apply (clarsimp simp: wf_jvm_prog_phi_def split: if_split_asm)
   apply (drule (1) sees_method_fun)
   apply (blast intro: Cast_conf2 dest: sees_method_fun conf_clinit_diff)
   done
@@ -1652,7 +1483,7 @@ proof -
     by (blast intro: has_field_mono has_visible_field)
   moreover from "h\<surd>" h have "P,h \<turnstile> (D', fs) \<surd>" by (rule hconfD)
   ultimately obtain v where v: "fs (F, D) = Some v" "P,h \<turnstile> v :\<le> vT"
-    by (clarsimp simp add: oconf_def has_field_def) 
+    by (clarsimp simp: oconf_def has_field_def) 
        (blast dest: has_fields_fun)
 
   from conf_clinit_diff[OF confc]
@@ -1717,7 +1548,7 @@ proof -
   note has_field_idemp[OF has_visible_field[OF F]]
   moreover from "sh\<surd>" shD have "P,h,D \<turnstile>\<^sub>s sfs \<surd>" by (rule shconfD)
   ultimately obtain v where v: "sfs F = Some v" "P,h \<turnstile> v :\<le> vT"
-    by (clarsimp simp add: soconf_def has_field_def) blast
+    by (clarsimp simp: soconf_def has_field_def) blast
 
   from i mC s' v xc F cs cc' shD
   have "\<sigma>' = (None, h, (v#stk,loc,C,M,pc+1,No_ics)#frs, sh)"
@@ -1775,7 +1606,7 @@ proof -
    by(auto simp: split_beta split: if_split_asm init_state.splits)
   moreover
   from confc have "conf_clinit P sh ((stk,loc,C,M,pc,Calling D [])#frs)"
-     by(auto simp add: conf_clinit_def distinct_clinit_def split: if_split_asm)
+     by(auto simp: conf_clinit_def distinct_clinit_def split: if_split_asm)
   moreover
   note loc stk "h\<surd>" "sh\<surd>" mC \<Phi> pc fs i has_field cls
   ultimately
@@ -1824,7 +1655,7 @@ proof -
     ST'': "P,h \<turnstile> stk' [:\<le>] ST''"
     by auto
 
-  from stk' i mC s' xc have "ref \<noteq> Null" by (auto simp add: split_beta)
+  from stk' i mC s' xc have "ref \<noteq> Null" by (auto simp: split_beta)
   moreover from ref oT have "P,h \<turnstile> ref :\<le> Class D" ..
   ultimately obtain a D' fs where 
     a: "ref = Addr a" and h: "h a = Some (D', fs)" and D': "P \<turnstile> D' \<preceq>\<^sup>* D"
@@ -1977,7 +1808,7 @@ proof -
    by(auto simp: split_beta split: if_split_asm init_state.splits)
   moreover
   from confc have "conf_clinit P sh ((stk,loc,C,M,pc,Calling D [])#frs)"
-     by(auto simp add: conf_clinit_def distinct_clinit_def split: if_split_asm)
+     by(auto simp: conf_clinit_def distinct_clinit_def split: if_split_asm)
   moreover
   note loc stk "h\<surd>" "sh\<surd>" mC \<Phi> pc fs i has_field cls
   ultimately
@@ -1998,7 +1829,7 @@ lemma has_fields_b_fields:
 lemma oconf_blank [intro, simp]:
     "\<lbrakk>is_class P C; wf_prog wt P\<rbrakk> \<Longrightarrow> P,h \<turnstile> blank P C \<surd>"
 (*<*)
-  by (fastforce simp add: has_fields_b_fields oconf_blank
+  by (fastforce simp: has_fields_b_fields oconf_blank
                dest: wf_Fields_Ex)
 (*>*)
 
@@ -2050,7 +1881,7 @@ proof -
   moreover
   from h frame less suc_pc wf
   have "conf_f P ?h' sh (ST', LT') ins ?f"
-    apply (clarsimp simp add: fun_upd_apply conf_def blank_def split_beta)
+    apply (clarsimp simp: fun_upd_apply conf_def blank_def split_beta)
     apply (auto intro: confs_hext confTs_hext)
     done      
   moreover
@@ -2107,7 +1938,7 @@ proof -
   moreover note heap_ok sheap_ok frames
   moreover
   from confc have "conf_clinit P sh (?f # frs)"
-    by(auto simp add: conf_clinit_def distinct_clinit_def split: if_split_asm)
+    by(auto simp: conf_clinit_def distinct_clinit_def split: if_split_asm)
   ultimately
   show ?thesis using meth \<Phi>_pc by fastforce 
 qed
@@ -2190,7 +2021,7 @@ lemma IAdd_correct:
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
 apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
-apply (clarsimp simp add: conf_def)
+apply (clarsimp simp: conf_def)
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
 done
@@ -2207,16 +2038,6 @@ lemma Throw_correct:
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
   by simp
-
-(* HERE: MOVE ! *)
-lemma wf_jvm_prog_nclinit:
-assumes wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P"
-  and meth:  "P \<turnstile> C sees M, b :  Ts\<rightarrow>T = (mxs, mxl\<^sub>0, ins, xt) in D"
-  and wt:    "P,T,mxs,size ins,xt \<turnstile> ins!pc,pc :: \<Phi> C M"
-  and pc:    "pc < length ins" and \<Phi>: "\<Phi> C M ! pc = Some(ST,LT)"
-  and ins:   "ins ! pc = Invokestatic C\<^sub>0 M\<^sub>0 n"
-shows "M\<^sub>0 \<noteq> clinit"
- using assms by(simp add: wf_jvm_prog_phi_def)
 
 text {*
   The next theorem collects the results of the sections above,
@@ -2408,7 +2229,7 @@ done
 
 theorem progress:
   "\<lbrakk> xp=None; frs\<noteq>[] \<rbrakk> \<Longrightarrow> \<exists>\<sigma>'. P \<turnstile> (xp,h,frs,sh) -jvm\<rightarrow>\<^sub>1 \<sigma>'"
-  by (clarsimp simp add: exec_1_iff neq_Nil_conv split_beta
+  by (clarsimp simp: exec_1_iff neq_Nil_conv split_beta
                simp del: split_paired_Ex)
 
 lemma progress_conform:
@@ -2442,197 +2263,9 @@ lemma hconf_start:
   apply (drule sym)
   apply (unfold start_heap_def)
   apply (insert wf)
-  apply (auto simp add: fun_upd_apply is_class_xcpt split: if_split_asm)
+  apply (auto simp: fun_upd_apply is_class_xcpt split: if_split_asm)
   done
 (*>*)
-
-(***************************************************************************************)
- (* ACTUALLY -- MOVE ! ! --- all of this! *)
-abbreviation start_\<phi>\<^sub>m :: "ty\<^sub>m" where
-"start_\<phi>\<^sub>m \<equiv> [Some([],[]),Some([Void],[])]"
-
-lemma check_types_\<phi>\<^sub>m: "check_types (start_prog P C M) 1 0 (map OK start_\<phi>\<^sub>m)"
- by (auto simp add: check_types_def JVM_states_unfold)
-
-lemma [simp]: "start_m \<noteq> clinit" by(simp add: start_m_def clinit_def)
-lemma [simp]: "Object \<noteq> Start" by(simp add: Object_def Start_def)
-lemma [simp]: "Start \<noteq> Object" by(simp add: Object_def Start_def)
-lemma Start_nsys_xcpts: "Start \<notin> sys_xcpts"
- by(simp add: Start_def sys_xcpts_def NullPointer_def ClassCast_def OutOfMemory_def
-   NoClassDefFoundError_def IncompatibleClassChangeError_def NoSuchFieldError_def
-   NoSuchMethodError_def AbstractMethodError_def)
-lemma [simp]: "Start \<noteq> NullPointer" "Start \<noteq> ClassCast" "Start \<noteq> OutOfMemory"
- "Start \<noteq> NoClassDefFoundError" "Start \<noteq> IncompatibleClassChangeError"
- "Start \<noteq> NoSuchFieldError" "Start \<noteq> NoSuchMethodError" "Start \<noteq> AbstractMethodError"
-using Start_nsys_xcpts by(auto simp: sys_xcpts_def)
-lemma [simp]: "NullPointer \<noteq> Start" "ClassCast \<noteq> Start" "OutOfMemory \<noteq> Start"
- "NoClassDefFoundError \<noteq> Start" "IncompatibleClassChangeError \<noteq> Start"
- "NoSuchFieldError \<noteq> Start" "NoSuchMethodError \<noteq> Start" "AbstractMethodError \<noteq> Start"
-using Start_nsys_xcpts by(auto simp: sys_xcpts_def dest: sym)
-
-abbreviation start_class_rest :: "cname \<Rightarrow> mname \<Rightarrow> jvm_method class" where
-"start_class_rest C M \<equiv> (Object, [], [start_method C M, start_clinit])"
-
-lemma [simp]: "start_class C M = (Start, start_class_rest C M)" by(simp add: start_class_def)
-
-lemma start_wt_method:
- "\<lbrakk> P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D; M \<noteq> clinit; \<not> is_class P Start \<rbrakk>
-  \<Longrightarrow> wt_method (start_prog P C M) Start Static [] Void 1 0 [Invokestatic C M 0, Return] [] start_\<phi>\<^sub>m"
-using check_types_\<phi>\<^sub>m
- apply(clarsimp simp: wt_method_def wt_start_def wt_instr_def
-                dest!: class_add_sees_method[where C=Start])
-apply(rename_tac pc ST LT) apply(case_tac "pc = 0")
-  apply (cases m)
-  apply (fastforce simp add: relevant_entries_def is_relevant_entry_def xcpt_eff_def)+
-done
-
-lemma start_clinit_wt_method:
- "\<lbrakk> P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D; M \<noteq> clinit; \<not> is_class P Start \<rbrakk>
-  \<Longrightarrow> wt_method (start_prog P C M) Start Static [] Void 1 0 [Push Unit,Return] [] start_\<phi>\<^sub>m"
-using check_types_\<phi>\<^sub>m
- apply(clarsimp simp add: wt_method_def wt_start_def wt_instr_def)
-apply(rename_tac pc ST LT) apply(case_tac "pc = 0")
-  apply (cases m)
-  apply (fastforce simp add: relevant_entries_def is_relevant_entry_def xcpt_eff_def)+
-done
-
-lemma start_class_wf:
-assumes "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D"
- and "M \<noteq> clinit" and "\<not> is_class P Start"
- and "\<Phi> Start start_m = start_\<phi>\<^sub>m" and "\<Phi> Start clinit = start_\<phi>\<^sub>m"
- and "is_class P Object"
- and "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees start_m, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
- and "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees clinit, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-shows "wf_cdecl (\<lambda>P C (M,b,Ts,T\<^sub>r,(mxs,mxl\<^sub>0,is,xt)). wt_method P C b Ts T\<^sub>r mxs mxl\<^sub>0 is xt (\<Phi> C M))
-       (start_prog P C M) (start_class C M)"
-proof -
-  from assms start_wt_method start_clinit_wt_method class_add_sees_method_rev_Obj[where P=P and C=Start]
-   show ?thesis
-    by(auto simp: start_method_def wf_cdecl_def wf_fdecl_def wf_mdecl_def
-                  is_class_def class_def fun_upd_apply wf_clinit_def) fast+
-qed
-
-lemma start_prog_wf_jvm_prog_phi:
-assumes wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P"
- and nstart: "\<not> is_class P Start"
- and meth: "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D" and nclinit: "M \<noteq> clinit"
- and \<Phi>: "\<And>C. C \<noteq> Start \<Longrightarrow> \<Phi>' C = \<Phi> C"
- and \<Phi>': "\<Phi>' Start start_m = start_\<phi>\<^sub>m" "\<Phi>' Start clinit = start_\<phi>\<^sub>m"
- and Obj_start_m: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees start_m, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-shows "wf_jvm_prog\<^bsub>\<Phi>'\<^esub> (start_prog P C M)"
-proof -
-  let ?wf_md = "(\<lambda>P C (M,b,Ts,T\<^sub>r,(mxs,mxl\<^sub>0,is,xt)). wt_method P C b Ts T\<^sub>r mxs mxl\<^sub>0 is xt (\<Phi> C M))"
-  let ?wf_md' = "(\<lambda>P C (M,b,Ts,T\<^sub>r,(mxs,mxl\<^sub>0,is,xt)). wt_method P C b Ts T\<^sub>r mxs mxl\<^sub>0 is xt (\<Phi>' C M))"
-  from wtp have wf: "wf_prog ?wf_md P" by(simp add: wf_jvm_prog_phi_def)
-  from wf_subcls_nCls'[OF wf nstart]
-  have nsp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* Start" by simp
-  have wf_md':
-    "\<And>C\<^sub>0 S fs ms m. (C\<^sub>0, S, fs, ms) \<in> set P \<Longrightarrow> m \<in> set ms \<Longrightarrow> ?wf_md' (start_prog P C M) C\<^sub>0 m"
-  proof -
-    fix C\<^sub>0 S fs ms m assume asms: "(C\<^sub>0, S, fs, ms) \<in> set P" "m \<in> set ms"
-    with nstart have ns: "C\<^sub>0 \<noteq> Start" by(auto simp: is_class_def class_def dest: weak_map_of_SomeI)
-    from wf asms have "?wf_md P C\<^sub>0 m" by(auto simp: wf_prog_def wf_cdecl_def wf_mdecl_def)
-
-    with \<Phi>[OF ns] class_add_wt_method[OF _ wf nstart]
-     show "?wf_md' (start_prog P C M) C\<^sub>0 m" by fastforce
-  qed
-  from wtp have a1: "is_class P Object" by (simp add: wf_jvm_prog_phi_def)
-  with wf_sees_clinit[where P=P and C=Object] wtp
-   have a2: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees clinit, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-    by(fastforce simp: wf_jvm_prog_phi_def is_class_def dest: sees_method_fun)
-  from wf have dist: "distinct_fst P" by (simp add: wf_prog_def)
-  with class_add_distinct_fst[OF _ nstart] have "distinct_fst (start_prog P C M)" by simp
-  moreover from wf have "wf_syscls (start_prog P C M)" by(simp add: wf_prog_def wf_syscls_def)
-  moreover
-  from class_add_wf_cdecl'[where wf_md'="?wf_md'", OF _ _ nsp dist] wf_md' nstart wf
-  have "\<And>c. c \<in> set P \<Longrightarrow> wf_cdecl ?wf_md' (start_prog P C M) c" by(fastforce simp: wf_prog_def)
-  moreover from start_class_wf[OF meth] nclinit nstart \<Phi>' a1 Obj_start_m a2
-  have "wf_cdecl ?wf_md' (start_prog P C M) (start_class C M)" by simp
-  ultimately show ?thesis by(simp add: wf_jvm_prog_phi_def wf_prog_def)
-qed
-
-lemma start_prog_wf_jvm_prog:
-assumes wf: "wf_jvm_prog P"
- and nstart: "\<not> is_class P Start"
- and meth: "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D" and nclinit: "M \<noteq> clinit"
- and Obj_start_m: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees start_m, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-shows "wf_jvm_prog (start_prog P C M)"
-proof -
-  from wf obtain \<Phi> where wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P" by(clarsimp simp: wf_jvm_prog_def)
-
-  let ?\<Phi>' = "\<lambda>C f. if C = Start \<and> (f = start_m \<or> f = clinit) then start_\<phi>\<^sub>m else \<Phi> C f"
-
-  from start_prog_wf_jvm_prog_phi[OF wtp nstart meth nclinit _ _ _ Obj_start_m] have
-    "wf_jvm_prog\<^bsub>?\<Phi>'\<^esub> (start_prog P C M)" by simp
-  then show ?thesis by(auto simp: wf_jvm_prog_def)
-qed
-
-(*****************************************************************************)
-
-lemma start_prog_Start_sees_methods:
- "P \<turnstile> Object sees_methods Mm
- \<Longrightarrow> start_prog P C M \<turnstile>
-  Start sees_methods Mm ++ (map_option (\<lambda>m. (m,Start)) \<circ> map_of [start_method C M, start_clinit])"
- by (auto simp: class_def fun_upd_apply
-          dest!: class_add_sees_methods_Obj[where P=P and C=Start] intro: sees_methods_rec)
-
-lemma start_prog_Start_sees_start_method:
- "P \<turnstile> Object sees_methods Mm
-  \<Longrightarrow> start_prog P C M \<turnstile>
-         Start sees start_m, Static : []\<rightarrow>Void = (1, 0, [Invokestatic C M 0,Return], []) in Start"
- by(auto simp: start_method_def Method_def fun_upd_apply
-         dest!: start_prog_Start_sees_methods)
-
-(* HERE: MOVE *)
-lemma wf_start_prog_Start_sees_start_method:
-assumes wf: "wf_prog wf_md P"
-shows "start_prog P C M \<turnstile>
-         Start sees start_m, Static : []\<rightarrow>Void = (1, 0, [Invokestatic C M 0,Return], []) in Start"
-proof -
-  from wf have "is_class P Object" by simp
-  with sees_methods_Object  obtain Mm where "P \<turnstile> Object sees_methods Mm"
-   by(fastforce simp: is_class_def dest: sees_methods_Object)
-  then show ?thesis by(rule start_prog_Start_sees_start_method)
-qed
-
-(* HERE: MOVE *)
-lemma start_prog_start_m_instrs:
-assumes wf: "wf_prog wf_md P"
-shows "(instrs_of (start_prog P C M) Start start_m) = [Invokestatic C M 0, Return]"
-proof -
-  from wf_start_prog_Start_sees_start_method[OF wf]
-  have "start_prog P C M \<turnstile> Start sees start_m, Static :
-           []\<rightarrow>Void = (1,0,[Invokestatic C M 0,Return],[]) in Start" by simp
-  then show ?thesis by simp
-qed
-
-(* HERE: MOVE ? *)
-lemma start_prog_Start_fields:
- "start_prog P C M \<turnstile> Start has_fields FDTs \<Longrightarrow> map_of FDTs (F, Start) = None"
- by(drule Fields.cases, auto simp: class_def fun_upd_apply Object_fields)
-
-lemma start_prog_Start_soconf:
- "(start_prog P C M),h,Start \<turnstile>\<^sub>s Map.empty \<surd>"
- by(simp add: soconf_def has_field_def start_prog_Start_fields)
-
-lemma start_prog_start_shconf:
- "start_prog P C M,start_heap P \<turnstile>\<^sub>s start_sheap \<surd>"
-(*<*)
-using start_prog_Start_soconf
-  apply (unfold shconf_def)
-  apply (simp add: preallocated_start fun_upd_apply)
-  done
-(*>*)
-
-(******************************************************************)
-
-lemma start_heap_nStart: "start_heap P a = Some obj \<Longrightarrow> fst(obj) \<noteq> Start"
- by(auto simp: start_heap_def sys_xcpts_def fun_upd_apply blank_def split: if_split_asm)
 
 (* HERE: unused *)
 lemma shconf_start:   
