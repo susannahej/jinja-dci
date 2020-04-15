@@ -6,7 +6,7 @@
     2017, UIUC
 *)
 
-section {* Weak well-formedness of Jinja programs *}
+section \<open> Weak well-formedness of Jinja programs \<close>
 
 theory WWellForm imports "../Common/WellForm" Expr begin
 

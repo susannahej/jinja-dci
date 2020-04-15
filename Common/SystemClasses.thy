@@ -7,16 +7,16 @@
     2017, UIUC
 *)
 
-section {* System Classes *}
+section \<open> System Classes \<close>
 
 theory SystemClasses
 imports Decl Exceptions
 begin
 
-text {*
+text \<open>
   This theory provides definitions for the @{text Object} class,
   and the system exceptions.
-*}
+\<close>
 
 definition ObjectC :: "'m cdecl"
 where

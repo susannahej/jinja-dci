@@ -5,7 +5,7 @@
     2017, UIUC
 *)
 
-section {* Small Step Semantics *}
+section \<open> Small Step Semantics \<close>
 
 theory SmallStep
 imports Expr State WWellForm
@@ -139,7 +139,7 @@ where
 
 | RedSFAcc:
   "\<lbrakk> P \<turnstile> C has F,Static:t in D;
-     sh D = Some (sfs,i); (* sfs = fst(the(sh D)); *)
+     sh D = Some (sfs,i); \<comment> \<open>sfs = fst(the(sh D));\<close> 
      sfs F = Some v \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},(h,l,sh),True\<rangle> \<rightarrow> \<langle>Val v,(h,l,sh),False\<rangle>"
 
@@ -190,7 +190,7 @@ where
 
 | RedSFAss:
   "\<lbrakk> P \<turnstile> C has F,Static:t in D;
-     sh D = Some(sfs,i); (* sfs = fst(the(sh D)); i = snd(the(sh D)); *)
+     sh D = Some(sfs,i); \<comment> \<open>sfs = fst(the(sh D)); i = snd(the(sh D));\<close>
      sfs' = sfs(F\<mapsto>v); sh' = sh(D\<mapsto>(sfs',i)) \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D}:=(Val v),(h,l,sh),True\<rangle> \<rightarrow> \<langle>unit,(h,l,sh'),False\<rangle>"
 
@@ -360,7 +360,7 @@ where
 | InitNonObjectSuperRed:
   "\<lbrakk> sh C = Some(sfs,Prepared);
      C \<noteq> Object;
-     (* P \<turnstile> C \<prec>\<^sup>1 D; *) class P C = Some (D,r);
+     \<comment> \<open>P \<turnstile> C \<prec>^1 D;\<close> class P C = Some (D,r);
      sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>INIT C' (C#Cs,False) \<leftarrow> e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>INIT C' (D#C#Cs,False) \<leftarrow> e,(h,l,sh'),b\<rangle>"
 
@@ -372,7 +372,7 @@ where
   P \<turnstile> \<langle>RI (C,e);Cs \<leftarrow> e\<^sub>0, s, b\<rangle> \<rightarrow> \<langle>RI (C,e');Cs \<leftarrow> e\<^sub>0, s', b'\<rangle>"
 
 | RedRInit:
-  "\<lbrakk> sh C = Some (sfs, i); (*sfs = fst(the(sh c));*)
+  "\<lbrakk> sh C = Some (sfs, i); \<comment> \<open>sfs = fst(the(sh c));\<close>
      sh' = sh(C \<mapsto> (sfs,Done));
      C' = last(C#Cs) \<rbrakk> \<Longrightarrow>
   P \<turnstile> \<langle>RI (C, Val v);Cs \<leftarrow> e, (h,l,sh), b\<rangle> \<rightarrow> \<langle>INIT C' (Cs,True) \<leftarrow> e, (h,l,sh'), b\<rangle>"
@@ -408,7 +408,7 @@ inductive_cases [elim!]:
  "P \<turnstile> \<langle>e1;;e2,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>"
 (*>*)
 
-subsection{* The reflexive transitive closure *}
+subsection\<open> The reflexive transitive closure \<close>
 
 abbreviation
   Step :: "J_prog \<Rightarrow> expr \<Rightarrow> state \<Rightarrow> bool \<Rightarrow> expr \<Rightarrow> state \<Rightarrow> bool \<Rightarrow> bool"
@@ -453,7 +453,7 @@ qed
 (*>*)
 
 
-subsection{*Some easy lemmas*}
+subsection\<open>Some easy lemmas\<close>
 
 lemma [iff]: "\<not> P \<turnstile> \<langle>[],s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
 (*<*)by(blast elim: reds.cases)(*>*)

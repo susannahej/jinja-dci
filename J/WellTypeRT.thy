@@ -9,7 +9,7 @@
   2017, UIUC
 *)
 
-section {* Runtime Well-typedness *}
+section \<open> Runtime Well-typedness \<close>
 
 theory WellTypeRT
 imports WellType
@@ -162,7 +162,7 @@ lemmas WTrt_induct = WTrt_WTrts.induct [split_format (complete)]
 (*>*)
 
 
-subsection{*Easy consequences*}
+subsection\<open>Easy consequences\<close>
 
 lemma [iff]: "(P,E,h,sh \<turnstile> [] [:] Ts) = (Ts = [])"
 (*<*)
@@ -250,7 +250,7 @@ inductive_cases WTrt_elim_cases[elim!]:
   "P,E,h,sh \<turnstile> RI(C,e);Cs \<leftarrow> e' : T"
 (*>*)
 
-subsection{*Some interesting lemmas*}
+subsection\<open>Some interesting lemmas\<close>
 
 lemma WTrts_Val[simp]:
  "\<And>Ts. (P,E,h,sh \<turnstile> map Val vs [:] Ts) = (map (typeof\<^bsub>h\<^esub>) vs = map Some Ts)"

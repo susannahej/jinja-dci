@@ -10,7 +10,7 @@ The invariant for the type safety proof.
     2018, UIUC
 *)
 
-section {* BV Type Safety Invariant *}
+section \<open> BV Type Safety Invariant \<close>
 
 theory BVConform
 imports BVSpec "../JVM/JVMExec" "../Common/Conform"
@@ -127,7 +127,7 @@ where
 notation
   correct_state  ("_,_ |- _ [ok]"  [61,0,0] 61)
 
-subsection {* Values and @{text "\<top>"} *}
+subsection \<open> Values and @{text "\<top>"} \<close>
 
 lemma confT_Err [iff]: "P,h \<turnstile> x :\<le>\<^sub>\<top> Err" 
   by (simp add: confT_def)
@@ -148,7 +148,7 @@ lemma confT_widen [intro?, trans]:
   by (cases T', auto intro: conf_widen)
 
 
-subsection {* Stack and Registers *}
+subsection \<open> Stack and Registers \<close>
 
 lemmas confTs_Cons1 [iff] = list_all2_Cons1 [of "confT P h"] for P h
 
@@ -183,14 +183,14 @@ lemma confTs_Err [iff]:
   "P,h \<turnstile> replicate n v [:\<le>\<^sub>\<top>] replicate n Err"
   by (induct n) auto
 
-subsection {* valid init_call_status *}
+subsection \<open> valid init_call_status \<close>
 
 lemma valid_ics_shupd:
 assumes "P,h,sh \<turnstile>\<^sub>i (C, M, pc, ics)" and "distinct (C'#ics_classes ics)"
 shows "P,h,sh(C' \<mapsto> (sfs, i')) \<turnstile>\<^sub>i (C, M, pc, ics)"
 using assms by(cases ics; clarsimp simp: fun_upd_apply) fastforce
   
-subsection {* correct-frame *}
+subsection \<open> correct-frame \<close>
 
 lemma conf_f_Throwing:
 assumes "conf_f P h sh (ST, LT) is (stk, loc, C, M, pc, Called Cs)"
@@ -213,7 +213,7 @@ shows "conf_f P h (sh(C \<mapsto> (sfs', i))) (ST,LT) ins f"
 using assms
  by(cases f, cases "ics_of f"; clarsimp simp: conf_f_def2 fun_upd_apply) fastforce+
 
-subsection {* correct-frames *}
+subsection \<open> correct-frames \<close>
 
 lemmas [simp del] = fun_upd_apply
 
@@ -283,7 +283,7 @@ using assms proof(induct frs arbitrary: C\<^sub>0 C M n T sfs i sfs')
   from conf' confs' ty meth f' Cons.prems show ?case by(fastforce dest: sees_method_fun)
 qed(simp)
 
-subsection {* correctness wrt clinit use *}
+subsection \<open> correctness wrt clinit use \<close>
 
 lemma conf_clinit_Cons:
 assumes "conf_clinit P sh (f#frs)"
@@ -375,7 +375,7 @@ shows "conf_clinit P (sh(C' \<mapsto> (sfs, Processing)))
          ((stk,loc,C,M,pc,Calling (fst(the(class P C'))) (C'#Cs))#frs)"
 using assms by(clarsimp simp: conf_clinit_def fun_upd_apply distinct_clinit_def)
 
-subsection {* correct state *}
+subsection \<open> correct state \<close>
 
 lemma correct_state_Cons:
 assumes cr: "P,\<Phi> |- (xp,h,f#frs,sh) [ok]"

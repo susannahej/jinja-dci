@@ -9,7 +9,7 @@
   2016-17, UIUC
 *)
 
-section {* Class Declarations and Programs *}
+section \<open> Class Declarations and Programs \<close>
 
 theory Decl imports Type begin
 

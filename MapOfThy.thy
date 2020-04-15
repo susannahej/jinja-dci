@@ -3,7 +3,7 @@
 *)
 (* HERE: this file can go elsewhere *)
 
-section {* Some lemmas proving properties of map_of *}
+section \<open> Some lemmas proving properties of map_of \<close>
 
 theory MapOfThy
 imports Main

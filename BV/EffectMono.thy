@@ -7,7 +7,7 @@
     2018, UIUC
 *)
 
-section {* Monotonicity of eff and app *}
+section \<open> Monotonicity of eff and app \<close>
 
 theory EffectMono imports Effect begin
 

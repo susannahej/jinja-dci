@@ -6,7 +6,7 @@
     2017, UIUC
 *)
 
-section {* Big Step Semantics *}
+section \<open> Big Step Semantics \<close>
 
 theory BigStep imports Expr State WWellForm begin
 
@@ -437,8 +437,8 @@ lemma eval_final: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e
  and evals_final: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> finals es'"
 (*<*)by(induct rule:eval_evals.inducts, simp_all)(*>*)
 
-text{* Only used later, in the small to big translation, but is already a
-good sanity check: *}
+text\<open> Only used later, in the small to big translation, but is already a
+good sanity check: \<close>
 
 lemma eval_finalId:  "final e \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e,s\<rangle>"
 (*<*)by (erule finalE) (iprover intro: eval_evals.intros)+(*>*)
@@ -618,7 +618,7 @@ qed(auto)
 
 (************************************************)
 
-subsection{*Init Elimination rules*}
+subsection\<open>Init Elimination rules\<close>
 
 lemma init_NilE:
 assumes init: "P \<turnstile> \<langle>INIT C (Nil,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"

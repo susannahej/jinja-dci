@@ -5,7 +5,7 @@
     2017, UIUC
 *)
 
-section {* Definite assignment *}
+section \<open> Definite assignment \<close>
 
 theory DefAss imports BigStep begin
 

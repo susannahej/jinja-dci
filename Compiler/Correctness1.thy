@@ -5,13 +5,13 @@
     2018, UIUC
 *)
 
-section {* Correctness of Stage 1 *}
+section \<open> Correctness of Stage 1 \<close>
 
 theory Correctness1
 imports J1WellForm Compiler1
 begin
 
-subsection{*Correctness of program compilation *}
+subsection\<open>Correctness of program compilation \<close>
 
 primrec unmod :: "expr\<^sub>1 \<Rightarrow> nat \<Rightarrow> bool"
   and unmods :: "expr\<^sub>1 list \<Rightarrow> nat \<Rightarrow> bool" where
@@ -104,7 +104,7 @@ declare fun_upd_apply[simp del]
 (*>*)
 
 
-text{*\noindent The main theorem: *}
+text\<open>\noindent The main theorem: \<close>
 
 theorem assumes wf: "wwf_J_prog P"
 shows eval\<^sub>1_eval: "P \<turnstile> \<langle>e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h',l',sh')\<rangle>
@@ -746,11 +746,11 @@ qed
 (*>*)
 
 
-subsection{*Preservation of well-formedness*}
+subsection\<open>Preservation of well-formedness\<close>
 
-text{* The compiler preserves well-formedness. Is less trivial than it
+text\<open> The compiler preserves well-formedness. Is less trivial than it
 may appear. We start with two simple properties: preservation of
-well-typedness *}
+well-typedness \<close>
 
 lemma compE\<^sub>1_pres_wt: "\<And>Vs Ts U.
   \<lbrakk> P,[Vs[\<mapsto>]Ts] \<turnstile> e :: U; size Ts = size Vs \<rbrakk>
@@ -785,14 +785,14 @@ apply (fastforce)
 done
 (*>*)
 
-text{*\noindent and the correct block numbering: *}
+text\<open>\noindent and the correct block numbering: \<close>
 
 lemma \<B>: "\<And>Vs n. size Vs = n \<Longrightarrow> \<B> (compE\<^sub>1 Vs e) n"
 and \<B>s: "\<And>Vs n. size Vs = n \<Longrightarrow> \<B>s (compEs\<^sub>1 Vs es) n"
 (*<*)by(induct e and es rule: \<B>.induct \<B>s.induct) simp_all(*>*)
 
-text{* The main complication is preservation of definite assignment
-@{term"\<D>"}. *}
+text\<open> The main complication is preservation of definite assignment
+@{term"\<D>"}. \<close>
 
 lemma image_last_index: "A \<subseteq> set(xs@[x]) \<Longrightarrow> last_index (xs @ [x]) ` A =
   (if x \<in> A then insert (size xs) (last_index xs ` (A-{x})) else last_index xs ` A)"
@@ -842,8 +842,8 @@ next
       moreover
       have "A\<^sub>2 \<subseteq> set (Vs@[V'])" using TryCatch.prems A_fv[OF A\<^sub>2] by simp blast
       ultimately show ?thesis using TryCatch A\<^sub>1 A\<^sub>2
-        by(fastforce simp add: hyperset_defs image_last_index last_index_size_conv
-          Diff_subset_conv inj_on_image_Int[OF inj_on_last_index])
+        by (auto simp add: Diff_subset_conv last_index_size_conv subsetD hyperset_defs
+                 dest!: sym [of _ A])
     qed
   qed
 next

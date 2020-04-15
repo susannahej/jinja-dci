@@ -5,11 +5,11 @@
     2017, UIUC
 *)
 
-section {* Equivalence of Big Step and Small Step Semantics *}
+section \<open> Equivalence of Big Step and Small Step Semantics \<close>
 
 theory Equivalence imports TypeSafe WWellForm begin
 
-subsection{*Small steps simulate big step*}
+subsection\<open>Small steps simulate big step\<close>
 
 subsection "Init"
 
@@ -1172,7 +1172,7 @@ done
 
 subsubsection"Call"
 
-text{* First a few lemmas on what happens to free variables during redction. *}
+text\<open> First a few lemmas on what happens to free variables during redction. \<close>
 
 lemma assumes wf: "wwf_J_prog P"
 shows Red_fv: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> fv e' \<subseteq> fv e"
@@ -1218,7 +1218,7 @@ apply(blast dest: Red_fv Red_dom_lcl)
 done
 (*>*)
 
-text{* Now a few lemmas on the behaviour of blocks during reduction. *}
+text\<open> Now a few lemmas on the behaviour of blocks during reduction. \<close>
 
 (* If you want to avoid the premise "distinct" further down \<dots>
 consts upd_vals :: "locals \<Rightarrow> vname list \<Rightarrow> val list \<Rightarrow> val list"
@@ -1283,7 +1283,7 @@ proof -
 qed
 (*>*)
 
-text{* An now the actual method call reduction lemmas. *}
+text\<open> An now the actual method call reduction lemmas. \<close>
 
 lemma CallRedsObj:
  "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e\<bullet>M(es),s,b\<rangle> \<rightarrow>* \<langle>e'\<bullet>M(es),s',b'\<rangle>"
@@ -1408,7 +1408,7 @@ apply(cases s\<^sub>2,simp) apply(erule RedCallStatic, simp)
 done
 (*>*)
 
-subsection{*SCall*}
+subsection\<open>SCall\<close>
 
 lemma SCallRedsParams:
  "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sM(es),s,b\<rangle> \<rightarrow>* \<langle>C\<bullet>\<^sub>sM(es'),s',b'\<rangle>"
@@ -2650,12 +2650,12 @@ qed
 (*>*)
 
 
-subsection{*Big steps simulates small step*}
+subsection\<open>Big steps simulates small step\<close>
 
-text{* This direction was carried out by Norbert Schirmer and Daniel
-Wasserrab (and modified for statics by Susannah Manksy). *}
+text\<open> This direction was carried out by Norbert Schirmer and Daniel
+Wasserrab (and modified for statics by Susannah Manksy). \<close>
 
-text {* The big step equivalent of @{text RedWhile}: *} 
+text \<open> The big step equivalent of @{text RedWhile}: \<close> 
 
 lemma unfold_while: 
   "P \<turnstile> \<langle>while(b) c,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>  =  P \<turnstile> \<langle>if(b) (c;;while(b) c) else (unit),s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -3387,7 +3387,7 @@ lemma eval_init_seq: "P \<turnstile> \<langle>INIT C (Cs,b) \<leftarrow> e,(h, l
  \<Longrightarrow> P \<turnstile> \<langle>(INIT C (Cs,b) \<leftarrow> unit);; e,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
  by(auto dest: eval_init_seq')
 
-text {* The key lemma: *}
+text \<open> The key lemma: \<close>
 lemma
 assumes wf: "wwf_J_prog P"
 shows extend_1_eval: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e'',s'',b''\<rangle> \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (e,b) \<surd>
@@ -4197,7 +4197,7 @@ qed(auto elim: eval_cases simp: eval_evals.intros)
 declare split_paired_All [simp] split_paired_Ex [simp]
 (*>*)
 
-text {* Its extension to @{text"\<rightarrow>*"}: *} 
+text \<open> Its extension to @{text"\<rightarrow>*"}: \<close> 
 
 lemma extend_eval:
 assumes wf: "wwf_J_prog P"
@@ -4236,8 +4236,8 @@ next
 qed
 (*>*)
 
-text {* Finally, small step semantics can be simulated by big step semantics:
-*}
+text \<open> Finally, small step semantics can be simulated by big step semantics:
+\<close>
 
 theorem
 assumes wf: "wwf_J_prog P"
@@ -4272,7 +4272,7 @@ qed
 
 subsection "Equivalence"
 
-text{* And now, the crowning achievement: *}
+text\<open> And now, the crowning achievement: \<close>
 
 corollary big_iff_small:
 "\<lbrakk> wwf_J_prog P; iconf P (shp s) e; P,shp s \<turnstile>\<^sub>b (e::expr,b) \<surd> \<rbrakk>
@@ -4285,9 +4285,9 @@ corollary big_iff_small_WT:
 (*<*)by(blast dest: big_iff_small WT_nsub_RI nsub_RI_iconf)(*>*)
 
 
-subsection {* Lifting type safety to @{text"\<Rightarrow>"} *}
+subsection \<open> Lifting type safety to @{text"\<Rightarrow>"} \<close>
 
-text{* \dots and now to the big step semantics, just for fun. *}
+text\<open> \dots and now to the big step semantics, just for fun. \<close>
 
 lemma eval_preserves_sconf:
 fixes s::state and s'::state

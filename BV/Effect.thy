@@ -5,7 +5,7 @@
     2018, UIUC
 *)
 
-section {* Effect of Instructions on the State Type *}
+section \<open>Effect of Instructions on the State Type\<close>
 
 theory Effect
 imports JVM_SemiType "../JVM/JVMExceptions"
@@ -26,7 +26,7 @@ locale jvm_method = prog +
   fixes mxl :: nat
   defines mxl_def: "mxl \<equiv> 1+size Ts+mxl\<^sub>0"
 
-text {* Program counter of successor instructions: *}
+text \<open> Program counter of successor instructions: \<close>
 primrec succs :: "instr \<Rightarrow> ty\<^sub>i \<Rightarrow> pc \<Rightarrow> pc list" where
   "succs (Load idx) \<tau> pc     = [pc+1]"
 | "succs (Store idx) \<tau> pc    = [pc+1]"
@@ -103,18 +103,18 @@ fun is_relevant_class :: "instr \<Rightarrow> 'm prog \<Rightarrow> cname \<Righ
             \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Getstatic:
     "is_relevant_class (Getstatic C F D)
-     = (\<lambda>P C. True (* P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C*))"
+     = (\<lambda>P C. True \<comment> \<open>P \<turnstile> NoSuchFieldError \<preceq>^* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>^* C\<close>)"
 | rel_Putfield:
     "is_relevant_class (Putfield F D)
      = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C \<or> P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C
             \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Putstatic:
     "is_relevant_class (Putstatic C F D)
-     = (\<lambda>P C. True (*P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C*))" 
+     = (\<lambda>P C. True \<comment> \<open>P \<turnstile> NoSuchFieldError \<preceq>^* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>^* C\<close>)" 
 | rel_Checkcast:
     "is_relevant_class (Checkcast D)  = (\<lambda>P C. P \<turnstile> ClassCast \<preceq>\<^sup>* C)" 
 | rel_New:
-    "is_relevant_class (New D)        = (\<lambda>P C. True (*P \<turnstile> OutOfMemory \<preceq>\<^sup>* C*))"
+    "is_relevant_class (New D)        = (\<lambda>P C. True \<comment> \<open>P \<turnstile> OutOfMemory \<preceq>^* C\<close>)"
 | rel_Throw:
     "is_relevant_class Throw          = (\<lambda>P C. True)"
 | rel_Invoke:
@@ -314,10 +314,10 @@ proof -
 qed
 (*>*)
 
-text {* 
+text \<open> 
 \medskip
 simp rules for @{term app}
-*}
+\<close>
 lemma appNone[simp]: "app i P mxs T\<^sub>r pc mpc et None = True" 
   by (simp add: app_def)
 
@@ -421,7 +421,7 @@ lemma effNone:
   by (auto simp add: eff_def xcpt_eff_def norm_eff_def)
 
 
-text {* some helpers to make the specification directly executable: *}
+text \<open> some helpers to make the specification directly executable: \<close>
 lemma relevant_entries_append [simp]:
   "relevant_entries P i pc (xt @ xt') = relevant_entries P i pc xt @ relevant_entries P i pc xt'"
   by (unfold relevant_entries_def) simp

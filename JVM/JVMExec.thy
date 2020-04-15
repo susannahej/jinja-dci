@@ -6,7 +6,7 @@
     2016-18, UIUC
 *)
 
-section {* Program Execution in the JVM in full small step style *}
+section \<open> Program Execution in the JVM in full small step style \<close>
 
 theory JVMExec
 imports JVMExecInstr
@@ -205,7 +205,7 @@ abbreviation start_clinit :: "jvm_method mdecl" where
 definition start_class :: "cname \<Rightarrow> mname \<Rightarrow> jvm_method cdecl" where
 "start_class C M = (Start, Object, [], [start_method C M, start_clinit])"
 
-text {*
+text \<open>
   The start configuration of the JVM in program @{text P}:
   in the start heap, we call the ``start'' method of the
   ``Start''; this method performs @{text Invokestatic} on the
@@ -217,7 +217,7 @@ text {*
   necessary.
   The starting program includes the added Start class, given a 
   method @{text M} of class @{text C}, added to program @{text P}.
-*}
+\<close>
 definition start_state :: "jvm_prog \<Rightarrow> jvm_state" where
   "start_state P = (None, start_heap P, [([], [], Start, start_m, 0, No_ics)], start_sheap)"
 abbreviation start_prog :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> jvm_prog" where

@@ -6,7 +6,7 @@
     2016-17, UIUC
 *)
 
-section {* Program Execution in the JVM *}
+section \<open> Program Execution in the JVM \<close>
 
 theory JVMExecInstr
 imports JVMInstructions JVMExceptions
@@ -209,8 +209,7 @@ where
 (* Given preallocated heap, a thrown exception is either a system exception or
    thrown directly by Throw *)
 lemma exec_instr_xcpts: (* HERE: RENAME? *)
-assumes prealloc: "preallocated h"
-  and "\<sigma>' = exec_instr i P h stk loc C M pc ics' frs sh"
+assumes "\<sigma>' = exec_instr i P h stk loc C M pc ics' frs sh"
   and "fst \<sigma>' = Some a"
 shows "i = (JVMInstructions.Throw) \<or> a \<in> {a. \<exists>x \<in> sys_xcpts. a = addr_of_sys_xcpt x}"
 using assms

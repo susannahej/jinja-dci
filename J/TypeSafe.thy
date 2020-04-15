@@ -9,7 +9,7 @@
   2017, UIUC
 *)
 
-section {* Type Safety Proof *}
+section \<open> Type Safety Proof \<close>
 
 theory TypeSafe
 imports Progress BigStep SmallStep JWellForm
@@ -37,9 +37,9 @@ proof -
   then show ?thesis using WTrtSCall proc by simp
 qed
 
-subsection{*Basic preservation lemmas*}
+subsection\<open>Basic preservation lemmas\<close>
 
-text{* First three easy preservation lemmas. *}
+text\<open> First three easy preservation lemmas. \<close>
 
 theorem red_preserves_hconf:
   "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> (\<And>T E. \<lbrakk> P,E,h,sh \<turnstile> e : T; P \<turnstile> h \<surd> \<rbrakk> \<Longrightarrow> P \<turnstile> h' \<surd>)"
@@ -451,8 +451,8 @@ next
 qed(simp_all, auto simp: bconf_def initPD_def)
 (*>*)
 
-text{* Preservation of definite assignment more complex and requires a
-few lemmas first. *}
+text\<open> Preservation of definite assignment more complex and requires a
+few lemmas first. \<close>
 
 lemma [iff]: "\<And>A. \<lbrakk> length Vs = length Ts; length vs = length Ts\<rbrakk> \<Longrightarrow>
  \<D> (blocks (Vs,Ts,vs,e)) A = \<D> e (A \<squnion> \<lfloor>set Vs\<rfloor>)"
@@ -475,7 +475,7 @@ apply(blast dest:red_lcl_incr)+
 done
 (*>*)
 
-text{* Now preservation of definite assignment. *}
+text\<open> Now preservation of definite assignment. \<close>
 
 lemma assumes wf: "wf_J_prog P"
 shows red_preserves_defass:
@@ -528,7 +528,7 @@ qed(auto simp:hyperset_defs)
 (*>*)
 
 
-text{* Combining conformance of heap and local variables: *}
+text\<open> Combining conformance of heap and local variables: \<close>
 
 definition sconf :: "J_prog \<Rightarrow> env \<Rightarrow> state \<Rightarrow> bool"   ("_,_ \<turnstile> _ \<surd>"   [51,51,51]50)
 where
@@ -1166,10 +1166,10 @@ corollary subjects_reduction:
 (*<*)by(cases s, cases s', fastforce dest:subjects_reduction2)(*>*)
 
 
-subsection {* Lifting to @{text"\<rightarrow>*"} *}
+subsection \<open> Lifting to @{text"\<rightarrow>*"} \<close>
 
-text{* Now all these preservation lemmas are first lifted to the transitive
-closure \dots *}
+text\<open> Now all these preservation lemmas are first lifted to the transitive
+closure \dots \<close>
 
 lemma Red_preserves_sconf:
 assumes wf: "wf_J_prog P" and Red: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>"
@@ -1280,7 +1280,7 @@ qed
 
 subsection "The final polish"
 
-text{* The above preservation lemmas are now combined and packed nicely. *}
+text\<open> The above preservation lemmas are now combined and packed nicely. \<close>
 
 definition wf_config :: "J_prog \<Rightarrow> env \<Rightarrow> state \<Rightarrow> expr \<Rightarrow> ty \<Rightarrow> bool"   ("_,_,_ \<turnstile> _ : _ \<surd>"   [51,0,0,0,0]50)
 where
@@ -1343,6 +1343,6 @@ apply (fastforce simp:wf_config_def final_def conf_def dest: Progress)
 done
 (*>*)
 
-text{*Final bits moved to/proved in equivalence theory*}
+text\<open>Final bits moved to/proved in equivalence theory\<close>
 
 end

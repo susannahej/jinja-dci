@@ -8,7 +8,7 @@
   2016-17, UIUC
 *)
 
-section {* Relations between Jinja Types *}
+section \<open> Relations between Jinja Types \<close>
 
 theory TypeRel imports 
   "HOL-Library.Transitive_Closure_Table"
@@ -16,7 +16,7 @@ theory TypeRel imports
   "../MapOfThy"
 begin
 
-subsection{* The subclass relations *}
+subsection \<open> The subclass relations \<close>
 
 inductive_set
   subcls1 :: "'m prog \<Rightarrow> (cname \<times> cname) set"
@@ -82,7 +82,7 @@ apply  auto
 done
 *)
 
-subsection{* The subtype relations *}
+subsection\<open> The subtype relations \<close>
 
 inductive
   widen   :: "'m prog \<Rightarrow> ty \<Rightarrow> ty \<Rightarrow> bool" ("_ \<turnstile> _ \<le> _"   [71,71,71] 70)
@@ -170,7 +170,7 @@ lemmas widens_Cons [iff] = list_all2_Cons1 [of "widen P"] for P
 (*>*)
 
 
-subsection{* Method lookup *}
+subsection\<open> Method lookup \<close>
 
 inductive
   Methods :: "['m prog, cname, mname \<rightharpoonup> (staticb \<times> ty list \<times> ty \<times> 'm) \<times> cname] \<Rightarrow> bool"
@@ -350,7 +350,7 @@ lemma sees_method_is_class':
 lemma sees_method_sub_Obj: "P \<turnstile> C sees M,b:  Ts\<rightarrow>T = m in D \<Longrightarrow> P \<turnstile> C \<preceq>\<^sup>* Object"
  by(auto simp: Method_def sees_methods_sub_Obj)
 
-subsection{* Field lookup *}
+subsection\<open> Field lookup \<close>
 
 inductive
   Fields :: "['m prog, cname, ((vname \<times> cname) \<times> staticb \<times> ty) list] \<Rightarrow> bool"

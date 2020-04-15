@@ -6,7 +6,7 @@
     2017, UIUC
 *)
 
-section {* Progress of Small Step Semantics *}
+section \<open> Progress of Small Step Semantics \<close>
 
 theory Progress
 imports (*Equivalence*) WellTypeRT DefAss "../Common/Conform" EConform
@@ -27,7 +27,7 @@ lemma finalRefE:
 (*<*)by(auto simp:final_def is_refT_def)(*>*)
 
 
-text{* Derivation of new induction scheme for well typing: *}
+text\<open> Derivation of new induction scheme for well typing: \<close>
 
 inductive
   WTrt' :: "[J_prog,heap,sheap,env,expr,ty] \<Rightarrow> bool"

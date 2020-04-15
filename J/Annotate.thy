@@ -9,7 +9,7 @@
   2017, UIUC
 *)
 
-section {* Program annotation *}
+section \<open> Program annotation \<close>
 
 theory Annotate imports WellType begin
 

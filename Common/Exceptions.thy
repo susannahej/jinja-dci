@@ -9,7 +9,7 @@
   2016-17, UIUC
 *)
 
-section {* Exceptions *}
+section \<open> Exceptions \<close>
 
 theory Exceptions imports Objects begin
 

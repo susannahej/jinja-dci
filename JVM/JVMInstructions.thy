@@ -5,7 +5,7 @@
     Expanded to include statics by Susannah Mansky
     2016-17, UIUC
 *)
-section {* Instructions of the JVM *}
+section \<open> Instructions of the JVM \<close>
 
 
 theory JVMInstructions imports JVMState begin

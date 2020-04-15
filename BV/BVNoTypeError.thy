@@ -7,7 +7,7 @@
     2018, UIUC
 *)
 
-section {* Welltyped Programs produce no Type Errors *}
+section \<open> Welltyped Programs produce no Type Errors \<close>
 
 theory BVNoTypeError
 imports "../JVM/JVMDefensive" BVSpecTypeSafe
@@ -17,10 +17,10 @@ lemma has_methodI:
   "P \<turnstile> C sees M,b:Ts\<rightarrow>T = m in D \<Longrightarrow> P \<turnstile> C has M,b"
   by (unfold has_method_def) blast
 
-text {*
+text \<open>
   Some simple lemmas about the type testing functions of the
   defensive JVM:
-*}
+\<close>
 lemma typeof_NoneD [simp,dest]: "typeof v = Some x \<Longrightarrow> \<not>is_Addr v"
   by (cases v) auto
 
@@ -77,10 +77,10 @@ lemma wt_jvm_prog_states_Static:
   done
 (*>*)
 
-text {*
+text \<open>
   The main theorem: welltyped programs do not produce type errors if they
   are started in a conformant state.
-*}
+\<close>
 theorem no_type_error:
   fixes \<sigma> :: jvm_state
   assumes welltyped: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P" and conforms: "P,\<Phi> \<turnstile> \<sigma> \<surd>"
@@ -283,11 +283,11 @@ qed
 (*>*)
 
 
-text {*
+text \<open>
   The theorem above tells us that, in welltyped programs, the
   defensive machine reaches the same result as the aggressive
   one (after arbitrarily many steps).
-*}
+\<close>
 theorem welltyped_aggressive_imp_defensive:
   "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma> \<surd> \<Longrightarrow> P \<turnstile> \<sigma> -jvm\<rightarrow> \<sigma>'
   \<Longrightarrow> P \<turnstile> (Normal \<sigma>) -jvmd\<rightarrow> (Normal \<sigma>')"
@@ -307,11 +307,11 @@ theorem welltyped_aggressive_imp_defensive:
 (*>*)
 
 
-text {*
+text \<open>
   As corollary we get that the aggressive and the defensive machine
   are equivalent for welltyped programs (if started in a conformant
   state or in the canonical start state)
-*} 
+\<close> 
 corollary welltyped_commutes:
   fixes \<sigma> :: jvm_state
   assumes wf: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P" and conforms: "P,\<Phi> \<turnstile> \<sigma> \<surd>" 

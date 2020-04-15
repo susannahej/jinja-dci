@@ -6,7 +6,7 @@
     2018, UIUC
 *)
 
-section {* Well-Formedness of Intermediate Language *}
+section \<open> Well-Formedness of Intermediate Language \<close>
 
 theory J1WellForm
 imports "../J/JWellForm" J1
@@ -212,7 +212,7 @@ lemma WT\<^sub>1_nsub_RI: "P,E \<turnstile>\<^sub>1 e :: T \<Longrightarrow> \<n
  and WTs\<^sub>1_nsub_RIs: "P,E \<turnstile>\<^sub>1 es [::] Ts \<Longrightarrow> \<not>sub_RIs es"
 proof(induct rule: WT\<^sub>1_WTs\<^sub>1.inducts) qed(simp_all)
 
-subsection{* Runtime Well-Typedness *}
+subsection\<open> Runtime Well-Typedness \<close>
 
 inductive
   WTrt\<^sub>1 :: "J\<^sub>1_prog \<Rightarrow> heap \<Rightarrow> sheap \<Rightarrow> env\<^sub>1 \<Rightarrow> expr\<^sub>1 \<Rightarrow> ty \<Rightarrow> bool"
@@ -409,7 +409,7 @@ apply(fast)
 done
 (*>*)
 
-subsection{* Well-formedness*}
+subsection\<open> Well-formedness\<close>
 
 \<comment> \<open>Indices in blocks increase by 1\<close>
 

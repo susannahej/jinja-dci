@@ -9,7 +9,7 @@
   2017, UIUC
 *)
 
-section {* Program State *}
+section \<open> Program State \<close>
 
 theory State imports "../Common/Exceptions" begin
 

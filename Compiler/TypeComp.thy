@@ -7,7 +7,7 @@
     2018, UIUC
 *)
 
-section {* Preservation of Well-Typedness *}
+section \<open> Preservation of Well-Typedness \<close>
 
 theory TypeComp
 imports Compiler "../BV/BVSpec"

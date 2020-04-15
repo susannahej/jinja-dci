@@ -6,7 +6,7 @@
     2017, UIUC
 *)
 
-section {* Well-typedness of Jinja expressions *}
+section \<open> Well-typedness of Jinja expressions \<close>
 
 theory WellType
 imports "../Common/Objects" Expr
@@ -54,7 +54,7 @@ WTBinOp:
   \<Longrightarrow> P,E \<turnstile> e\<^sub>1 \<guillemotleft>Add\<guillemotright> e\<^sub>2 :: Integer"
 
 | WTLAss:
-  "\<lbrakk> E V = Some T;  P,E \<turnstile> e :: T';  P \<turnstile> T' \<le> T(*;  V \<noteq> this*) \<rbrakk>
+  "\<lbrakk> E V = Some T;  P,E \<turnstile> e :: T';  P \<turnstile> T' \<le> T \<comment> \<open>V \<noteq> this\<close> \<rbrakk>
   \<Longrightarrow> P,E \<turnstile> V:=e :: Void"
 
 | WTFAcc:

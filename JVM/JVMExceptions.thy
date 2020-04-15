@@ -7,7 +7,7 @@
   2016-17, UIUC
 *)
 
-section {* Exception handling in the JVM *}
+section \<open> Exception handling in the JVM \<close>
 
 theory JVMExceptions imports "../Common/Exceptions" JVMInstructions
 begin

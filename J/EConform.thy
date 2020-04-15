@@ -3,7 +3,7 @@
     2017, UIUC
 *)
 
-section {* Expression Conformance *}
+section \<open> Expression Conformance \<close>
 
 theory EConform
 imports SmallStep BigStep
@@ -13,7 +13,7 @@ begin
 lemma cons_to_append: "list \<noteq> [] \<longrightarrow> (\<exists>ls. a # list = ls @ [last list])"
  by (metis append_butlast_last_id last_ConsR list.simps(3))
 
-subsection{*Expression Conformance*}
+subsection\<open>Expression Conformance\<close>
 
 fun init_class :: "'m prog \<Rightarrow> 'a exp \<Rightarrow> cname option" where
 "init_class P (new C) = Some C" |
@@ -192,7 +192,7 @@ where
                            \<and> (curr_inits P es = Some C) \<and> initPD sh C))"
 
 
-subsection{*bconf helper lemmas*}
+subsection\<open>bconf helper lemmas\<close>
 
 lemma bconf_nonVal[simp]:
  "P,sh \<turnstile>\<^sub>b (e,True) \<surd> \<Longrightarrow> val_of e = None"

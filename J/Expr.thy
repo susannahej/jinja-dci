@@ -8,7 +8,7 @@
   2017, UIUC
 *)
 
-section {* Expressions *}
+section \<open> Expressions \<close>
 
 theory Expr
 imports "../Common/Exceptions"
@@ -48,7 +48,7 @@ type_synonym
 type_synonym
   init_stack = "expr list \<times> bool"  \<comment> \<open>Stack of expressions waiting on initialization in small step; indicator boolean True if current expression has been init checked\<close>
 
-text{*The semantics of binary operators: *}
+text\<open>The semantics of binary operators: \<close>
 
 fun binop :: "bop \<times> val \<times> val \<Rightarrow> val option" where
   "binop(Eq,v\<^sub>1,v\<^sub>2) = Some(Bool (v\<^sub>1 = v\<^sub>2))"
@@ -118,7 +118,7 @@ abbreviation
   "THROW xc == Throw(addr_of_sys_xcpt xc)"
 
 
-subsection{*Free Variables*}
+subsection\<open>Free Variables\<close>
 
 primrec fv :: "expr \<Rightarrow> vname set" and fvs :: "expr list \<Rightarrow> vname set" where
   "fv(new C) = {}"
@@ -227,7 +227,7 @@ fun throw_of :: "'a exp \<Rightarrow> 'a exp option" where
 lemma throw_of_spec: "throw_of e = Some e' \<Longrightarrow> e = throw e'"
 proof(cases e) qed(auto)
 
-subsection{*Initializing Classes*}
+subsection\<open>Initializing Classes\<close>
 
 primrec sub_RI :: "'a exp \<Rightarrow> bool" and sub_RIs :: "'a exp list \<Rightarrow> bool" where
   "sub_RI(new C) = False"
@@ -313,7 +313,7 @@ apply(rule nsub_RIs_not_inits_aux)
 apply(simp_all add: nsub_RI_not_init)
 done
 
-subsection{*Subexpressions*}
+subsection\<open>Subexpressions\<close>
 
 (* all smaller subexps *)
  primrec subexp :: "'a exp \<Rightarrow> 'a exp set" and subexps :: "'a exp list \<Rightarrow> 'a exp set" where

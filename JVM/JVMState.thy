@@ -6,9 +6,9 @@
     2016-17, UIUC
 *)
 
-chapter {* Jinja Virtual Machine \label{cha:jvm} *}
+chapter \<open> Jinja Virtual Machine \label{cha:jvm} \<close>
 
-section {* State of the JVM *}
+section \<open> State of the JVM \<close>
 
 theory JVMState imports "../Common/Objects" begin
 
@@ -23,7 +23,7 @@ definition start_sheap_preloaded :: "'m prog \<Rightarrow> sheap"
 where
   "start_sheap_preloaded P \<equiv> fold (\<lambda>(C,cl) f. f(C := Some (sblank P C, Prepared))) P (\<lambda>x. None)"
 
-subsection {* Frame Stack *}
+subsection \<open> Frame Stack \<close>
 
 datatype init_call_status = No_ics | Calling cname "cname list"
                           | Called "cname list" | Throwing "cname list" addr
@@ -66,7 +66,7 @@ fun ics_of :: "frame \<Rightarrow> init_call_status" where
  "ics_of fr = snd(snd(snd(snd(snd fr))))"
 
 
-subsection {* Runtime State *}
+subsection \<open> Runtime State \<close>
 
 type_synonym
   jvm_state = "addr option \<times> heap \<times> frame list \<times> sheap"  
