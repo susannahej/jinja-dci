@@ -26,12 +26,12 @@ type_synonym 'm wf_mdecl_test = "'m prog \<Rightarrow> cname \<Rightarrow> 'm md
 
 definition wf_fdecl :: "'m prog \<Rightarrow> fdecl \<Rightarrow> bool"
 where
-  "wf_fdecl P \<equiv> \<lambda>(F,b,T). is_type P T \<and> T \<noteq> Void"
+  "wf_fdecl P \<equiv> \<lambda>(F,b,T). is_type P T"
 
 definition wf_mdecl :: "'m wf_mdecl_test \<Rightarrow> 'm wf_mdecl_test"
 where
   "wf_mdecl wf_md P C \<equiv> \<lambda>(M,b,Ts,T,m).
-  (\<forall>T\<in>set Ts. is_type P T \<and> T \<noteq> Void) \<and> is_type P T \<and> wf_md P C (M,b,Ts,T,m)"
+  (\<forall>T\<in>set Ts. is_type P T) \<and> is_type P T \<and> wf_md P C (M,b,Ts,T,m)"
 
 definition wf_clinit :: "'m mdecl list \<Rightarrow> bool" where
 "wf_clinit ms = (\<exists>m. (clinit,Static,[],Void,m)\<in>set ms)"
@@ -478,20 +478,6 @@ lemma sees_field_is_type:
   by (meson has_field_def has_fields_types has_visible_field map_of_SomeD)
 (*>*)
 
-lemma has_fields_types_nvoid:
-  "\<lbrakk> P \<turnstile> C has_fields FDTs; (FD,b,T) \<in> set FDTs; wf_prog wf_md P \<rbrakk> \<Longrightarrow> T \<noteq> Void"
-(*<*)
-apply(induct rule:Fields.induct)
- apply(fastforce dest!: class_wf simp: wf_cdecl_def wf_fdecl_def)
-apply(fastforce dest!: class_wf simp: wf_cdecl_def wf_fdecl_def)
-done
-(*>*)
-
-lemma sees_field_is_type_nvoid:
-  "\<lbrakk> P \<turnstile> C sees F,b:T in D; wf_prog wf_md P \<rbrakk> \<Longrightarrow> T \<noteq> Void"
-(*<*)
-  by (meson has_field_def has_fields_types_nvoid has_visible_field map_of_SomeD)
-(*>*)
 
 lemma wf_syscls:
   "set SystemClasses \<subseteq> set P \<Longrightarrow> wf_syscls P"

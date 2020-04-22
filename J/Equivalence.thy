@@ -1621,9 +1621,9 @@ subsubsection "The main Theorem"
 
 lemma assumes wwf: "wwf_J_prog P"
 shows big_by_small: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
-   \<Longrightarrow> (\<And>b. iconf P (shp s) e \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',False\<rangle>)"
+   \<Longrightarrow> (\<And>b. iconf (shp s) e \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',False\<rangle>)"
 and bigs_by_smalls: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>
-   \<Longrightarrow> (\<And>b. iconfs P (shp s) es \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',False\<rangle>)"
+   \<Longrightarrow> (\<And>b. iconfs (shp s) es \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',False\<rangle>)"
 (*<*)
 proof (induct rule: eval_evals.inducts)
   case New show ?case
@@ -1699,11 +1699,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None BinOp.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None BinOp.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None BinOp.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1,s\<^sub>1,False\<rangle>" using iconf BinOp.hyps(2) by auto
     have binop: "P \<turnstile> \<langle>e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule BinOp1Reds[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] None BinOp by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] None BinOp by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v\<^sub>2,s\<^sub>2,False\<rangle>" using BinOp.hyps(4)[OF iconf2'] by auto
     then show ?thesis using BinOpRedsVal[OF b1 b2 BinOp.hyps(5)] by fast
@@ -1712,7 +1712,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) BinOp.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have binop: "P \<turnstile> \<langle>e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule BinOp1Reds[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] BinOp by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] BinOp by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using BinOp.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf binop BinOp.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>Val v\<^sub>2,s\<^sub>2,False\<rangle>" using BinOp.hyps(4)[OF iconf2'] by auto
@@ -1722,7 +1722,7 @@ next
   case (BinOpThrow1 e\<^sub>1 s\<^sub>0 e s\<^sub>1 bop e\<^sub>2) show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have "iconf P (shp s\<^sub>0) e\<^sub>1" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using BinOpThrow1.prems by auto
+    then have "iconf (shp s\<^sub>0) e\<^sub>1" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using BinOpThrow1.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e,s\<^sub>1,False\<rangle>" using BinOpThrow1.hyps(2) by auto
     then have "P \<turnstile> \<langle>e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e,s\<^sub>1,False\<rangle>"
       using BinOpThrow1 None by(auto dest!:eval_final simp: BinOpRedsThrow1[OF b1])
@@ -1736,11 +1736,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None BinOpThrow2.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None BinOpThrow2.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None BinOpThrow2.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1,s\<^sub>1,False\<rangle>" using iconf BinOpThrow2.hyps(2) by auto
     have binop: "P \<turnstile> \<langle>e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule BinOp1Reds[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] None BinOpThrow2 by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] None BinOpThrow2 by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>throw e,s\<^sub>2,False\<rangle>" using BinOpThrow2.hyps(4)[OF iconf2'] by auto
     then show ?thesis using BinOpRedsThrow2[OF b1 b2] by fast
@@ -1749,7 +1749,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) BinOpThrow2.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have binop: "P \<turnstile> \<langle>e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule BinOp1Reds[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] BinOpThrow2 by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf binop] BinOpThrow2 by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using BinOpThrow2.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf binop BinOpThrow2.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>throw e,s\<^sub>2,False\<rangle>" using BinOpThrow2.hyps(4)[OF iconf2'] by auto
@@ -1814,11 +1814,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None FAss.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None FAss.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None FAss.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using iconf FAss.hyps(2) by auto
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAss by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAss by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAss.hyps(4)[OF iconf2'] by auto
     then show ?thesis using FAssRedsVal[OF b1 b2 FAss.hyps(6) FAss.hyps(5)[THEN sym]] FAss.hyps(7,8) by fast
@@ -1827,7 +1827,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) FAss.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAss by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAss by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using FAss.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf fass FAss.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAss.hyps(4)[OF iconf2'] by auto
@@ -1838,11 +1838,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using FAssNull.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using FAssNull.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using FAssNull.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null,s\<^sub>1,False\<rangle>" using FAssNull.hyps(2)[OF iconf] by auto
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null\<bullet>F{D} := e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssNull by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssNull by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>2,False\<rangle>" using FAssNull.hyps(4)[OF iconf2'] by auto
     then show ?thesis using FAssRedsNull[OF b1 b2] by fast
@@ -1851,7 +1851,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) FAssNull.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null\<bullet>F{D} := e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssNull by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssNull by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using FAssNull.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf fass FAssNull.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>2,False\<rangle>" using FAssNull.hyps(4)[OF iconf2'] by auto
@@ -1861,7 +1861,7 @@ next
   case (FAssThrow1 e\<^sub>1 s\<^sub>0 e' s\<^sub>1 F D e\<^sub>2) show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have "iconf P (shp s\<^sub>0) e\<^sub>1" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using FAssThrow1.prems by auto
+    then have "iconf (shp s\<^sub>0) e\<^sub>1" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using FAssThrow1.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>1,False\<rangle>" using FAssThrow1.hyps(2) by auto
     then have "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>1,False\<rangle>"
       using FAssThrow1 None by(auto dest!:eval_final simp: FAssRedsThrow1[OF b1])
@@ -1875,11 +1875,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None FAssThrow2.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None FAssThrow2.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None FAssThrow2.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,False\<rangle>" using iconf FAssThrow2.hyps(2) by auto
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<bullet>F{D} := e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssThrow2 by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssThrow2 by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>2,False\<rangle>" using FAssThrow2.hyps(4)[OF iconf2'] by auto
     then show ?thesis using FAssRedsThrow2[OF b1 b2] by fast
@@ -1888,7 +1888,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) FAssThrow2.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<bullet>F{D} := e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssThrow2 by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssThrow2 by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using FAssThrow2.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf fass FAssThrow2.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>2,False\<rangle>" using FAssThrow2.hyps(4)[OF iconf2'] by auto
@@ -1899,11 +1899,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None FAssNone.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None FAssNone.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None FAssNone.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using iconf FAssNone.hyps(2) by auto
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssNone by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssNone by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAssNone.hyps(4)[OF iconf2'] by auto
     then show ?thesis using FAssRedsNone[OF b1 b2 FAssNone.hyps(5,6)] by fast
@@ -1912,7 +1912,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) FAssNone.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssNone by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssNone by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using FAssNone.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf fass FAssNone.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAssNone.hyps(4)[OF iconf2'] by auto
@@ -1923,11 +1923,11 @@ next
   show ?case
   proof(cases "val_of e\<^sub>1")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>1" using None FAssStatic.prems by auto
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>1" using None FAssStatic.prems by auto
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>1,b) \<surd>" using None FAssStatic.prems by auto
     then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using iconf FAssStatic.hyps(2) by auto
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssStatic by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] None FAssStatic by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAssStatic.hyps(4)[OF iconf2'] by auto
     then show ?thesis using FAssRedsStatic[OF b1 b2 FAssStatic.hyps(5,6)] by fast
@@ -1936,7 +1936,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) FAssStatic.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<^sub>1\<bullet>F{D} := e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>F{D} := e\<^sub>2,s\<^sub>1,b1\<rangle>" by(rule FAssReds1[OF b1])
-    then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssStatic by auto
+    then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf fass] FAssStatic by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using FAssStatic.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,b1) \<surd>" using Red_preserves_bconf[OF wwf fass FAssStatic.prems] by simp
     then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,b1\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using FAssStatic.hyps(4)[OF iconf2'] by auto
@@ -1958,7 +1958,7 @@ next
   qed
 next
   case (SFAssInit e\<^sub>2 s\<^sub>0 v h\<^sub>1 l\<^sub>1 sh\<^sub>1 C F t D v' h' l' sh' sfs i sfs' sh'')
-  then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>2" by simp
+  then have iconf: "iconf (shp s\<^sub>0) e\<^sub>2" by simp
   show ?case
   proof(cases "val_of e\<^sub>2")
     case None
@@ -1991,7 +1991,7 @@ next
   qed
 next
   case (SFAssInitThrow e\<^sub>2 s\<^sub>0 v h\<^sub>1 l\<^sub>1 sh\<^sub>1 C F t D a s')
-  then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>2" by simp
+  then have iconf: "iconf (shp s\<^sub>0) e\<^sub>2" by simp
   show ?case
   proof(cases "val_of e\<^sub>2")
     case None
@@ -2039,7 +2039,7 @@ next
   show ?case
   proof(cases "val_of e\<^sub>2")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>2" using SFAssNone by simp
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>2" using SFAssNone by simp
     then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using SFAssNone.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using SFAssNone.hyps(2) iconf by auto
     thus ?thesis using SFAssRedsNone[OF b1 SFAssNone.hyps(3)] by fast
@@ -2053,7 +2053,7 @@ next
   case (SFAssNonStatic e\<^sub>2 s\<^sub>0 v h\<^sub>2 l\<^sub>2 sh\<^sub>2 C F t D) show ?case
   proof(cases "val_of e\<^sub>2")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>2" using SFAssNonStatic by simp
+    then have iconf: "iconf (shp s\<^sub>0) e\<^sub>2" using SFAssNonStatic by simp
     then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e\<^sub>2,b) \<surd>" using SFAssNonStatic.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>" using SFAssNonStatic.hyps(2) iconf by auto
     thus ?thesis using SFAssRedsNonStatic[OF b1 SFAssNonStatic.hyps(3)] by fast
@@ -2067,7 +2067,7 @@ next
   case (CallObjThrow e s\<^sub>0 e' s\<^sub>1 M ps) show ?case
   proof(cases "val_of e")
     case None
-    then have "iconf P (shp s\<^sub>0) e" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallObjThrow.prems by auto
+    then have "iconf (shp s\<^sub>0) e" and "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallObjThrow.prems by auto
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>1,False\<rangle>" using CallObjThrow.hyps(2) by auto
     then have "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>1,False\<rangle>"
       using CallObjThrow None by(auto dest!:eval_final simp: CallRedsThrowObj[OF b1])
@@ -2080,11 +2080,11 @@ next
   case (CallNull e s\<^sub>0 s\<^sub>1 ps vs s\<^sub>2 M) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using CallNull.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using CallNull.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallNull.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null,s\<^sub>1,False\<rangle>" using CallNull.hyps(2)[OF iconf] by auto
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null\<bullet>M(ps),s\<^sub>1,False\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallNull by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallNull by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>map Val vs,s\<^sub>2,False\<rangle>" using CallNull.hyps(4)[OF iconf2'] by auto
     then show ?thesis using CallRedsNull[OF b1 b2] by fast
@@ -2093,7 +2093,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) CallNull.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>null\<bullet>M(ps),s\<^sub>1,b1\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf fass] CallNull by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf fass] CallNull by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using CallNull.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,b1) \<surd>" using Red_preserves_bconf[OF wwf fass CallNull.prems] by simp
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>map Val vs,s\<^sub>2,False\<rangle>" using CallNull.hyps(4)[OF iconf2'] by auto
@@ -2103,11 +2103,11 @@ next
   case (CallParamsThrow e s\<^sub>0 v s\<^sub>1 es vs ex es' s\<^sub>2 M) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using CallParamsThrow.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using CallParamsThrow.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallParamsThrow.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,False\<rangle>" using CallParamsThrow.hyps(2)[OF iconf] by auto
     have call: "P \<turnstile> \<langle>e\<bullet>M(es),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<bullet>M(es),s\<^sub>1,False\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) es" using Red_preserves_iconf[OF wwf call] None CallParamsThrow by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) es" using Red_preserves_iconf[OF wwf call] None CallParamsThrow by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (es,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>es,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>map Val vs @ throw ex # es',s\<^sub>2,False\<rangle>"
       using CallParamsThrow.hyps(4)[OF iconf2'] by auto
@@ -2117,7 +2117,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) CallParamsThrow.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<bullet>M(es),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v\<bullet>M(es),s\<^sub>1,b1\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) es" using Red_preserves_iconf[OF wwf fass] CallParamsThrow by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) es" using Red_preserves_iconf[OF wwf fass] CallParamsThrow by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (es,b) \<surd>" using CallParamsThrow.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (es,b1) \<surd>" using Red_preserves_bconf[OF wwf fass CallParamsThrow.prems] by simp
     then have b2: "P \<turnstile> \<langle>es,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>map Val vs @ throw ex # es',s\<^sub>2,False\<rangle>"
@@ -2128,11 +2128,11 @@ next
   case (CallNone e s\<^sub>0 a s\<^sub>1 ps vs h\<^sub>2 l\<^sub>2 sh\<^sub>2 C fs M) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using CallNone.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using CallNone.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallNone.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using CallNone.hyps(2)[OF iconf] by auto
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,False\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallNone by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallNone by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using CallNone.hyps(4)[OF iconf2'] by auto
@@ -2142,7 +2142,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) CallNone.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have fass: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,b1\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf fass] CallNone by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf fass] CallNone by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using CallNone.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,b1) \<surd>" using Red_preserves_bconf[OF wwf fass CallNone.prems] by simp
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
@@ -2153,11 +2153,11 @@ next
   case (CallStatic e s\<^sub>0 a s\<^sub>1 ps vs h\<^sub>2 l\<^sub>2 sh\<^sub>2 C fs M Ts T m D) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using CallStatic.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using CallStatic.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CallStatic.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using CallStatic.hyps(2)[OF iconf] by auto
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,False\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallStatic by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None CallStatic by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using CallStatic.hyps(4)[OF iconf2'] by auto
@@ -2167,7 +2167,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) CallStatic.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,b1\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] CallStatic by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] CallStatic by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using CallStatic.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,b1) \<surd>" using Red_preserves_bconf[OF wwf call CallStatic.prems] by simp
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
@@ -2178,15 +2178,15 @@ next
   case (Call e s\<^sub>0 a s\<^sub>1 ps vs h\<^sub>2 l\<^sub>2 sh\<^sub>2 C fs M Ts T pns body D l\<^sub>2' e' h\<^sub>3 l\<^sub>3 sh\<^sub>3) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using Call.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using Call.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using Call.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,False\<rangle>" using Call.hyps(2)[OF iconf] by auto
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,False\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2: "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None Call by auto
+    then have iconf2: "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] None Call by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using Call.hyps(4)[OF iconf2] by simp
-    have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+    have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
       by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf Call.hyps(6)]])
     have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
     then have b3: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2197,12 +2197,12 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) Call.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have call: "P \<turnstile> \<langle>e\<bullet>M(ps),s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>addr a\<bullet>M(ps),s\<^sub>1,b1\<rangle>" by(rule CallRedsObj[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] Call by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) ps" using Red_preserves_iconf[OF wwf call] Call by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using Call.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (ps,b1) \<surd>" using Red_preserves_bconf[OF wwf call Call.prems] by simp
     then have b2: "P \<turnstile> \<langle>ps,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using Call.hyps(4)[OF iconf2'] by auto
-    have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+    have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
       by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf Call.hyps(6)]])
     have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
     then have b3: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2213,7 +2213,7 @@ next
   case (SCallParamsThrow es s\<^sub>0 vs ex es' s\<^sub>2 C M) show ?case
   proof(cases "map_vals_of es")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) es" using SCallParamsThrow.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) es" using SCallParamsThrow.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (es,b) \<surd>" using SCallParamsThrow.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>es,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs @ throw ex # es',s\<^sub>2,False\<rangle>"
       using SCallParamsThrow.hyps(2)[OF iconf] by simp
@@ -2228,7 +2228,7 @@ next
   case (SCallNone ps s\<^sub>0 vs s\<^sub>2 C M) show ?case
   proof(cases "map_vals_of ps")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) ps" using SCallNone.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) ps" using SCallNone.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using SCallNone.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,s\<^sub>2,False\<rangle>" using SCallNone.hyps(2)[OF iconf] by auto
     then show ?thesis using SCallRedsNone[OF b1 SCallNone.hyps(3)] SCallNone.hyps(1) by simp
@@ -2242,7 +2242,7 @@ next
   case (SCallNonStatic ps s\<^sub>0 vs s\<^sub>2 C M Ts T m D) show ?case
   proof(cases "map_vals_of ps")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) ps" using SCallNonStatic.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) ps" using SCallNonStatic.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using SCallNonStatic.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,s\<^sub>2,False\<rangle>" using SCallNonStatic.hyps(2)[OF iconf] by auto
     then show ?thesis using SCallRedsNonStatic[OF b1 SCallNonStatic.hyps(3)] SCallNonStatic.hyps(1) by simp
@@ -2256,7 +2256,7 @@ next
   case (SCallInitThrow ps s\<^sub>0 vs h\<^sub>1 l\<^sub>1 sh\<^sub>1 C M Ts T pns body D a s') show ?case
   proof(cases "map_vals_of ps")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) ps" using SCallInitThrow.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) ps" using SCallInitThrow.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using SCallInitThrow.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle>"
       using SCallInitThrow.hyps(2)[OF iconf] by auto
@@ -2290,14 +2290,14 @@ next
   case (SCallInit ps s\<^sub>0 vs h\<^sub>1 l\<^sub>1 sh\<^sub>1 C M Ts T pns body D v' h\<^sub>2 l\<^sub>2 sh\<^sub>2 l\<^sub>2' e' h\<^sub>3 l\<^sub>3 sh\<^sub>3) show ?case
   proof(cases "map_vals_of ps")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) ps" using SCallInit.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) ps" using SCallInit.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using SCallInit.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle>"
       using SCallInit.hyps(2)[OF iconf] by auto
     have bconf2: "P,shp (h\<^sub>1, l\<^sub>1, sh\<^sub>1) \<turnstile>\<^sub>b (INIT D ([D],False) \<leftarrow> unit,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle> \<rightarrow>* \<langle>Val v',(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using SCallInit.hyps(7) by auto
-    have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+    have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
       by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf SCallInit.hyps(3)]])
     have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
     then have b3: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2317,7 +2317,7 @@ next
         using SCallInit.hyps(3,4) SCallInit.prems(2) True Some vs
           by(auto simp: bconf_def initPD_def dest: sees_method_fun)
       then have s': "(h\<^sub>1, l\<^sub>1, sh\<^sub>1) = (h\<^sub>2, l\<^sub>2, sh\<^sub>2)" using init_ProcessingE[OF _ SCallInit.hyps(6)] by simp
-      have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+      have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
         by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf SCallInit.hyps(3)]])
       have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
       then have b3: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2332,7 +2332,7 @@ next
       have bconf2: "P,shp (h\<^sub>1, l\<^sub>1, sh\<^sub>1) \<turnstile>\<^sub>b (INIT D ([D],False) \<leftarrow> unit,False) \<surd>" by(simp add: bconf_def)
       then have b2: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle> \<rightarrow>* \<langle>Val v',(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
         using SCallInit.hyps(7) by auto
-      have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+      have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
         by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf SCallInit.hyps(3)]])
       have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
       then have b3: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2345,11 +2345,11 @@ next
   case (SCall ps s\<^sub>0 vs h\<^sub>2 l\<^sub>2 sh\<^sub>2 C M Ts T pns body D sfs l\<^sub>2' e' h\<^sub>3 l\<^sub>3 sh\<^sub>3) show ?case
   proof(cases "map_vals_of ps")
     case None
-    then have iconf: "iconfs P (shp s\<^sub>0) ps" using SCall.prems(1) by simp
+    then have iconf: "iconfs (shp s\<^sub>0) ps" using SCall.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (ps,b) \<surd>" using SCall.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
       using SCall.hyps(2)[OF iconf] by auto
-    have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+    have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
       by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf SCall.hyps(3)]])
     have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2361,7 +2361,7 @@ next
     then have vs: "vs = vs' \<and> s\<^sub>0 = (h\<^sub>2, l\<^sub>2, sh\<^sub>2)"
       using evals_finals_same[OF _ SCall.hyps(1)] map_Val_eq by auto
     then have b1: "P \<turnstile> \<langle>ps,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>map Val vs,(h\<^sub>2, l\<^sub>2, sh\<^sub>2),b\<rangle>" using ps by simp
-    have iconf3: "iconf P (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
+    have iconf3: "iconf (shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2)) body"
       by(rule nsub_RI_iconf[OF sees_wwf_nsub_RI[OF wwf SCall.hyps(3)]])
     have "P,shp (h\<^sub>2, l\<^sub>2', sh\<^sub>2) \<turnstile>\<^sub>b (body,False) \<surd>" by(simp add: bconf_def)
     then have b2: "P \<turnstile> \<langle>body,(h\<^sub>2, l\<^sub>2', sh\<^sub>2),False\<rangle> \<rightarrow>* \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3),False\<rangle>"
@@ -2370,7 +2370,7 @@ next
   qed
 next
   case (Block e\<^sub>0 h\<^sub>0 l\<^sub>0 V sh\<^sub>0 e\<^sub>1 h\<^sub>1 l\<^sub>1 sh\<^sub>1 T)
-  have iconf: "iconf P (shp (h\<^sub>0, l\<^sub>0(V := None), sh\<^sub>0)) e\<^sub>0"
+  have iconf: "iconf (shp (h\<^sub>0, l\<^sub>0(V := None), sh\<^sub>0)) e\<^sub>0"
     using Block.prems(1) by (auto simp: assigned_def)
   have bconf: "P,shp (h\<^sub>0, l\<^sub>0(V := None), sh\<^sub>0) \<turnstile>\<^sub>b (e\<^sub>0,b) \<surd>" using Block.prems(2)
     by(auto simp: bconf_def)
@@ -2380,7 +2380,7 @@ next
   thus ?case using BlockRedsFinal[OF b' fin] by simp
 next
   case (Seq e\<^sub>0 s\<^sub>0 v s\<^sub>1 e\<^sub>1 e\<^sub>2 s\<^sub>2)
-  then have iconf: "iconf P (shp s\<^sub>0) e\<^sub>0" using Seq.prems(1)
+  then have iconf: "iconf (shp s\<^sub>0) e\<^sub>0" using Seq.prems(1)
     by(auto dest: val_of_spec lass_val_of_spec)
   have b1: "\<exists>b1. P \<turnstile> \<langle>e\<^sub>0,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,b1\<rangle>"
   proof(cases "val_of e\<^sub>0")
@@ -2408,7 +2408,7 @@ next
   qed
   then obtain b1 where b1': "P \<turnstile> \<langle>e\<^sub>0,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,b1\<rangle>" by clarsimp
   have seq: "P \<turnstile> \<langle>e\<^sub>0;;e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v;;e\<^sub>1,s\<^sub>1,b1\<rangle>" by(rule SeqReds[OF b1'])
-  then have iconf2: "iconf P (shp s\<^sub>1) e\<^sub>1" using Red_preserves_iconf[OF wwf seq] Seq nsub_RI_iconf
+  then have iconf2: "iconf (shp s\<^sub>1) e\<^sub>1" using Red_preserves_iconf[OF wwf seq] Seq nsub_RI_iconf
     by auto
   have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (Val v;; e\<^sub>1,b1) \<surd>" by(rule Red_preserves_bconf[OF wwf seq Seq.prems])
   then have bconf2: "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>1,b1) \<surd>" by simp
@@ -2421,22 +2421,22 @@ next
   thus ?case using SeqThrow notVal by(auto dest!:eval_final dest: SeqRedsThrow)
 next
   case (CondT e s\<^sub>0 s\<^sub>1 e\<^sub>1 e' s\<^sub>2 e\<^sub>2)
-  then have iconf: "iconf P (shp s\<^sub>0) e" using CondT.prems(1) by auto
+  then have iconf: "iconf (shp s\<^sub>0) e" using CondT.prems(1) by auto
   have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CondT.prems(2) by auto
   then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>true,s\<^sub>1,False\<rangle>" using iconf CondT.hyps(2) by auto
   have cond: "P \<turnstile> \<langle>if (e) e\<^sub>1 else e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>if (true) e\<^sub>1 else e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule CondReds[OF b1])
-  then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>1" using Red_preserves_iconf[OF wwf cond] CondT nsub_RI_iconf
+  then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>1" using Red_preserves_iconf[OF wwf cond] CondT nsub_RI_iconf
     by auto
   have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>1,False) \<surd>" by(simp add: bconf_def)
   then have b2: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>e',s\<^sub>2,False\<rangle>" using CondT.hyps(4)[OF iconf2'] by auto
   then show ?case using CondReds2T[OF b1 b2] by fast
 next
   case (CondF e s\<^sub>0 s\<^sub>1 e\<^sub>2 e' s\<^sub>2 e\<^sub>1)
-  then have iconf: "iconf P (shp s\<^sub>0) e" using CondF.prems(1) by auto
+  then have iconf: "iconf (shp s\<^sub>0) e" using CondF.prems(1) by auto
   have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using CondF.prems(2) by auto
   then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>false,s\<^sub>1,False\<rangle>" using iconf CondF.hyps(2) by auto
   have cond: "P \<turnstile> \<langle>if (e) e\<^sub>1 else e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>if (false) e\<^sub>1 else e\<^sub>2,s\<^sub>1,False\<rangle>" by(rule CondReds[OF b1])
-  then have iconf2': "iconf P (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf cond] CondF nsub_RI_iconf
+  then have iconf2': "iconf (shp s\<^sub>1) e\<^sub>2" using Red_preserves_iconf[OF wwf cond] CondF nsub_RI_iconf
     by auto
   have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
   then have b2: "P \<turnstile> \<langle>e\<^sub>2,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>e',s\<^sub>2,False\<rangle>" using CondF.hyps(4)[OF iconf2'] by auto
@@ -2446,19 +2446,19 @@ next
 next
 thm bconf_Cond
   case (WhileF e s\<^sub>0 s\<^sub>1 c)
-  then have iconf: "iconf P (shp s\<^sub>0) e" using nsub_RI_iconf by auto
+  then have iconf: "iconf (shp s\<^sub>0) e" using nsub_RI_iconf by auto
   then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using WhileF.prems(2) by(simp add: bconf_def)
   then have b': "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>false,s\<^sub>1,False\<rangle>" using WhileF.hyps(2) iconf by auto
   thus ?case using WhileFReds[OF b'] by fast
 next
   case (WhileT e s\<^sub>0 s\<^sub>1 c v\<^sub>1 s\<^sub>2 e\<^sub>3 s\<^sub>3)
-  then have iconf: "iconf P (shp s\<^sub>0) e" using nsub_RI_iconf by auto
+  then have iconf: "iconf (shp s\<^sub>0) e" using nsub_RI_iconf by auto
   then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using WhileT.prems(2) by(simp add: bconf_def)
   then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>true,s\<^sub>1,False\<rangle>" using WhileT.hyps(2) iconf by auto
-  have iconf2: "iconf P (shp s\<^sub>1) c" using WhileT.prems(1) nsub_RI_iconf by auto
+  have iconf2: "iconf (shp s\<^sub>1) c" using WhileT.prems(1) nsub_RI_iconf by auto
   have bconf2: "P,shp s\<^sub>1 \<turnstile>\<^sub>b (c,False) \<surd>" by(simp add: bconf_def)
   then have b2: "P \<turnstile> \<langle>c,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>Val v\<^sub>1,s\<^sub>2,False\<rangle>" using WhileT.hyps(4) iconf2 by auto
-  have iconf3: "iconf P (shp s\<^sub>2) (while (e) c)" using WhileT.prems(1) by auto
+  have iconf3: "iconf (shp s\<^sub>2) (while (e) c)" using WhileT.prems(1) by auto
   have "P,shp s\<^sub>2 \<turnstile>\<^sub>b (while (e) c,False) \<surd>" by(simp add: bconf_def)
   then have b3: "P \<turnstile> \<langle>while (e) c,s\<^sub>2,False\<rangle> \<rightarrow>* \<langle>e\<^sub>3,s\<^sub>3,False\<rangle>" using WhileT.hyps(6) iconf3 by auto
   show ?case using WhileTReds[OF b1 b2 b3] by fast
@@ -2467,10 +2467,10 @@ next
     by (metis (no_types, lifting) WhileRedsThrow iconf.simps(16) bconf_While bconf_def nsub_RI_iconf)
 next
   case (WhileBodyThrow e s\<^sub>0 s\<^sub>1 c e' s\<^sub>2)
-  then have iconf: "iconf P (shp s\<^sub>0) e" using nsub_RI_iconf by auto
+  then have iconf: "iconf (shp s\<^sub>0) e" using nsub_RI_iconf by auto
   then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using WhileBodyThrow.prems(2) by(simp add: bconf_def)
   then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>true,s\<^sub>1,False\<rangle>" using WhileBodyThrow.hyps(2) iconf by auto
-  have iconf2: "iconf P (shp s\<^sub>1) c" using WhileBodyThrow.prems(1) nsub_RI_iconf by auto
+  have iconf2: "iconf (shp s\<^sub>1) c" using WhileBodyThrow.prems(1) nsub_RI_iconf by auto
   have bconf2: "P,shp s\<^sub>1 \<turnstile>\<^sub>b (c,False) \<surd>" by(simp add: bconf_def)
   then have b2: "P \<turnstile> \<langle>c,s\<^sub>1,False\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>2,False\<rangle>" using WhileBodyThrow.hyps(4) iconf2 by auto
   show ?case using WhileTRedsThrow[OF b1 b2] by fast
@@ -2487,7 +2487,7 @@ next
   then have b1: "P \<turnstile> \<langle>e\<^sub>1,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Throw a,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle>" by auto
   have Try: "P \<turnstile> \<langle>try e\<^sub>1 catch(C V) e\<^sub>2,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>try (Throw a) catch(C V) e\<^sub>2,(h\<^sub>1, l\<^sub>1, sh\<^sub>1),False\<rangle>"
     by(rule TryReds[OF b1])
-  have iconf: "iconf P sh\<^sub>1 e\<^sub>2" using Red_preserves_iconf[OF wwf Try] TryCatch nsub_RI_iconf
+  have iconf: "iconf sh\<^sub>1 e\<^sub>2" using Red_preserves_iconf[OF wwf Try] TryCatch nsub_RI_iconf
     by auto
   have bconf: "P,shp (h\<^sub>1, l\<^sub>1(V \<mapsto> Addr a), sh\<^sub>1) \<turnstile>\<^sub>b (e\<^sub>2,False) \<surd>" by(simp add: bconf_def)
   then have b2: "P \<turnstile> \<langle>e\<^sub>2,(h\<^sub>1, l\<^sub>1(V \<mapsto> Addr a), sh\<^sub>1),False\<rangle> \<rightarrow>* \<langle>e\<^sub>2',(h\<^sub>2, l\<^sub>2, sh\<^sub>2),False\<rangle>"
@@ -2501,11 +2501,11 @@ next
   case (Cons e s\<^sub>0 v s\<^sub>1 es es' s\<^sub>2) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using Cons.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using Cons.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using Cons.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,False\<rangle>" using Cons.hyps(2) iconf by auto
     have cons: "P \<turnstile> \<langle>e # es,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>Val v # es,s\<^sub>1,False\<rangle>" by(rule ListReds1[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) es" using Reds_preserves_iconf[OF wwf cons] None Cons by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) es" using Reds_preserves_iconf[OF wwf cons] None Cons by auto
     have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (es,False) \<surd>" by(simp add: bconfs_def)
     then have b2: "P \<turnstile> \<langle>es,s\<^sub>1,False\<rangle> [\<rightarrow>]* \<langle>es',s\<^sub>2,False\<rangle>" using Cons.hyps(4)[OF iconf2'] by auto
     show ?thesis using ListRedsVal[OF b1 b2] by auto
@@ -2514,7 +2514,7 @@ next
     then obtain b1 where b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>Val v,s\<^sub>1,b1\<rangle>"
       by (metis (no_types, lifting) Cons.hyps(1) eval_cases(3) rtrancl.rtrancl_refl val_of_spec)
     have cons: "P \<turnstile> \<langle>e # es,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>Val v # es,s\<^sub>1,b1\<rangle>" by(rule ListReds1[OF b1])
-    then have iconf2': "iconfs P (shp s\<^sub>1) es" using Reds_preserves_iconf[OF wwf cons] Cons by auto
+    then have iconf2': "iconfs (shp s\<^sub>1) es" using Reds_preserves_iconf[OF wwf cons] Cons by auto
     have bconf2: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (es,b) \<surd>" using Cons.prems Some by simp
     then have "P,shp s\<^sub>1 \<turnstile>\<^sub>b (es,b1) \<surd>" using Reds_preserves_bconf[OF wwf cons Cons.prems] by simp
     then have b2: "P \<turnstile> \<langle>es,s\<^sub>1,b1\<rangle> [\<rightarrow>]* \<langle>es',s\<^sub>2,False\<rangle>" using Cons.hyps(4)[OF iconf2'] by auto
@@ -2524,7 +2524,7 @@ next
   case (ConsThrow e s\<^sub>0 e' s\<^sub>1 es) show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s\<^sub>0) e" using ConsThrow.prems(1) by simp
+    then have iconf: "iconf (shp s\<^sub>0) e" using ConsThrow.prems(1) by simp
     have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using ConsThrow.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s\<^sub>0,b\<rangle> \<rightarrow>* \<langle>throw e',s\<^sub>1,False\<rangle>" using ConsThrow.hyps(2) iconf by auto
     have cons: "P \<turnstile> \<langle>e # es,s\<^sub>0,b\<rangle> [\<rightarrow>]* \<langle>throw e' # es,s\<^sub>1,False\<rangle>" by(rule ListReds1[OF b1])
@@ -2545,7 +2545,7 @@ next
   show ?case by(rule InitNoneReds[OF InitNone.hyps(1) init])
 next
   case (InitDone sh C sfs C' Cs e h l e' s')
-  then have "iconf P (shp (h, l, sh)) (INIT C' (Cs,True) \<leftarrow> e)" using InitDone.hyps(1)
+  then have "iconf (shp (h, l, sh)) (INIT C' (Cs,True) \<leftarrow> e)" using InitDone.hyps(1)
   proof(cases Cs)
     case Nil
     then have "C = C'" "\<not>sub_RI e" using InitDone.prems(1) by simp+
@@ -2556,7 +2556,7 @@ next
   show ?case by(rule InitDoneReds[OF InitDone.hyps(1) init])
 next
   case (InitProcessing sh C sfs C' Cs e h l e' s')
-  then have "iconf P (shp (h, l, sh)) (INIT C' (Cs,True) \<leftarrow> e)" using InitProcessing.hyps(1)
+  then have "iconf (shp (h, l, sh)) (INIT C' (Cs,True) \<leftarrow> e)" using InitProcessing.hyps(1)
   proof(cases Cs)
     case Nil
     then have "C = C'" "\<not>sub_RI e" using InitProcessing.prems(1) by simp+
@@ -2575,12 +2575,12 @@ next
   case InitRInit thus ?case by(fastforce intro: RedsInitRInit simp: bconf_def)
 next
   case (RInit e s v h' l' sh' C sfs i sh'' C' Cs e' e\<^sub>1 s\<^sub>1)
-  then have iconf2: "iconf P (shp (h', l', sh'')) (INIT C' (Cs,True) \<leftarrow> e')"
+  then have iconf2: "iconf (shp (h', l', sh'')) (INIT C' (Cs,True) \<leftarrow> e')"
     by(auto simp: initPD_def fun_upd_same list_nonempty_induct)
   show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s) e" using RInit.prems(1) by simp
+    then have iconf: "iconf (shp s) e" using RInit.prems(1) by simp
     have bconf: "P,shp s \<turnstile>\<^sub>b (e,b) \<surd>" using RInit.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>Val v,(h',l',sh'),False\<rangle>" using RInit.hyps(2)[OF iconf] by auto
     have "P,shp (h', l', sh'') \<turnstile>\<^sub>b (INIT C' (Cs,True) \<leftarrow> e',False) \<surd>" by(simp add: bconf_def)
@@ -2604,12 +2604,12 @@ next
   case (RInitInitFail e s a h' l' sh' C sfs i sh'' D Cs e' e\<^sub>1 s\<^sub>1)
   have fin: "final (throw a)" using eval_final[OF RInitInitFail.hyps(1)] by simp
   then obtain a' where a': "throw a = Throw a'" by auto
-  have iconf2: "iconf P (shp (h', l', sh'')) (RI (D,Throw a') ; Cs \<leftarrow> e')"
+  have iconf2: "iconf (shp (h', l', sh'')) (RI (D,Throw a') ; Cs \<leftarrow> e')"
     using RInitInitFail.prems(1) by auto
   show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s) e" using RInitInitFail.prems(1) by simp
+    then have iconf: "iconf (shp s) e" using RInitInitFail.prems(1) by simp
     have bconf: "P,shp s \<turnstile>\<^sub>b (e,b) \<surd>" using RInitInitFail.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>Throw a',(h',l',sh'),False\<rangle>"
       using RInitInitFail.hyps(2)[OF iconf] a' by auto
@@ -2637,7 +2637,7 @@ next
   show ?case
   proof(cases "val_of e")
     case None
-    then have iconf: "iconf P (shp s) e" using RInitFailFinal.prems(1) by simp
+    then have iconf: "iconf (shp s) e" using RInitFailFinal.prems(1) by simp
     have bconf: "P,shp s \<turnstile>\<^sub>b (e,b) \<surd>" using RInitFailFinal.prems(2) None by simp
     then have b1: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>Throw a',(h',l',sh'),False\<rangle>"
       using RInitFailFinal.hyps(2)[OF iconf] a' by auto
@@ -3216,7 +3216,7 @@ qed
 (* guarantees that INIT/RI return either Val+Done/Proc flag or Throw+Error flag *)
 lemma
 shows eval_init_return: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
-  \<Longrightarrow> iconf P (shp s) e
+  \<Longrightarrow> iconf (shp s) e
   \<Longrightarrow> (\<exists>Cs b. e = INIT C' (Cs,b) \<leftarrow> unit) \<or> (\<exists>C e\<^sub>0 Cs e\<^sub>i. e = RI(C,e\<^sub>0);Cs@[C'] \<leftarrow> unit)
      \<or> (\<exists>e\<^sub>0. e = RI(C',e\<^sub>0);Nil \<leftarrow> unit)
   \<Longrightarrow> (val_of e' = Some v \<longrightarrow> (\<exists>sfs i. shp s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)))
@@ -3309,7 +3309,7 @@ next
     using RInitInitFail by clarsimp (meson exp.distinct(101) rinit_throwE)
   next
     fix a' assume e': "e\<^sub>1 = Throw a'"
-    then have "iconf P (sh'(C \<mapsto> (sfs, Error))) a"
+    then have "iconf (sh'(C \<mapsto> (sfs, Error))) a"
       using RInitInitFail.hyps(1) eval_final by fastforce
     then show ?thesis using RInitInitFail e'
       by clarsimp (meson Cons_eq_append_conv list.inject)
@@ -3317,24 +3317,24 @@ next
 qed(auto simp: fun_upd_same)
 
 lemma init_Val_PD: "P \<turnstile> \<langle>INIT C' (Cs,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>Val v,s'\<rangle>
-  \<Longrightarrow> iconf P (shp s) (INIT C' (Cs,b) \<leftarrow> unit)
+  \<Longrightarrow> iconf (shp s) (INIT C' (Cs,b) \<leftarrow> unit)
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)"
  by(drule_tac v = v in eval_init_return, simp+)
 
 lemma init_throw_PD: "P \<turnstile> \<langle>INIT C' (Cs,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>
-  \<Longrightarrow> iconf P (shp s) (INIT C' (Cs,b) \<leftarrow> unit)
+  \<Longrightarrow> iconf (shp s) (INIT C' (Cs,b) \<leftarrow> unit)
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,Error)\<rfloor>"
  by(drule_tac a = a in eval_init_return, simp+)
 
 lemma rinit_Val_PD: "P \<turnstile> \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>Val v,s'\<rangle>
-  \<Longrightarrow> iconf P (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
+  \<Longrightarrow> iconf (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)"
 apply(drule_tac C' = C' and v = v in eval_init_return, simp_all)
  apply (metis append_butlast_last_id)
 done
 
 lemma rinit_throw_PD: "P \<turnstile> \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>
-  \<Longrightarrow> iconf P (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
+  \<Longrightarrow> iconf (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,Error)\<rfloor>"
 apply(drule_tac C' = C' and a = a in eval_init_return, simp_all)
  apply (metis append_butlast_last_id)
@@ -4202,7 +4202,7 @@ text \<open> Its extension to @{text"\<rightarrow>*"}: \<close>
 lemma extend_eval:
 assumes wf: "wwf_J_prog P"
 and reds: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e'',s'',b''\<rangle>" and eval_rest:  "P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-and iconf: "iconf P (shp s) e" and bconf: "P,shp s \<turnstile>\<^sub>b (e::expr,b) \<surd>"
+and iconf: "iconf (shp s) e" and bconf: "P,shp s \<turnstile>\<^sub>b (e::expr,b) \<surd>"
 shows "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 (*<*)
 using reds eval_rest iconf bconf
@@ -4210,7 +4210,7 @@ proof (induct rule: converse_rtrancl_induct3)
   case refl then show ?case by simp
 next
   case (step e1 s1 b1 e2 s2 b2)
-  then have ic: "iconf P (shp s2) e2" using Red_preserves_iconf local.wf by blast
+  then have ic: "iconf (shp s2) e2" using Red_preserves_iconf local.wf by blast
   then have ec: "P,shp s2 \<turnstile>\<^sub>b (e2,b2) \<surd>"
     using Red_preserves_bconf local.wf step.hyps(1) step.prems(2) step.prems(3) by blast
   show ?case using step ic ec extend_1_eval[OF wf step.hyps(1)] by simp
@@ -4221,7 +4221,7 @@ qed
 lemma extend_evals:
 assumes wf: "wwf_J_prog P"
 and reds: "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es'',s'',b''\<rangle>" and eval_rest:  "P \<turnstile> \<langle>es'',s''\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>"
-and iconf: "iconfs P (shp s) es" and bconf: "P,shp s \<turnstile>\<^sub>b (es::expr list,b) \<surd>"
+and iconf: "iconfs (shp s) es" and bconf: "P,shp s \<turnstile>\<^sub>b (es::expr list,b) \<surd>"
 shows "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>"
 (*<*)
 using reds eval_rest iconf bconf
@@ -4229,7 +4229,7 @@ proof (induct rule: converse_rtrancl_induct3)
   case refl then show ?case by simp
 next
   case (step es1 s1 b1 es2 s2 b2)
-  then have ic: "iconfs P (shp s2) es2" using Reds_preserves_iconf local.wf by blast
+  then have ic: "iconfs (shp s2) es2" using Reds_preserves_iconf local.wf by blast
   then have ec: "P,shp s2 \<turnstile>\<^sub>b (es2,b2) \<surd>"
     using Reds_preserves_bconf local.wf step.hyps(1) step.prems(2) step.prems(3) by blast
   show ?case using step ic ec extend_1_evals[OF wf step.hyps(1)] by simp
@@ -4242,9 +4242,9 @@ text \<open> Finally, small step semantics can be simulated by big step semantic
 theorem
 assumes wf: "wwf_J_prog P"
 shows small_by_big:
- "\<lbrakk>P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>; iconf P (shp s) e; P,shp s \<turnstile>\<^sub>b (e,b) \<surd>; final e'\<rbrakk>
+ "\<lbrakk>P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>; iconf (shp s) e; P,shp s \<turnstile>\<^sub>b (e,b) \<surd>; final e'\<rbrakk>
    \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-and "\<lbrakk>P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle>; iconfs P (shp s) es; P,shp s \<turnstile>\<^sub>b (es,b) \<surd>; finals es'\<rbrakk>
+and "\<lbrakk>P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle>; iconfs (shp s) es; P,shp s \<turnstile>\<^sub>b (es,b) \<surd>; finals es'\<rbrakk>
    \<Longrightarrow> P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>"
 (*<*)
 proof -
@@ -4253,7 +4253,7 @@ proof -
   moreover assume "final e'"
   then have "P \<turnstile> \<langle>e',s'\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
     by (simp add: eval_finalId)
-  moreover assume "iconf P (shp s) e"
+  moreover assume "iconf (shp s) e"
   moreover assume "P,shp s \<turnstile>\<^sub>b (e,b) \<surd>"
   ultimately show "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
     by (rule extend_eval)
@@ -4263,7 +4263,7 @@ next
   moreover assume "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle>"
   moreover have "P \<turnstile> \<langle>es',s'\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>" using fins
     by (rule eval_finalsId)
-  moreover assume "iconfs P (shp s) es"
+  moreover assume "iconfs (shp s) es"
   moreover assume "P,shp s \<turnstile>\<^sub>b (es,b) \<surd>"
   ultimately show "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>"
     by (rule extend_evals)
@@ -4275,7 +4275,7 @@ subsection "Equivalence"
 text\<open> And now, the crowning achievement: \<close>
 
 corollary big_iff_small:
-"\<lbrakk> wwf_J_prog P; iconf P (shp s) e; P,shp s \<turnstile>\<^sub>b (e::expr,b) \<surd> \<rbrakk>
+"\<lbrakk> wwf_J_prog P; iconf (shp s) e; P,shp s \<turnstile>\<^sub>b (e::expr,b) \<surd> \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>  =  (P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',False\<rangle> \<and> final e')"
 (*<*)by(blast dest: big_by_small eval_final small_by_big)(*>*)
 
@@ -4291,7 +4291,7 @@ text\<open> \dots and now to the big step semantics, just for fun. \<close>
 
 lemma eval_preserves_sconf:
 fixes s::state and s'::state
-assumes  "wf_J_prog P" and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "iconf P (shp s) e"
+assumes  "wf_J_prog P" and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "iconf (shp s) e"
  and "P,E \<turnstile> e::T" and "P,E \<turnstile> s\<surd>"
 shows "P,E \<turnstile> s'\<surd>"
 (*<*)
@@ -4307,7 +4307,7 @@ qed
 lemma eval_preserves_type:
 fixes s::state
 assumes wf: "wf_J_prog P"
- and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "P,E \<turnstile> s\<surd>" and "iconf P (shp s) e" and "P,E \<turnstile> e::T"
+ and "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "P,E \<turnstile> s\<surd>" and "iconf (shp s) e" and "P,E \<turnstile> e::T"
 shows "\<exists>T'. P \<turnstile> T' \<le> T \<and> P,E,hp s',shp s' \<turnstile> e':T'"
 (*<*)
 proof -

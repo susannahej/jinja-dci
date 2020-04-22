@@ -924,7 +924,7 @@ using assms apply(case_tac "method P D clinit", cases "e = C\<^sub>0\<bullet>\<^
 (* HERE: MOVE?  --needs J1 and EConform; version for eval found in Equivalence *)
 lemma
 shows eval\<^sub>1_init_return: "P \<turnstile>\<^sub>1 \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
-  \<Longrightarrow> iconf P (shp\<^sub>1 s) e
+  \<Longrightarrow> iconf (shp\<^sub>1 s) e
   \<Longrightarrow> (\<exists>Cs b. e = INIT C' (Cs,b) \<leftarrow> unit) \<or> (\<exists>C e\<^sub>0 Cs e\<^sub>i. e = RI(C,e\<^sub>0);Cs@[C'] \<leftarrow> unit)
      \<or> (\<exists>e\<^sub>0. e = RI(C',e\<^sub>0);Nil \<leftarrow> unit)
   \<Longrightarrow> (val_of e' = Some v \<longrightarrow> (\<exists>sfs i. shp\<^sub>1 s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)))
@@ -1011,7 +1011,7 @@ next
     using RInitInitFail\<^sub>1 apply clarsimp by (meson exp.distinct(101) rinit\<^sub>1_throwE)
   next
     fix a' assume e': "e\<^sub>1 = Throw a'"
-    then have "iconf P (sh'(C \<mapsto> (sfs, Error))) a"
+    then have "iconf (sh'(C \<mapsto> (sfs, Error))) a"
       using RInitInitFail\<^sub>1.hyps(1) eval\<^sub>1_final by fastforce
     then show ?thesis using RInitInitFail\<^sub>1 e'
       apply clarsimp by (meson Cons_eq_append_conv list.inject)
@@ -1019,24 +1019,24 @@ next
 qed(auto simp: fun_upd_same)
 
 lemma init\<^sub>1_Val_PD: "P \<turnstile>\<^sub>1 \<langle>INIT C' (Cs,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>Val v,s'\<rangle>
-  \<Longrightarrow> iconf P (shp\<^sub>1 s) (INIT C' (Cs,b) \<leftarrow> unit)
+  \<Longrightarrow> iconf (shp\<^sub>1 s) (INIT C' (Cs,b) \<leftarrow> unit)
   \<Longrightarrow> \<exists>sfs i. shp\<^sub>1 s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)"
  by(drule_tac v = v in eval\<^sub>1_init_return, simp+)
 
 lemma init\<^sub>1_throw_PD: "P \<turnstile>\<^sub>1 \<langle>INIT C' (Cs,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>
-  \<Longrightarrow> iconf P (shp\<^sub>1 s) (INIT C' (Cs,b) \<leftarrow> unit)
+  \<Longrightarrow> iconf (shp\<^sub>1 s) (INIT C' (Cs,b) \<leftarrow> unit)
   \<Longrightarrow> \<exists>sfs i. shp\<^sub>1 s' C' = \<lfloor>(sfs,Error)\<rfloor>"
  by(drule_tac a = a in eval\<^sub>1_init_return, simp+)
 
 lemma rinit\<^sub>1_Val_PD: "P \<turnstile>\<^sub>1 \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>Val v,s'\<rangle>
-  \<Longrightarrow> iconf P (shp\<^sub>1 s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
+  \<Longrightarrow> iconf (shp\<^sub>1 s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp\<^sub>1 s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)"
 apply(drule_tac C' = C' and v = v in eval\<^sub>1_init_return, simp_all)
  apply (metis append_butlast_last_id)
 done
 
 lemma rinit\<^sub>1_throw_PD: "P \<turnstile>\<^sub>1 \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>
-  \<Longrightarrow> iconf P (shp\<^sub>1 s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
+  \<Longrightarrow> iconf (shp\<^sub>1 s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp\<^sub>1 s' C' = \<lfloor>(sfs,Error)\<rfloor>"
 apply(drule_tac C' = C' and a = a in eval\<^sub>1_init_return, simp_all)
  apply (metis append_butlast_last_id)
@@ -1133,7 +1133,7 @@ next
   have IH: "PROP ?P (INIT C' ([C'],False) \<leftarrow> unit) h ls sh (Val v')
              h' ls' sh' E C M pc ics v' xa vs frs I" by fact
   have ls: "ls = ls'" by(rule init\<^sub>1_same_loc[OF NewInitOOM\<^sub>1.hyps(2)])
-  have "iconf P\<^sub>1 (shp\<^sub>1 (h, ls, sh)) (INIT C' ([C'],False) \<leftarrow> unit)" by simp
+  have "iconf (shp\<^sub>1 (h, ls, sh)) (INIT C' ([C'],False) \<leftarrow> unit)" by simp
   then obtain sfs i where sh': "sh' C' = Some(sfs,i)"
     using init\<^sub>1_Val_PD[OF NewInitOOM\<^sub>1.hyps(2)] by clarsimp
   have "P \<turnstile> (None,h,(vs,ls,C,M,pc,ics)#frs,sh) -jvm\<rightarrow> (None,h,(vs,ls,C,M,pc,Calling C' [])#frs,sh)"

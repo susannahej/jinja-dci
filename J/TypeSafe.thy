@@ -226,21 +226,21 @@ qed(auto elim: WTrt.cases)
 
 theorem assumes wf: "wwf_J_prog P"
 shows red_preserves_iconf:
-  "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconf P sh e \<Longrightarrow> iconf P sh' e'"
+  "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconf sh e \<Longrightarrow> iconf sh' e'"
 and reds_preserves_iconf:
-  "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconfs P sh es \<Longrightarrow> iconfs P sh' es'"
+  "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconfs sh es \<Longrightarrow> iconfs sh' es'"
 (*<*)
 proof (induct rule:red_reds_inducts)
   case (BinOpRed1 e h l sh b e' h' l' sh' b' bop e\<^sub>2)
-  then show ?case using BinOpRed1 nsub_RI_iconf[of e\<^sub>2 P sh'] val_of_spec
+  then show ?case using BinOpRed1 nsub_RI_iconf[of e\<^sub>2 sh'] val_of_spec
   proof(cases "val_of e") qed(simp,fast)
 next
   case (FAssRed1 e h l sh b e' h' l' sh' b' F D e\<^sub>2)
-  then show ?case using FAssRed1 nsub_RI_iconf[of e\<^sub>2 P sh'] val_of_spec
+  then show ?case using FAssRed1 nsub_RI_iconf[of e\<^sub>2 sh'] val_of_spec
   proof(cases "val_of e") qed(simp,fast)
 next
   case (CallObj e h l sh b e' h' l' sh' b' M es)
-  then show ?case using CallObj nsub_RIs_iconfs[of es P sh'] val_of_spec
+  then show ?case using CallObj nsub_RIs_iconfs[of es sh'] val_of_spec
   proof(cases "val_of e") qed(simp,fast)
 next
   case RedCall then show ?case using sees_wwf_nsub_RI[OF wf RedCall.hyps(2)]
@@ -267,7 +267,7 @@ next
   qed
 next
   case (ListRed1 e h l sh b e' h' l' sh' b' es)
-  then show ?case using ListRed1 nsub_RIs_iconfs[of es P sh'] val_of_spec
+  then show ?case using ListRed1 nsub_RIs_iconfs[of es sh'] val_of_spec
   proof(cases "val_of e") qed(simp,fast)
 next
   case RedInit then show ?case by(auto simp: nsub_RI_iconf)
@@ -314,9 +314,9 @@ next
 qed
 
 theorem red_preserves_bconf:
-  "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconf P sh e \<Longrightarrow> P,sh \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P,sh' \<turnstile>\<^sub>b (e',b') \<surd>"
+  "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconf sh e \<Longrightarrow> P,sh \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P,sh' \<turnstile>\<^sub>b (e',b') \<surd>"
 and reds_preserves_bconf:
-  "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconfs P sh es \<Longrightarrow> P,sh \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P,sh' \<turnstile>\<^sub>b (es',b') \<surd>"
+  "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle> \<Longrightarrow> iconfs sh es \<Longrightarrow> P,sh \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P,sh' \<turnstile>\<^sub>b (es',b') \<surd>"
 (*<*)
 proof (induct rule:red_reds_inducts)
   case (CastRed e a a b b e' a a b b' C) then show ?case
@@ -417,7 +417,7 @@ next
   then show ?case using RedBlock by(simp add: bconf_def)
 next
   case (SeqRed e h l sh b e' h' l' sh' b' e\<^sub>2)
-  have "iconf P sh e"
+  have "iconf sh e"
   proof(cases "lass_val_of e")
     case (Some a) show ?thesis by(rule lass_val_of_iconf[OF Some])
   next
@@ -564,10 +564,10 @@ done
 
 theorem assumes wf: "wf_J_prog P"
 shows subject_reduction2: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow>
-  (\<And>E T. \<lbrakk> P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e:T \<rbrakk>
+  (\<And>E T. \<lbrakk> P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e:T \<rbrakk>
            \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e':T' \<and> P \<turnstile> T' \<le> T)"
 and subjects_reduction2: "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle> \<Longrightarrow>
-  (\<And>E Ts. \<lbrakk> P,E \<turnstile> (h,l,sh) \<surd>; iconfs P sh es; P,E,h,sh \<turnstile> es [:] Ts \<rbrakk>
+  (\<And>E Ts. \<lbrakk> P,E \<turnstile> (h,l,sh) \<surd>; iconfs sh es; P,E,h,sh \<turnstile> es [:] Ts \<rbrakk>
             \<Longrightarrow> \<exists>Ts'. P,E,h',sh' \<turnstile> es' [:] Ts' \<and> P \<turnstile> Ts' [\<le>] Ts)"
 (*<*)
 proof (induct rule:red_reds_inducts)
@@ -605,12 +605,12 @@ next
 next
   case (BinOpRed1 e\<^sub>1 h l sh b e\<^sub>1' h' l' sh' b' bop e\<^sub>2)
   have red: "P \<turnstile> \<langle>e\<^sub>1,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e\<^sub>1',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e\<^sub>1; P,E,h,sh \<turnstile> e\<^sub>1:T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e\<^sub>1; P,E,h,sh \<turnstile> e\<^sub>1:T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e\<^sub>1' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)"
    and wt: "P,E,h,sh \<turnstile> e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2 : T" by fact+
   have val: "val_of e\<^sub>1 = None" using red iconf val_no_step by auto
-  then have iconf1: "iconf P sh e\<^sub>1" and nsub_RI2: "\<not>sub_RI e\<^sub>2" using iconf by simp+
+  then have iconf1: "iconf sh e\<^sub>1" and nsub_RI2: "\<not>sub_RI e\<^sub>2" using iconf by simp+
   have "P,E,h',sh' \<turnstile> e\<^sub>1' \<guillemotleft>bop\<guillemotright> e\<^sub>2 : T"
   proof (cases bop)
     assume [simp]: "bop = Eq"
@@ -632,11 +632,11 @@ next
 next
   case (BinOpRed2 e\<^sub>2 h l sh b e\<^sub>2' h' l' sh' b' v\<^sub>1 bop)
   have red: "P \<turnstile> \<langle>e\<^sub>2,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e\<^sub>2',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e\<^sub>2; P,E,h,sh \<turnstile> e\<^sub>2:T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e\<^sub>2; P,E,h,sh \<turnstile> e\<^sub>2:T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e\<^sub>2' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (Val v\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2)"
    and wt: "P,E,h,sh \<turnstile> (Val v\<^sub>1) \<guillemotleft>bop\<guillemotright> e\<^sub>2 : T" by fact+
-  have iconf2: "iconf P sh e\<^sub>2" using iconf by simp
+  have iconf2: "iconf sh e\<^sub>2" using iconf by simp
   have "P,E,h',sh' \<turnstile> (Val v\<^sub>1) \<guillemotleft>bop\<guillemotright> e\<^sub>2' : T"
   proof (cases bop)
     assume [simp]: "bop = Eq"
@@ -675,11 +675,11 @@ next
   then show ?case using LAssRed apply(rule_tac x = Void in exI) by auto
 next
   case (FAccRed e h l sh b e' h' l' sh' b' F D)
-  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (e\<bullet>F{D})"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (e\<bullet>F{D})"
    and wt: "P,E,h,sh \<turnstile> e\<bullet>F{D} : T" by fact+
-  have iconf': "iconf P sh e" using iconf by simp+
+  have iconf': "iconf sh e" using iconf by simp+
   \<comment> \<open>The goal: ?case = @{prop ?case}\<close>
   \<comment> \<open>Now distinguish the two cases how wt can have arisen.\<close>
   { fix C assume wte: "P,E,h,sh \<turnstile> e : Class C"
@@ -711,12 +711,12 @@ next
 next
   case (FAssRed1 e h l sh b e' h' l' sh' b' F D e\<^sub>2)
   have red: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (e\<bullet>F{D} := e\<^sub>2)"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (e\<bullet>F{D} := e\<^sub>2)"
    and wt: "P,E,h,sh \<turnstile> e\<bullet>F{D}:=e\<^sub>2 : T" by fact+
   have val: "val_of e = None" using red iconf val_no_step by auto
-  then have iconf': "iconf P sh e" and nsub_RI2: "\<not>sub_RI e\<^sub>2" using iconf by simp+
+  then have iconf': "iconf sh e" and nsub_RI2: "\<not>sub_RI e\<^sub>2" using iconf by simp+
   from wt have void: "T = Void" by blast
   \<comment> \<open>We distinguish if @{term e} has type @{term NT} or a Class type\<close>
   \<comment> \<open>Remember ?case = @{term ?case}\<close>
@@ -748,11 +748,11 @@ next
 next
   case (FAssRed2 e\<^sub>2 h l sh b e\<^sub>2' h' l' sh' b' v F D)
   have red: "P \<turnstile> \<langle>e\<^sub>2,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e\<^sub>2',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e\<^sub>2; P,E,h,sh \<turnstile> e\<^sub>2 : T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e\<^sub>2; P,E,h,sh \<turnstile> e\<^sub>2 : T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e\<^sub>2' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (Val v\<bullet>F{D} := e\<^sub>2)"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (Val v\<bullet>F{D} := e\<^sub>2)"
    and wt: "P,E,h,sh \<turnstile> Val v\<bullet>F{D}:=e\<^sub>2 : T" by fact+
-  have iconf2: "iconf P sh e\<^sub>2" using iconf by simp
+  have iconf2: "iconf sh e\<^sub>2" using iconf by simp
   from wt have [simp]: "T = Void" by auto
   from wt show ?case
   proof (rule WTrt_elim_cases)
@@ -783,12 +783,12 @@ next
 next
   case (CallObj e h l sh b e' h' l' sh' b' M es)
   have red: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (e\<bullet>M(es))"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (e\<bullet>M(es))"
    and wt: "P,E,h,sh \<turnstile> e\<bullet>M(es) : T" by fact+
   have val: "val_of e = None" using red iconf val_no_step by auto
-  then have iconf': "iconf P sh e" and nsub_RIs: "\<not>sub_RIs es" using iconf by simp+
+  then have iconf': "iconf sh e" and nsub_RIs: "\<not>sub_RIs es" using iconf by simp+
   \<comment> \<open>We distinguish if @{term e} has type @{term NT} or a Class type\<close>
   \<comment> \<open>Remember ?case = @{term ?case}\<close>
   { assume wt':"P,E,h,sh \<turnstile> e:NT"
@@ -826,11 +826,11 @@ next
 next
   case (CallParams es h l sh b es' h' l' sh' b' v M)
   have reds: "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E Ts. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconfs P sh es; P,E,h,sh \<turnstile> es [:] Ts\<rbrakk>
+   and IH: "\<And>E Ts. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconfs sh es; P,E,h,sh \<turnstile> es [:] Ts\<rbrakk>
                  \<Longrightarrow> \<exists>Us. P,E,h',sh' \<turnstile> es' [:] Us \<and> P \<turnstile> Us [\<le>] Ts"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (Val v\<bullet>M(es))"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (Val v\<bullet>M(es))"
    and wt: "P,E,h,sh \<turnstile> Val v\<bullet>M(es) : T" by fact+
-  have iconfs: "iconfs P sh es" using iconf by simp
+  have iconfs: "iconfs sh es" using iconf by simp
   from wt show ?case
   proof (rule WTrt_elim_cases)
     fix C D Ts Us pns body
@@ -858,10 +858,10 @@ next
 next
   case (InitBlockRed e h l V v sh b e' h' l' sh' b' v' T E T')
   have red: "P \<turnstile> \<langle>e, (h,l(V\<mapsto>v),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V\<mapsto>v),sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V\<mapsto>v),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                     \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
    and v': "l' V = Some v'" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
-   and iconf: "iconf P sh {V:T; V:=Val v;; e}"
+   and iconf: "iconf sh {V:T; V:=Val v;; e}"
    and wt: "P,E,h,sh \<turnstile> {V:T := Val v; e} : T'" by fact+
   from wt obtain T\<^sub>1 where wt\<^sub>1: "typeof\<^bsub>h\<^esub> v = Some T\<^sub>1"
     and T1subT: "P \<turnstile> T\<^sub>1 \<le> T" and wt\<^sub>2: "P,E(V\<mapsto>T),h,sh \<turnstile> e : T'" by auto
@@ -877,10 +877,10 @@ next
 next
   case (BlockRedSome e h l V sh b e' h' l' sh' b' v T E Te)
   have red: "P \<turnstile> \<langle>e,(h,l(V:=None),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V:=None),sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V:=None),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                    \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T"
    and Some: "l' V = Some v" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
-   and iconf: "iconf P sh {V:T; e}"
+   and iconf: "iconf sh {V:T; e}"
    and wt: "P,E,h,sh \<turnstile> {V:T; e} : Te" by fact+
   obtain Te' where IH': "P,E(V\<mapsto>T),h',sh' \<turnstile> e' : Te' \<and> P \<turnstile> Te' \<le> Te"
     using IH conf iconf wt by(fastforce simp:sconf_def lconf_def)
@@ -964,11 +964,11 @@ next
       simp: sconf_def hconf_def)
 next
   case (SFAssRed e h l sh b e' h' l' sh' b' C F D E T)
-  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf P sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
                  \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (C\<bullet>\<^sub>sF{D} := e)"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (C\<bullet>\<^sub>sF{D} := e)"
    and wt: "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sF{D}:=e : T" by fact+
-  have iconf': "iconf P sh e" using iconf by simp
+  have iconf': "iconf sh e" using iconf by simp
   from wt have [simp]: "T = Void" by auto
   from wt show ?case
   proof (rule WTrt_elim_cases)
@@ -995,12 +995,12 @@ next
       simp: sconf_def hconf_def)
 next
   case (SCallParams es h l sh b es' h' l' sh' b' C M)
-  have IH: "\<And>E Ts. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconfs P sh es; P,E,h,sh \<turnstile> es [:] Ts\<rbrakk>
+  have IH: "\<And>E Ts. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconfs sh es; P,E,h,sh \<turnstile> es [:] Ts\<rbrakk>
                  \<Longrightarrow> \<exists>Us. P,E,h',sh' \<turnstile> es' [:] Us \<and> P \<turnstile> Us [\<le>] Ts"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf P sh (C\<bullet>\<^sub>sM(es))"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (C\<bullet>\<^sub>sM(es))"
    and wt: "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sM(es) : T" by fact+
 (*  then obtain sfs where clinit: "M = clinit \<longrightarrow> sh C = \<lfloor>(sfs, Processing)\<rfloor>" by simp *)
-  have iconfs: "iconfs P sh es" using iconf by simp
+  have iconfs: "iconfs sh es" using iconf by simp
   from wt show ?case
   proof (rule WTrt_elim_cases)
     fix D Ts Us pns body sfs vs
@@ -1156,12 +1156,12 @@ qed fastforce+ (* esp all Throw propagation rules except RInitInit are dealt wit
 
 
 corollary subject_reduction:
-  "\<lbrakk> wf_J_prog P; P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>; P,E \<turnstile> s \<surd>; iconf P (shp s) e; P,E,hp s,shp s \<turnstile> e:T \<rbrakk>
+  "\<lbrakk> wf_J_prog P; P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>; P,E \<turnstile> s \<surd>; iconf (shp s) e; P,E,hp s,shp s \<turnstile> e:T \<rbrakk>
   \<Longrightarrow> \<exists>T'. P,E,hp s',shp s' \<turnstile> e':T' \<and> P \<turnstile> T' \<le> T"
 (*<*)by(cases s, cases s', fastforce dest:subject_reduction2)(*>*)
 
 corollary subjects_reduction:
-  "\<lbrakk> wf_J_prog P; P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>; P,E \<turnstile> s \<surd>; iconfs P (shp s) es; P,E,hp s,shp s \<turnstile> es[:]Ts \<rbrakk>
+  "\<lbrakk> wf_J_prog P; P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>; P,E \<turnstile> s \<surd>; iconfs (shp s) es; P,E,hp s,shp s \<turnstile> es[:]Ts \<rbrakk>
   \<Longrightarrow> \<exists>Ts'. P,E,hp s',shp s' \<turnstile> es'[:]Ts' \<and> P \<turnstile> Ts' [\<le>] Ts"
 (*<*)by(cases s, cases s', fastforce dest:subjects_reduction2)(*>*)
 
@@ -1173,7 +1173,7 @@ closure \dots \<close>
 
 lemma Red_preserves_sconf:
 assumes wf: "wf_J_prog P" and Red: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>"
-shows "\<And>T. \<lbrakk> P,E,hp s,shp s \<turnstile> e : T; iconf P (shp s) e; P,E \<turnstile> s \<surd> \<rbrakk> \<Longrightarrow> P,E \<turnstile> s' \<surd>"
+shows "\<And>T. \<lbrakk> P,E,hp s,shp s \<turnstile> e : T; iconf (shp s) e; P,E \<turnstile> s \<surd> \<rbrakk> \<Longrightarrow> P,E \<turnstile> s' \<surd>"
 (*<*)
 using Red
 proof (induct rule:converse_rtrancl_induct3)
@@ -1183,7 +1183,7 @@ next
   obtain h l sh h' l' sh' where s:"s = (h,l,sh)" and s':"s' = (h',l',sh')"
     by(cases s, cases s')
   then have "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>" using step.hyps(1) by simp
-  then have iconf': "iconf P (shp s') e'" using red_preserves_iconf[OF wf_prog_wwf_prog[OF wf]]
+  then have iconf': "iconf (shp s') e'" using red_preserves_iconf[OF wf_prog_wwf_prog[OF wf]]
     step.prems(2) s s' by simp
   thus ?case using step
     by(blast intro:red_preserves_sconf dest: subject_reduction[OF wf])
@@ -1192,7 +1192,7 @@ qed
 
 lemma Red_preserves_iconf:
 assumes wf: "wwf_J_prog P" and Red: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>"
-shows "iconf P (shp s) e \<Longrightarrow> iconf P (shp s') e'"
+shows "iconf (shp s) e \<Longrightarrow> iconf (shp s') e'"
 (*<*)
 using Red
 proof (induct rule:converse_rtrancl_induct3)
@@ -1206,7 +1206,7 @@ qed
 
 lemma Reds_preserves_iconf:
 assumes wf: "wwf_J_prog P" and Red: "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle>"
-shows "iconfs P (shp s) es \<Longrightarrow> iconfs P (shp s') es'"
+shows "iconfs (shp s) es \<Longrightarrow> iconfs (shp s') es'"
 (*<*)
 using Red
 proof (induct rule:converse_rtrancl_induct3)
@@ -1220,14 +1220,14 @@ qed
 
 lemma Red_preserves_bconf:
 assumes wf: "wwf_J_prog P" and Red: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>"
-shows "iconf P (shp s) e \<Longrightarrow> P,(shp s) \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P,(shp s') \<turnstile>\<^sub>b (e'::expr,b') \<surd>"
+shows "iconf (shp s) e \<Longrightarrow> P,(shp s) \<turnstile>\<^sub>b (e,b) \<surd> \<Longrightarrow> P,(shp s') \<turnstile>\<^sub>b (e'::expr,b') \<surd>"
 (*<*)
 using Red
 proof (induct rule:converse_rtrancl_induct3)
   case refl show ?case by fact
 next
   case (step e s1 b e' s2 b')
-  then have "iconf P (shp s2) e'" using step red_preserves_iconf[OF wf]
+  then have "iconf (shp s2) e'" using step red_preserves_iconf[OF wf]
    apply(cases s1, cases s2) by auto
   thus ?case using step apply(cases s1, cases s2, simp)
     by(blast intro:red_preserves_bconf)
@@ -1236,14 +1236,14 @@ qed
 
 lemma Reds_preserves_bconf:
 assumes wf: "wwf_J_prog P" and Red: "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>]* \<langle>es',s',b'\<rangle>"
-shows "iconfs P (shp s) es \<Longrightarrow> P,(shp s) \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P,(shp s') \<turnstile>\<^sub>b (es'::expr list,b') \<surd>"
+shows "iconfs (shp s) es \<Longrightarrow> P,(shp s) \<turnstile>\<^sub>b (es,b) \<surd> \<Longrightarrow> P,(shp s') \<turnstile>\<^sub>b (es'::expr list,b') \<surd>"
 (*<*)
 using Red
 proof (induct rule:converse_rtrancl_induct3)
   case refl show ?case by fact
 next
   case (step es s1 b es' s2 b')
-  then have "iconfs P (shp s2) es'" using step reds_preserves_iconf[OF wf]
+  then have "iconfs (shp s2) es'" using step reds_preserves_iconf[OF wf]
    apply(cases s1, cases s2) by auto
   thus ?case using step apply(cases s1, cases s2, simp)
     by(blast intro:reds_preserves_bconf)
@@ -1264,7 +1264,7 @@ qed
 
 lemma Red_preserves_type:
 assumes wf: "wf_J_prog P" and Red: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>"
-shows "!!T. \<lbrakk> P,E \<turnstile> s\<surd>; iconf P (shp s) e; P,E,hp s,shp s \<turnstile> e:T \<rbrakk>
+shows "!!T. \<lbrakk> P,E \<turnstile> s\<surd>; iconf (shp s) e; P,E,hp s,shp s \<turnstile> e:T \<rbrakk>
     \<Longrightarrow> \<exists>T'. P \<turnstile> T' \<le> T \<and> P,E,hp s',shp s' \<turnstile> e':T'"
 (*<*)
 using Red
@@ -1284,7 +1284,7 @@ text\<open> The above preservation lemmas are now combined and packed nicely. \<
 
 definition wf_config :: "J_prog \<Rightarrow> env \<Rightarrow> state \<Rightarrow> expr \<Rightarrow> ty \<Rightarrow> bool"   ("_,_,_ \<turnstile> _ : _ \<surd>"   [51,0,0,0,0]50)
 where
-  "P,E,s \<turnstile> e:T \<surd>  \<equiv>  P,E \<turnstile> s \<surd> \<and> iconf P (shp s) e \<and> P,E,hp s,shp s \<turnstile> e:T"
+  "P,E,s \<turnstile> e:T \<surd>  \<equiv>  P,E \<turnstile> s \<surd> \<and> iconf (shp s) e \<and> P,E,hp s,shp s \<turnstile> e:T"
 
 theorem Subject_reduction: assumes wf: "wf_J_prog P"
 shows "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle> \<Longrightarrow> P,E,s \<turnstile> e : T \<surd>
@@ -1322,7 +1322,7 @@ by(auto simp:wf_config_def sconf_def)
 
 corollary TypeSafety:
   "\<lbrakk> wf_J_prog P; P,E \<turnstile> s \<surd>; P,E \<turnstile> e::T; \<D> e \<lfloor>dom(lcl s)\<rfloor>;
-     iconf P (shp s) e; P,(shp s) \<turnstile>\<^sub>b (e,b) \<surd>;
+     iconf (shp s) e; P,(shp s) \<turnstile>\<^sub>b (e,b) \<surd>;
      P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle>; \<not>(\<exists>e'' s'' b''. P \<turnstile> \<langle>e',s',b'\<rangle> \<rightarrow> \<langle>e'',s'',b''\<rangle>) \<rbrakk>
  \<Longrightarrow> (\<exists>v. e' = Val v \<and> P,hp s' \<turnstile> v :\<le> T) \<or>
       (\<exists>a. e' = Throw a \<and> a \<in> dom(hp s'))"

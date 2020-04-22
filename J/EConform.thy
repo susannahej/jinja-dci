@@ -114,62 +114,62 @@ definition initPD :: "sheap \<Rightarrow> cname \<Rightarrow> bool" where
 "initPD sh C \<equiv> \<exists>sfs i. sh C = Some (sfs, i) \<and> (i = Done \<or> i = Processing)"
 
 (* checks that INIT and RI conform and are only in the main computation *)
-fun iconf :: "'m prog \<Rightarrow> sheap \<Rightarrow> 'a exp \<Rightarrow> bool" and iconfs :: "'m prog \<Rightarrow> sheap \<Rightarrow> 'a exp list \<Rightarrow> bool" where
-  "iconf P sh (new C) = True"
-| "iconf P sh (Cast C e) = iconf P sh e"
-| "iconf P sh (Val v) = True"
-| "iconf P sh (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf P sh e\<^sub>2 | _ \<Rightarrow> iconf P sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
-| "iconf P sh (Var V) = True"
-| "iconf P sh (LAss V e) = iconf P sh e"
-| "iconf P sh (e\<bullet>F{D}) = iconf P sh e"
-| "iconf P sh (C\<bullet>\<^sub>sF{D}) = True"
-| "iconf P sh (e\<^sub>1\<bullet>F{D}:=e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf P sh e\<^sub>2 | _ \<Rightarrow> iconf P sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
-| "iconf P sh (C\<bullet>\<^sub>sF{D}:=e\<^sub>2) = iconf P sh e\<^sub>2"
-| "iconf P sh (e\<bullet>M(es)) = (case val_of e of Some v \<Rightarrow> iconfs P sh es | _ \<Rightarrow> iconf P sh e \<and> \<not>sub_RIs es)"
-| "iconf P sh (C\<bullet>\<^sub>sM(es)) = iconfs P sh es"
-| "iconf P sh ({V:T; e}) = iconf P sh e"
-| "iconf P sh (e\<^sub>1;;e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf P sh e\<^sub>2
-           | None \<Rightarrow> (case lass_val_of e\<^sub>1 of Some p \<Rightarrow> iconf P sh e\<^sub>2
-                                           | None \<Rightarrow> iconf P sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2))"
-| "iconf P sh (if (b) e\<^sub>1 else e\<^sub>2) = (iconf P sh b \<and> \<not>sub_RI e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
-| "iconf P sh (while (b) e) = (\<not>sub_RI b \<and> \<not>sub_RI e)"
-| "iconf P sh (throw e) = iconf P sh e"
-| "iconf P sh (try e\<^sub>1 catch(C V) e\<^sub>2) = (iconf P sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
-| "iconf P sh (INIT C (Cs,b) \<leftarrow> e) = ((case Cs of Nil \<Rightarrow> initPD sh C | C'#Cs' \<Rightarrow> last Cs = C) \<and> \<not>sub_RI e)"
-| "iconf P sh (RI (C,e);Cs \<leftarrow> e') = (iconf P sh e \<and> \<not>sub_RI e')"
-| "iconfs P sh ([]) = True"
-| "iconfs P sh (e#es) = (case val_of e of Some v \<Rightarrow> iconfs P sh es | _ \<Rightarrow> iconf P sh e \<and> \<not>sub_RIs es)"
+fun iconf :: "sheap \<Rightarrow> 'a exp \<Rightarrow> bool" and iconfs :: " sheap \<Rightarrow> 'a exp list \<Rightarrow> bool" where
+  "iconf sh (new C) = True"
+| "iconf sh (Cast C e) = iconf sh e"
+| "iconf sh (Val v) = True"
+| "iconf sh (e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf sh e\<^sub>2 | _ \<Rightarrow> iconf sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
+| "iconf sh (Var V) = True"
+| "iconf sh (LAss V e) = iconf sh e"
+| "iconf sh (e\<bullet>F{D}) = iconf sh e"
+| "iconf sh (C\<bullet>\<^sub>sF{D}) = True"
+| "iconf sh (e\<^sub>1\<bullet>F{D}:=e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf sh e\<^sub>2 | _ \<Rightarrow> iconf sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
+| "iconf sh (C\<bullet>\<^sub>sF{D}:=e\<^sub>2) = iconf sh e\<^sub>2"
+| "iconf sh (e\<bullet>M(es)) = (case val_of e of Some v \<Rightarrow> iconfs sh es | _ \<Rightarrow> iconf sh e \<and> \<not>sub_RIs es)"
+| "iconf sh (C\<bullet>\<^sub>sM(es)) = iconfs sh es"
+| "iconf sh ({V:T; e}) = iconf sh e"
+| "iconf sh (e\<^sub>1;;e\<^sub>2) = (case val_of e\<^sub>1 of Some v \<Rightarrow> iconf sh e\<^sub>2
+           | None \<Rightarrow> (case lass_val_of e\<^sub>1 of Some p \<Rightarrow> iconf sh e\<^sub>2
+                                           | None \<Rightarrow> iconf sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2))"
+| "iconf sh (if (b) e\<^sub>1 else e\<^sub>2) = (iconf sh b \<and> \<not>sub_RI e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
+| "iconf sh (while (b) e) = (\<not>sub_RI b \<and> \<not>sub_RI e)"
+| "iconf sh (throw e) = iconf sh e"
+| "iconf sh (try e\<^sub>1 catch(C V) e\<^sub>2) = (iconf sh e\<^sub>1 \<and> \<not>sub_RI e\<^sub>2)"
+| "iconf sh (INIT C (Cs,b) \<leftarrow> e) = ((case Cs of Nil \<Rightarrow> initPD sh C | C'#Cs' \<Rightarrow> last Cs = C) \<and> \<not>sub_RI e)"
+| "iconf sh (RI (C,e);Cs \<leftarrow> e') = (iconf sh e \<and> \<not>sub_RI e')"
+| "iconfs sh ([]) = True"
+| "iconfs sh (e#es) = (case val_of e of Some v \<Rightarrow> iconfs sh es | _ \<Rightarrow> iconf sh e \<and> \<not>sub_RIs es)"
 
-lemma iconfs_map_throw: "iconfs P sh (map Val vs @ throw e # es') \<Longrightarrow> iconf P sh e"
+lemma iconfs_map_throw: "iconfs sh (map Val vs @ throw e # es') \<Longrightarrow> iconf sh e"
  by(induct vs,auto)
 
 lemma nsub_RI_iconf_aux:
- "(\<not>sub_RI (e::'a exp) \<longrightarrow> (\<forall>e'. e' \<in> subexp e \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<longrightarrow> iconf P sh e)
- \<and> (\<not>sub_RIs (es::'a exp list) \<longrightarrow> (\<forall>e'. e' \<in> subexps es \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<longrightarrow> iconfs P sh es)"
+ "(\<not>sub_RI (e::'a exp) \<longrightarrow> (\<forall>e'. e' \<in> subexp e \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf sh e') \<longrightarrow> iconf sh e)
+ \<and> (\<not>sub_RIs (es::'a exp list) \<longrightarrow> (\<forall>e'. e' \<in> subexps es \<longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf sh e') \<longrightarrow> iconfs sh es)"
 proof(induct rule: sub_RI_sub_RIs.induct) qed(auto)
 
 lemma nsub_RI_iconf_aux':
- "(\<And>e'. subexp_of e' e \<Longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf P sh e') \<Longrightarrow> (\<not>sub_RI e \<Longrightarrow> iconf P sh e)"
+ "(\<And>e'. subexp_of e' e \<Longrightarrow> \<not>sub_RI e' \<longrightarrow> iconf sh e') \<Longrightarrow> (\<not>sub_RI e \<Longrightarrow> iconf sh e)"
  by(simp add: nsub_RI_iconf_aux)
 
-lemma nsub_RI_iconf: "\<not>sub_RI e \<Longrightarrow> iconf P sh e"
-apply(cut_tac e = e and R = "\<lambda>e. \<not>sub_RI e \<longrightarrow> iconf P sh e" in subexp_induct)
+lemma nsub_RI_iconf: "\<not>sub_RI e \<Longrightarrow> iconf sh e"
+apply(cut_tac e = e and R = "\<lambda>e. \<not>sub_RI e \<longrightarrow> iconf sh e" in subexp_induct)
 apply(rename_tac ea) apply(case_tac ea, simp_all)
 apply(clarsimp simp: nsub_RI_iconf_aux)
 done
 
-lemma nsub_RIs_iconfs: "\<not>sub_RIs es \<Longrightarrow> iconfs P sh es"
-apply(cut_tac es = es and R = "\<lambda>e. \<not>sub_RI e \<longrightarrow> iconf P sh e"
-  and Rs = "\<lambda>es. \<not>sub_RIs es \<longrightarrow> iconfs P sh es" in subexps_induct)
+lemma nsub_RIs_iconfs: "\<not>sub_RIs es \<Longrightarrow> iconfs sh es"
+apply(cut_tac es = es and R = "\<lambda>e. \<not>sub_RI e \<longrightarrow> iconf sh e"
+  and Rs = "\<lambda>es. \<not>sub_RIs es \<longrightarrow> iconfs sh es" in subexps_induct)
 apply(rename_tac esa) apply(case_tac esa, simp_all)
 apply(clarsimp simp: nsub_RI_iconf_aux)+
 done
 
-lemma lass_val_of_iconf: "lass_val_of e = \<lfloor>a\<rfloor> \<Longrightarrow> iconf P sh e"
+lemma lass_val_of_iconf: "lass_val_of e = \<lfloor>a\<rfloor> \<Longrightarrow> iconf sh e"
  by(drule lass_val_of_nsub_RI, erule nsub_RI_iconf)
 
 lemma icheck_iconf:
-assumes "icheck P C e" shows "iconf P sh e"
+assumes "icheck P C e" shows "iconf sh e"
 using assms
 proof(cases e)
   case (SFAss C F D e) then show ?thesis using assms
