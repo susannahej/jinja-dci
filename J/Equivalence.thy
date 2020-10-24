@@ -1,7 +1,7 @@
 (*  Title:      Jinja/J/Equivalence.thy
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -11,15 +11,17 @@ theory Equivalence imports TypeSafe WWellForm begin
 
 subsection\<open>Small steps simulate big step\<close>
 
-subsection "Init"
+subsubsection "Init"
 
 fun init_exp_of :: "'a exp \<Rightarrow> 'a exp option" where
 "init_exp_of (INIT C (Cs,b) \<leftarrow> e) = Some e" |
 "init_exp_of (RI(C,e');Cs \<leftarrow> e) = Some e" |
 "init_exp_of _ = None"
 
-lemma [simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e' \<noteq> e" by(cases e, auto)
-lemma [simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e \<noteq> e'" apply(cases e, auto) by(drule sym, simp)+
+lemma init_exp_of_neq [simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e' \<noteq> e" by(cases e, auto)
+lemma init_exp_of_neq'[simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e \<noteq> e'"
+ apply(cases e, auto)
+  by(drule sym, simp)+
 
 fun init_switch :: "'a exp \<Rightarrow> 'a exp \<Rightarrow> 'a exp" where
 "init_switch (INIT C (Cs,b) \<leftarrow> e\<^sub>i) e = (INIT C (Cs,b) \<leftarrow> e)" |
@@ -130,6 +132,8 @@ lemma init_reds_sync_unit_throw:
 assumes "P \<turnstile> \<langle>e\<^sub>0,s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>throw a,s\<^sub>1,b\<^sub>1\<rangle>" and "init_exp_of e\<^sub>0 = \<lfloor>unit\<rfloor>"
 shows "P \<turnstile> \<langle>init_switch e\<^sub>0 e',s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>throw a,s\<^sub>1,b\<^sub>1\<rangle>"
 using init_reds_sync_unit_throw'[OF assms] by clarsimp
+
+(* init reds lemmas *)
 
 lemma InitSeqReds:
 assumes "P \<turnstile> \<langle>INIT C ([C],b) \<leftarrow> unit,s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>Val v',s\<^sub>1,b\<^sub>1\<rangle>"
@@ -312,10 +316,11 @@ lemma NewInitReds:
   \<Longrightarrow> P \<turnstile> \<langle>new C,s,False\<rangle> \<rightarrow>* \<langle>addr a,(h'',l',sh'),False\<rangle>"
 (*<*)
 apply(rule_tac b = "(INIT C ([C],False) \<leftarrow> new C,s,False)" in converse_rtrancl_into_rtrancl)
- apply(cases s, simp) apply (simp add: NewInitRed)
+ apply(cases s, simp)
+ apply (simp add: NewInitRed)
 apply(erule InitSeqReds, simp_all)
 apply(rule r_into_rtrancl, rule RedNew)
-apply simp+
+  apply simp+
 done
 (*>*)
 
@@ -326,10 +331,11 @@ lemma NewInitOOMReds:
   \<Longrightarrow> P \<turnstile> \<langle>new C,s,False\<rangle> \<rightarrow>* \<langle>THROW OutOfMemory,(h',l',sh'),False\<rangle>"
 (*<*)
 apply(rule_tac b = "(INIT C ([C],False) \<leftarrow> new C,s,False)" in converse_rtrancl_into_rtrancl)
- apply(cases s, simp) apply (simp add: NewInitRed)
+ apply(cases s, simp)
+ apply (simp add: NewInitRed)
 apply(erule InitSeqReds, simp_all)
 apply(rule r_into_rtrancl, rule RedNewFail)
-apply simp+
+ apply simp+
 done
 (*>*)
 
@@ -339,7 +345,8 @@ lemma NewInitThrowReds:
   \<Longrightarrow> P \<turnstile> \<langle>new C,s,False\<rangle> \<rightarrow>* \<langle>throw a,s',b'\<rangle>"
 (*<*)
 apply(rule_tac b = "(INIT C ([C],False) \<leftarrow> new C,s,False)" in converse_rtrancl_into_rtrancl)
- apply(cases s, simp) apply (simp add: NewInitRed)
+ apply(cases s, simp)
+ apply (simp add: NewInitRed)
 apply(erule InitSeqThrowReds)
 done
 (*>*)
@@ -371,7 +378,8 @@ lemma CastRedsAddr:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule CastReds)
-apply(cases s',simp) apply(erule (1) RedCast)
+apply(cases s',simp)
+apply(erule (1) RedCast)
 done
 (*>*)
 
@@ -381,7 +389,8 @@ lemma CastRedsFail:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule CastReds)
-apply(cases s',simp) apply(erule (1) RedCastFail)
+apply(cases s',simp)
+apply(erule (1) RedCastFail)
 done
 (*>*)
 
@@ -499,7 +508,8 @@ lemma FAccRedsVal:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAccReds)
-apply(cases s',simp) apply(erule (2) RedFAcc)
+apply(cases s',simp)
+apply(erule (2) RedFAcc)
 done
 (*>*)
 
@@ -520,7 +530,8 @@ lemma FAccRedsNone:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAccReds)
-apply(cases s',simp) apply(erule RedFAccNone, simp)
+apply(cases s',simp)
+apply(erule RedFAccNone, simp)
 done
 (*>*)
 
@@ -532,7 +543,8 @@ lemma FAccRedsStatic:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAccReds)
-apply(cases s',simp) apply(erule (1) RedFAccStatic)
+apply(cases s',simp)
+apply(erule (1) RedFAccStatic)
 done
 (*>*)
 
@@ -553,7 +565,8 @@ lemma SFAccReds:
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s,True\<rangle> \<rightarrow>* \<langle>Val v,s,False\<rangle>"
 (*<*)
 apply(rule r_into_rtrancl)
-apply(cases s,simp) apply(erule (2) RedSFAcc)
+apply(cases s,simp)
+apply(erule (2) RedSFAcc)
 done
 (*>*)
 
@@ -562,7 +575,8 @@ lemma SFAccRedsNone:
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s,b\<rangle> \<rightarrow>* \<langle>THROW NoSuchFieldError,s,False\<rangle>"
 (*<*)
 apply(rule r_into_rtrancl)
-apply(cases s,simp) apply(rule RedSFAccNone, simp)
+apply(cases s,simp)
+apply(rule RedSFAccNone, simp)
 done
 (*>*)
 
@@ -571,7 +585,8 @@ lemma SFAccRedsNonStatic:
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s,b\<rangle> \<rightarrow>* \<langle>THROW IncompatibleClassChangeError,s,False\<rangle>"
 (*<*)
 apply(rule r_into_rtrancl)
-apply(cases s,simp) apply(erule RedSFAccNonStatic)
+apply(cases s,simp)
+apply(erule RedSFAccNonStatic)
 done
 (*>*)
 
@@ -584,11 +599,13 @@ lemma SFAccInitDoneReds:
 apply(cases b)
 (* case True  *)
  apply(rule r_into_rtrancl)
- apply(cases s, simp) apply(erule (2) RedSFAcc)
+ apply(cases s, simp)
+ apply(erule (2) RedSFAcc)
 (* case False *)
- apply(rule_tac b = "(C\<bullet>\<^sub>sF{D},s,True)" in converse_rtrancl_into_rtrancl)
-  apply(cases s, simp) apply(drule (2) SFAccInitDoneRed)
- apply simp apply(erule SFAccReds, simp, simp)
+apply(rule_tac b = "(C\<bullet>\<^sub>sF{D},s,True)" in converse_rtrancl_into_rtrancl)
+ apply(cases s, simp)
+ apply(drule (2) SFAccInitDoneRed)
+apply(erule SFAccReds, simp+)
 done
 (*>*)
 
@@ -600,10 +617,14 @@ lemma SFAccInitReds:
  \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s,False\<rangle> \<rightarrow>* \<langle>Val v,s',False\<rangle>"
 (*<*)
 apply(rule_tac b = "(INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D},s,False)" in converse_rtrancl_into_rtrancl)
- apply(cases s, simp) apply(simp add: SFAccInitRed)
+ apply(cases s, simp)
+ apply(simp add: SFAccInitRed)
 apply(rule InitSeqReds, simp_all)
-apply(subgoal_tac "\<exists>T. P \<turnstile> C has F,Static:T in D") prefer 2 apply fast
-apply(rule r_into_rtrancl) apply(cases s', simp) apply(erule (2) RedSFAcc)
+apply(subgoal_tac "\<exists>T. P \<turnstile> C has F,Static:T in D")
+ prefer 2 apply fast
+apply(rule r_into_rtrancl)
+apply(cases s', simp)
+apply(erule (2) RedSFAcc)
 done
 (*>*)
 
@@ -614,7 +635,8 @@ lemma SFAccInitThrowReds:
  \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s,False\<rangle> \<rightarrow>* \<langle>throw a,s',b'\<rangle>"
 (*<*)
 apply(rule_tac b = "(INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D},s,False)" in converse_rtrancl_into_rtrancl)
- apply(cases s, simp) apply (simp add: SFAccInitRed)
+ apply(cases s, simp)
+ apply (simp add: SFAccInitRed)
 apply(erule InitSeqThrowReds)
 done
 (*>*)
@@ -651,7 +673,7 @@ apply(rule rtrancl_trans)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAssReds2)
 apply(rule RedFAss)
-apply simp+
+ apply simp+
 done
 (*>*)
 
@@ -698,7 +720,7 @@ apply(rule rtrancl_trans)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAssReds2)
 apply(rule RedFAssNone)
-apply simp+
+ apply simp+
 done
 (*>*)
 
@@ -712,7 +734,7 @@ apply(rule rtrancl_trans)
 apply(rule rtrancl_into_rtrancl)
  apply(erule FAssReds2)
 apply(rule RedFAssStatic)
-apply simp+
+ apply simp+
 done
 (*>*)
 
@@ -740,10 +762,10 @@ apply(cases b\<^sub>2)
  apply(rule r_into_rtrancl)
  apply(drule_tac l = l\<^sub>2 in RedSFAss, simp_all)
  (* case False *)
- apply(rule converse_rtrancl_into_rtrancl)
+apply(rule converse_rtrancl_into_rtrancl)
  apply(drule_tac sh = sh\<^sub>2 in SFAssInitDoneRed, simp_all)
- apply(rule r_into_rtrancl)
- apply(drule_tac l = l\<^sub>2 in RedSFAss, simp_all)
+apply(rule r_into_rtrancl)
+apply(drule_tac l = l\<^sub>2 in RedSFAss, simp_all)
 done
 (*>*)
 
@@ -795,8 +817,10 @@ apply(rule rtrancl_trans)
 apply(rule_tac converse_rtrancl_into_rtrancl)
  apply(erule (1) SFAssInitRed)
 apply(erule InitSeqReds, simp_all)
-apply(subgoal_tac "\<exists>T. P \<turnstile> C has F,Static:T in D") prefer 2 apply fast
-apply(simp,rule r_into_rtrancl) apply(erule (2) RedSFAss)
+apply(subgoal_tac "\<exists>T. P \<turnstile> C has F,Static:T in D")
+ prefer 2 apply fast
+apply(simp,rule r_into_rtrancl)
+apply(erule (2) RedSFAss)
 apply simp
 done
 (*>*)
@@ -1390,7 +1414,8 @@ apply(rule rtrancl_trans)
  apply(erule CallRedsObj)
 apply(rule rtrancl_into_rtrancl)
  apply(erule CallRedsParams)
-apply(cases s\<^sub>2,simp) apply(erule RedCallNone, simp)
+apply(cases s\<^sub>2,simp)
+apply(erule RedCallNone, simp)
 done
 (*>*)
 
@@ -1404,7 +1429,8 @@ apply(rule rtrancl_trans)
  apply(erule CallRedsObj)
 apply(rule rtrancl_into_rtrancl)
  apply(erule CallRedsParams)
-apply(cases s\<^sub>2,simp) apply(erule RedCallStatic, simp)
+apply(cases s\<^sub>2,simp)
+apply(erule RedCallStatic, simp)
 done
 (*>*)
 
@@ -1477,7 +1503,8 @@ lemma SCallRedsNone:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule SCallRedsParams)
-apply(cases s\<^sub>2,simp) apply(rule RedSCallNone, simp)
+apply(cases s\<^sub>2,simp)
+apply(rule RedSCallNone, simp)
 done
 (*>*)
 
@@ -1488,7 +1515,8 @@ lemma SCallRedsNonStatic:
 (*<*)
 apply(rule rtrancl_into_rtrancl)
  apply(erule SCallRedsParams)
-apply(cases s\<^sub>2,simp) apply(rule RedSCallNonStatic, simp)
+apply(cases s\<^sub>2,simp)
+apply(rule RedSCallNonStatic, simp)
 done
 (*>*)
 
@@ -2653,7 +2681,7 @@ qed
 subsection\<open>Big steps simulates small step\<close>
 
 text\<open> This direction was carried out by Norbert Schirmer and Daniel
-Wasserrab (and modified for statics by Susannah Manksy). \<close>
+Wasserrab (and modified to include statics and DCI by Susannah Mansky). \<close>
 
 text \<open> The big step equivalent of @{text RedWhile}: \<close> 
 
@@ -2795,9 +2823,7 @@ next
   have "fv(INIT C ([C],False) \<leftarrow> unit) \<subseteq> W" by simp
   then have "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h, l |` W, sh)\<rangle> \<Rightarrow> \<langle>Val v',(h', l' |` W, sh')\<rangle>"
     by (simp add: NewInit.hyps(3))
-  thus ?case
-    using NewInit.hyps(1) NewInit.hyps(4) NewInit.hyps(5) NewInit.hyps(6) eval_evals.NewInit
-      by blast
+  thus ?case using NewInit.hyps(1,4-6) eval_evals.NewInit by blast
 next
   case (NewInitOOM sh C h l v' h' l' sh')
   have "fv(INIT C ([C],False) \<leftarrow> unit) \<subseteq> W" by simp
@@ -3029,7 +3055,7 @@ next
   have "P \<turnstile> \<langle>RI (D,throw a);Cs \<leftarrow> e', (h', l' |` W, sh'')\<rangle> \<Rightarrow> \<langle>e\<^sub>1,(h\<^sub>1, l\<^sub>1 |` W, sh\<^sub>1)\<rangle>"
     using f1' by (meson RInitInitFail.hyps(6))
   then show ?case
-    using f2 by (simp add: RInitInitFail.hyps(3) RInitInitFail.hyps(4) eval_evals.RInitInitFail)
+    using f2 by (simp add: RInitInitFail.hyps(3,4) eval_evals.RInitInitFail)
 next
   case (RInitFailFinal e h l sh a h' l' sh' sh'' C)
   have f1: "fv e \<subseteq> W"
@@ -3038,8 +3064,7 @@ next
     using RInitFailFinal.hyps(2) by blast
   then have f2': "fv (throw a) \<subseteq> W"
     using eval_final[OF f2] by auto
-  then show ?case
-    using f2 RInitFailFinal.hyps(3) RInitFailFinal.hyps(4) eval_evals.RInitFailFinal by blast
+  then show ?case using f2 RInitFailFinal.hyps(3,4) eval_evals.RInitFailFinal by blast
 qed
 (*>*)
 
@@ -3062,8 +3087,7 @@ next
     using RInitInitFail.hyps(1) eval_final final_fv by blast 
   then have "fv e \<union> fv (RI (D,throw a) ; Cs \<leftarrow> unit) \<subseteq> fv (RI (C,e) ; D#Cs \<leftarrow> unit)" 
     by auto
-  then show ?case
-    using RInitInitFail.hyps(2) RInitInitFail.hyps(6) RInitInitFail.prems by fastforce
+  then show ?case using RInitInitFail.hyps(2,6) RInitInitFail.prems by fastforce
 qed simp_all
 (*>*)
 
@@ -3134,6 +3158,7 @@ declare split_paired_All [simp del] split_paired_Ex [simp del]
   semantics. Reformulate equivalence proof by modifying call lemmas.
 *)
 
+(* separate evaluation of first subexp of a sequence *)
 lemma seq_ext:
 assumes IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
  and seq: "P \<turnstile> \<langle>e'' ;; e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -3148,6 +3173,7 @@ next
   then show ?thesis using eval_evals.SeqThrow e' by simp
 qed
 
+(* separate evaluation of RI subexp, val case *)
 lemma rinit_Val_ext:
 assumes ri: "P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
  and IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -3168,6 +3194,7 @@ next
   then show ?thesis using riD rinit_throwE by blast
 qed(simp)
 
+(* separate evaluation of RI subexp, throw case *)
 lemma rinit_throw_ext:
 assumes ri: "P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>throw e\<^sub>t,s'\<rangle>"
  and IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -3198,6 +3225,7 @@ next
   then show ?thesis using RInitFailFinal IH by auto
 qed
 
+(* separate evaluation of RI subexp *)
 lemma rinit_ext:
 assumes IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "\<And>e' s'. P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
@@ -3213,7 +3241,7 @@ proof -
   qed
 qed
 
-(* guarantees that INIT/RI return either Val+Done/Proc flag or Throw+Error flag *)
+(* INIT/RI return either Val+Done/Proc flag or Throw+Error flag *)
 lemma
 shows eval_init_return: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
   \<Longrightarrow> iconf (shp s) e
@@ -3330,17 +3358,16 @@ lemma rinit_Val_PD: "P \<turnstile> \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> uni
   \<Longrightarrow> iconf (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,i)\<rfloor> \<and> (i = Done \<or> i = Processing)"
 apply(drule_tac C' = C' and v = v in eval_init_return, simp_all)
- apply (metis append_butlast_last_id)
+apply (metis append_butlast_last_id)
 done
 
 lemma rinit_throw_PD: "P \<turnstile> \<langle>RI(C,e\<^sub>0);Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>
   \<Longrightarrow> iconf (shp s) (RI(C,e\<^sub>0);Cs \<leftarrow> unit) \<Longrightarrow> last(C#Cs) = C'
   \<Longrightarrow> \<exists>sfs i. shp s' C' = \<lfloor>(sfs,Error)\<rfloor>"
 apply(drule_tac C' = C' and a = a in eval_init_return, simp_all)
- apply (metis append_butlast_last_id)
+apply (metis append_butlast_last_id)
 done
 
-(* HERE: can this be made unnecessary? *)
 lemma eval_init_seq': "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i) \<or> (\<exists>C e\<^sub>0 Cs e\<^sub>i. e = RI(C,e\<^sub>0);Cs \<leftarrow> e\<^sub>i)
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i \<and> P \<turnstile> \<langle>(INIT C (Cs,b) \<leftarrow> unit);; e\<^sub>i,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>)
@@ -3816,7 +3843,7 @@ next
         using NewInitOOM NewInitRed.hyps e' addr s' s\<^sub>1a init by auto
     next
       fix sha ha la a
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" (*and "e' = throw a"*)
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)"
          and "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
          and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
       then have i: "i = Processing" using iDP shC s\<^sub>1 by simp

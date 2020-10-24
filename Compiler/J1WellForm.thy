@@ -481,13 +481,13 @@ proof -
   then have sP: "(C, D, fs, ms) \<in> set P" using ex map_of_SomeD[of P C a] by(simp add: class_def)
   then have "wf_clinit ms" using assms by(unfold wf_prog_def wf_cdecl_def, auto)
   then obtain m where sm: "(clinit, Static, [], Void, m) \<in> set ms"
-    apply(unfold wf_clinit_def) by auto
+    by(unfold wf_clinit_def) auto
   then have "P \<turnstile> C sees clinit,Static:[] \<rightarrow> Void = m in C"
     using mdecl_visible[OF wf sP sm] by simp
   then show ?thesis using WTrtSCall\<^sub>1 proc by blast
 qed
 
-(* HERE: MOVE? *)
+
 lemma assumes wf: "wf_J\<^sub>1_prog P"
 shows eval\<^sub>1_proc_pres: "P \<turnstile>\<^sub>1 \<langle>e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h',l',sh')\<rangle>
   \<Longrightarrow> not_init C e \<Longrightarrow> \<exists>sfs. sh C = \<lfloor>(sfs, Processing)\<rfloor> \<Longrightarrow> \<exists>sfs'. sh' C = \<lfloor>(sfs', Processing)\<rfloor>"
@@ -503,18 +503,18 @@ next
 next
   case SCall\<^sub>1 then show ?case using sees_wf\<^sub>1_nsub_RI[OF wf SCall\<^sub>1.hyps(3)] nsub_RI_not_init by auto
 next
-  case (InitNone\<^sub>1 sh C1 C' Cs h l e' a a b) then show ?case apply(cases "C = C1") by auto
+  case (InitNone\<^sub>1 sh C1 C' Cs h l e' a a b) then show ?case by(cases "C = C1") auto
 next
   case (InitDone\<^sub>1 sh C sfs C' Cs h l e' a a b) then show ?case by(cases Cs, auto)
 next
   case (InitProcessing\<^sub>1 sh C sfs C' Cs h l e' a a b) then show ?case by(cases Cs, auto)
 next
-  case (InitError\<^sub>1 sh C1 sfs Cs h l e' a a b C') then show ?case apply(cases "C = C1") by auto
+  case (InitError\<^sub>1 sh C1 sfs Cs h l e' a a b C') then show ?case by(cases "C = C1") auto
 next
-  case (InitObject\<^sub>1 sh C1 sfs sh' C' Cs h l e' a a b) then show ?case apply(cases "C = C1") by auto
+  case (InitObject\<^sub>1 sh C1 sfs sh' C' Cs h l e' a a b) then show ?case by(cases "C = C1") auto
 next
   case (InitNonObject\<^sub>1 sh C1 sfs D a b sh' C' Cs h l e' a a b)
-  then show ?case apply(cases "C = C1") by auto
+  then show ?case by(cases "C = C1") auto
 next
   case (RInit\<^sub>1 e a a b v h' l' sh' C sfs i sh'' C' Cs e\<^sub>1 a a b) then show ?case by(cases Cs, auto)
 next

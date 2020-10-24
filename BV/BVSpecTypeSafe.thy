@@ -1349,7 +1349,8 @@ lemma Load_correct:
     P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk>
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-  apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+  apply(subgoal_tac "ics = No_ics")
+   prefer 2 apply(cases ics, (auto)[4])
   apply clarsimp 
   apply (drule (1) sees_method_fun)
   apply(fastforce elim!: confTs_confT_sup conf_clinit_diff)
@@ -1367,7 +1368,8 @@ lemma Store_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk>
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-  apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+  apply(subgoal_tac "ics = No_ics")
+   prefer 2 apply(cases ics, (auto)[4])
   apply clarsimp 
   apply (drule (1) sees_method_fun)
   apply (blast intro!: list_all2_update_cong conf_clinit_diff)+
@@ -1384,7 +1386,8 @@ lemma Push_correct:
     P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk>
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>" 
 (*<*)
-  apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+  apply(subgoal_tac "ics = No_ics")
+   prefer 2 apply(cases ics, (auto)[4])
   apply clarsimp 
   apply (drule (1) sees_method_fun)
   apply (blast dest: typeof_lit_conf conf_clinit_diff)+
@@ -1420,7 +1423,8 @@ lemma Checkcast_correct:
     fst (exec_step P h stk loc C M pc ics frs sh) = None \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-  apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+  apply(subgoal_tac "ics = No_ics")
+   prefer 2 apply(cases ics, (auto)[4])
   apply (clarsimp simp: wf_jvm_prog_phi_def split: if_split_asm)
   apply (drule (1) sees_method_fun)
   apply (blast intro: Cast_conf2 dest: sees_method_fun conf_clinit_diff)
@@ -1817,20 +1821,10 @@ qed
 (*>*)
   
 (* FIXME: move *)
-lemma has_fields_b_fields: 
-  "P \<turnstile> C has_fields FDTs \<Longrightarrow> fields P C = FDTs"
-(*<*)
-  apply (unfold fields_def)                    
-  apply (blast intro: the_equality has_fields_fun)
-  done                                                
-(*>*)
-  
-(* FIXME: move *)
-lemma oconf_blank [intro, simp]:
+lemma oconf_blank2 [intro, simp]:
     "\<lbrakk>is_class P C; wf_prog wt P\<rbrakk> \<Longrightarrow> P,h \<turnstile> blank P C \<surd>"
 (*<*)
-  by (fastforce simp: has_fields_b_fields oconf_blank
-               dest: wf_Fields_Ex)
+  by (fastforce simp: oconf_blank dest: wf_Fields_Ex)
 (*>*)
 
 lemma obj_ty_blank [iff]: "obj_ty (blank P C) = Class C"
@@ -1954,7 +1948,8 @@ lemma Goto_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
 apply clarsimp 
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
@@ -1971,7 +1966,8 @@ lemma IfFalse_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
 apply clarsimp
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
@@ -1987,7 +1983,8 @@ lemma CmpEq_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
 apply clarsimp
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
@@ -2003,7 +2000,8 @@ lemma Pop_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
 apply clarsimp
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
@@ -2020,7 +2018,8 @@ lemma IAdd_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd> \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
 apply (clarsimp simp: conf_def)
 apply (drule (1) sees_method_fun)
 apply (fastforce elim!: conf_clinit_diff)
@@ -2036,8 +2035,10 @@ lemma Throw_correct:
   P,\<Phi> \<turnstile> (None, h, (stk,loc,C,M,pc,ics)#frs, sh)\<surd>;
   fst (exec_step P h stk loc C M pc ics frs sh) = None \<rbrakk> 
 \<Longrightarrow> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
-apply(subgoal_tac "ics = No_ics") prefer 2 apply(cases ics, (auto)[4])
-  by simp
+apply(subgoal_tac "ics = No_ics")
+ prefer 2 apply(cases ics, (auto)[4])
+apply simp
+done
 
 text \<open>
   The next theorem collects the results of the sections above,
@@ -2218,11 +2219,11 @@ apply (case_tac xp)
  apply (frule correct_state_impl_Some_method)
  apply clarify
  apply (rule step_correct)
- apply assumption+
- apply (rule sym)
- apply assumption+
+    apply assumption+
+  apply (rule sym)
+  apply assumption+
 apply (case_tac frs)
-apply simp_all
+ apply simp_all
 done
 (*>*)
 
@@ -2237,7 +2238,7 @@ lemma progress_conform:
   \<Longrightarrow> \<exists>\<sigma>'. P \<turnstile> (xp,h,frs,sh) -jvm\<rightarrow>\<^sub>1 \<sigma>' \<and> P,\<Phi> \<turnstile> \<sigma>'\<surd>"
 (*<*)
 apply (drule progress)
-apply assumption
+ apply assumption
 apply (fast intro: BV_correct_1)
 done
 (*>*)
@@ -2267,7 +2268,6 @@ lemma hconf_start:
   done
 (*>*)
 
-(* HERE: unused *)
 lemma shconf_start:   
   "\<not> is_class P Start \<Longrightarrow> P,start_heap P \<turnstile>\<^sub>s start_sheap \<surd>"
 (*<*)
@@ -2282,9 +2282,10 @@ lemma BV_correct_initial:
      \<Phi>' Start start_m = start_\<phi>\<^sub>m \<rbrakk>
   \<Longrightarrow> start_prog P C M,\<Phi>' \<turnstile> start_state P \<surd>"
 (*<*)
-  apply(subgoal_tac "is_class P Object") prefer 2 apply(simp add: wf_jvm_prog_phi_def)
-  apply(subgoal_tac "\<exists>Mm. P \<turnstile> Object sees_methods Mm") prefer 2
-   apply(fastforce simp: is_class_def dest: sees_methods_Object)
+  apply(subgoal_tac "is_class P Object")
+   prefer 2 apply(simp add: wf_jvm_prog_phi_def)
+  apply(subgoal_tac "\<exists>Mm. P \<turnstile> Object sees_methods Mm")
+   prefer 2 apply(fastforce simp: is_class_def dest: sees_methods_Object)
   apply (cases m)                            
   apply (unfold  start_state_def)
   apply (unfold correct_state_def)
@@ -2297,8 +2298,8 @@ lemma BV_correct_initial:
    apply(simp add: conf_clinit_def distinct_clinit_def)
   apply (drule wt_jvm_prog_impl_wt_start, assumption+)
   apply (unfold conf_f_def wt_start_def)
-   apply (fastforce dest: start_prog_Start_sees_start_method)
-done
+  apply (fastforce dest: start_prog_Start_sees_start_method)
+  done
 
 declare [[simproc add: list_to_set_comprehension]]
 (*>*)

@@ -449,7 +449,7 @@ lemma eval\<^sub>1_final_same: "\<lbrakk> P \<turnstile>\<^sub>1 \<langle>e,s\<r
 (*<*)
 apply(erule finalE)
  using eval\<^sub>1_cases(3) apply blast
-  by (metis eval\<^sub>1_cases(17) eval\<^sub>1_cases(3) exp.distinct(101) exp.inject(3) val.distinct(13))
+by (metis eval\<^sub>1_cases(17) eval\<^sub>1_cases(3) exp.distinct(101) exp.inject(3) val.distinct(13))
 (*>*)
 
 (*********************************)
@@ -476,8 +476,6 @@ lemma init\<^sub>1_same_loc: "P \<turnstile>\<^sub>1 \<langle>INIT C (Cs,b) \<le
  by(simp add: init\<^sub>1_ri\<^sub>1_same_loc)
 
 
-
-(* HERE: MOVE *)
 theorem eval\<^sub>1_hext: "P \<turnstile>\<^sub>1 \<langle>e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h',l',sh')\<rangle> \<Longrightarrow> h \<unlhd> h'"
 and evals\<^sub>1_hext:  "P \<turnstile>\<^sub>1 \<langle>es,(h,l,sh)\<rangle> [\<Rightarrow>] \<langle>es',(h',l',sh')\<rangle> \<Longrightarrow> h \<unlhd> h'"
 (*<*)

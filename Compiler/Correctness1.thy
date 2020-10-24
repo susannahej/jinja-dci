@@ -1,7 +1,9 @@
 (*  Title:      Jinja/Compiler/Correctness1.thy
     Author:     Tobias Nipkow
     Copyright   TUM 2003
-    Expanded to include statics by Susannah Mansky
+
+    Expanded to include statics
+    Susannah Mansky
     2018, UIUC
 *)
 
@@ -387,13 +389,13 @@ next
   have "PROP ?P e h l sh (addr a) h' l' sh' Vs ls" by fact
   with FAccNone.prems
   obtain ls\<^sub>2 where 2: "?Post e h l sh (addr a) h' l' sh' Vs ls ls\<^sub>2" by(auto)
-  from 2 FAccNone show ?case apply(rule_tac x = ls\<^sub>2 in exI) by (auto elim!: FAccNone\<^sub>1)
+  from 2 FAccNone show ?case by(rule_tac x = ls\<^sub>2 in exI, auto elim!: FAccNone\<^sub>1)
 next
   case (FAccStatic e h l sh a h' l' sh' C fs F t D)
   have "PROP ?P e h l sh (addr a) h' l' sh' Vs ls" by fact
   with FAccStatic.prems
   obtain ls\<^sub>2 where 2: "?Post e h l sh (addr a) h' l' sh' Vs ls ls\<^sub>2" by(auto)
-  from 2 FAccStatic show ?case apply(rule_tac x = ls\<^sub>2 in exI) by (auto elim!: FAccStatic\<^sub>1)
+  from 2 FAccStatic show ?case by(rule_tac x = ls\<^sub>2 in exI, auto elim!: FAccStatic\<^sub>1)
 next
   case SFAcc then show ?case by(fastforce intro:eval\<^sub>1_evals\<^sub>1.intros)
 next
@@ -401,13 +403,13 @@ next
   have "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h l sh (Val v') h' l' sh' Vs ls" by fact
   with SFAccInit.prems
   obtain ls\<^sub>2 where 1: "?Post (INIT D ([D],False) \<leftarrow> unit) h l sh (Val v') h' l' sh' Vs ls ls\<^sub>2" by(auto)
-  from 1 SFAccInit show ?case apply(rule_tac x = ls\<^sub>2 in exI) by(auto intro: SFAccInit\<^sub>1)
+  from 1 SFAccInit show ?case by(rule_tac x = ls\<^sub>2 in exI, auto intro: SFAccInit\<^sub>1)
 next
   case (SFAccInitThrow C F t D sh h l a h' l' sh')
   have "PROP ?P (INIT D ([D],False) \<leftarrow> unit) h l sh (throw a) h' l' sh' Vs ls" by fact
   with SFAccInitThrow.prems
   obtain ls\<^sub>2 where 1: "?Post (INIT D ([D],False) \<leftarrow> unit) h l sh (throw a) h' l' sh' Vs ls ls\<^sub>2" by(auto)
-  from 1 SFAccInitThrow show ?case apply(rule_tac x = ls\<^sub>2 in exI) by(auto intro: SFAccInitThrow\<^sub>1)
+  from 1 SFAccInitThrow show ?case by(rule_tac x = ls\<^sub>2 in exI, auto intro: SFAccInitThrow\<^sub>1)
 next
   case SFAccNone then show ?case by(fastforce intro:eval\<^sub>1_evals\<^sub>1.intros)
 next
@@ -501,7 +503,7 @@ next
   have "PROP ?P e\<^sub>2 h l sh (Val v) h\<^sub>2 l\<^sub>2 sh\<^sub>2 Vs ls" by fact
   with SFAssNone.prems
   obtain ls\<^sub>2 where 2: "?Post e\<^sub>2 h l sh (Val v) h\<^sub>2 l\<^sub>2 sh\<^sub>2 Vs ls ls\<^sub>2" by(auto)
-  from 2 SFAssNone show ?case apply(rule_tac x = ls\<^sub>2 in exI) by (auto elim!: SFAssNone\<^sub>1)
+  from 2 SFAssNone show ?case by(rule_tac x = ls\<^sub>2 in exI, auto elim!: SFAssNone\<^sub>1)
 next
   case SFAssNonStatic then show ?case by(fastforce intro:eval\<^sub>1_evals\<^sub>1.intros)
 next
@@ -621,9 +623,9 @@ next
   have "PROP ?Ps ps h l sh (map Val vs) h' l' sh' Vs ls" by fact
   with SCallNone.prems
   obtain ls\<^sub>2 where 2: "?Posts ps h l sh (map Val vs) h' l' sh' Vs ls ls\<^sub>2" by(auto)
-  from 2 SCallNone show ?case apply(rule_tac x = ls\<^sub>2 in exI)
-    by (auto simp add: comp_def
-             elim!: SCallNone\<^sub>1 dest!:evals_final sees_method_compPD)
+  from 2 SCallNone show ?case
+    by(rule_tac x = ls\<^sub>2 in exI,
+       auto simp add: comp_def elim!: SCallNone\<^sub>1 dest!:evals_final sees_method_compPD)
 next
   case (SCallNonStatic ps h l sh vs h' l' sh' C M Ts T pns body D)
   let ?Vs = "this#pns"

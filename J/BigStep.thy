@@ -2,7 +2,7 @@
 
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -514,10 +514,6 @@ lemma evals_length: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<lan
 corollary evals_empty: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> (es = []) = (es' = [])"
  by(drule evals_length, fastforce)
 
-(* HERE: need this too? *)
-(* lemma evals_mt: "P \<turnstile> \<langle>[],s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> es' = [] \<and> s' = s"
-  using evals_cases(1) by blast *)
-
 (****)
 
 theorem eval_hext: "P \<turnstile> \<langle>e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h',l',sh')\<rangle> \<Longrightarrow> h \<unlhd> h'"
@@ -597,18 +593,18 @@ next
 next
   case SCall then show ?case using sees_wwf_nsub_RI[OF wf SCall.hyps(3)] nsub_RI_not_init by auto
 next
-  case (InitNone sh C1 C' Cs h l e' a a b) then show ?case apply(cases "C = C1") by auto
+  case (InitNone sh C1 C' Cs h l e' a a b) then show ?case by(cases "C = C1") auto
 next
   case (InitDone sh C sfs C' Cs h l e' a a b) then show ?case by(cases Cs, auto)
 next
   case (InitProcessing sh C sfs C' Cs h l e' a a b) then show ?case by(cases Cs, auto)
 next
-  case (InitError sh C1 sfs Cs h l e' a a b C') then show ?case apply(cases "C = C1") by auto
+  case (InitError sh C1 sfs Cs h l e' a a b C') then show ?case by(cases "C = C1") auto
 next
-  case (InitObject sh C1 sfs sh' C' Cs h l e' a a b) then show ?case apply(cases "C = C1") by auto
+  case (InitObject sh C1 sfs sh' C' Cs h l e' a a b) then show ?case by(cases "C = C1") auto
 next
   case (InitNonObject sh C1 sfs D a b sh' C' Cs h l e' a a b)
-  then show ?case apply(cases "C = C1") by auto
+  then show ?case by(cases "C = C1") auto
 next
   case (RInit e a a b v h' l' sh' C sfs i sh'' C' Cs e\<^sub>1 a a b) then show ?case by(cases Cs, auto)
 next

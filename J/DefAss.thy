@@ -1,7 +1,7 @@
 (*  Title:      Jinja/DefAss.thy
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 

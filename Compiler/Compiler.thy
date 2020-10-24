@@ -2,7 +2,9 @@
 
     Author:     Tobias Nipkow
     Copyright   TUM 2003
-    Expanded to include statics, class initialization, and method theory by Susannah Mansky
+
+    Expanded to include statics, class initialization, and method theory
+    Susannah Mansky
     2018, UIUC
 *)
 

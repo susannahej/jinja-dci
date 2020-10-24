@@ -3,7 +3,7 @@
     Copyright   2003 Technische Universitaet Muenchen
 *)
 (*
-  Expanded to include support for static fields and methods.
+  Expanded to include support for static fields and methods and dynamic class initialization.
   Susannah Mansky
   2017, UIUC
 *)
@@ -65,33 +65,33 @@ apply auto
 done
 (*>*)
 
-(* HERE: MOVE *)
+
 lemma map_Val_throw_eq:
  "map Val vs @ throw ex # es = map Val vs' @ throw ex' # es' \<Longrightarrow> ex = ex'"
 apply(induct vs arbitrary: vs')
-apply(case_tac vs', auto)+
+ apply(case_tac vs', auto)+
 done
 
 lemma map_Val_nthrow_neq:
  "map Val vs = map Val vs' @ throw ex' # es' \<Longrightarrow> False"
 apply(induct vs arbitrary: vs')
-apply(case_tac vs', auto)+
+ apply(case_tac vs', auto)+
 done
 
 lemma map_Val_eq:
  "map Val vs = map Val vs' \<Longrightarrow> vs = vs'"
 apply(induct vs arbitrary: vs')
-apply(case_tac vs', auto)+
+ apply(case_tac vs', auto)+
 done
 
 
-lemma [simp]: "e \<noteq> INIT C (Cs,b) \<leftarrow> e"
+lemma init_rhs_neq [simp]: "e \<noteq> INIT C (Cs,b) \<leftarrow> e"
 proof -
   have "size e \<noteq> size (INIT C (Cs,b) \<leftarrow> e)" by auto
   then show ?thesis by fastforce
 qed
 
-lemma [simp]: "e \<noteq> RI(C,e');Cs \<leftarrow> e"
+lemma ri_rhs_neq [simp]: "e \<noteq> RI(C,e');Cs \<leftarrow> e"
 proof -
   have "size e \<noteq> size (RI(C,e');Cs \<leftarrow> e)" by auto
   then show ?thesis by fastforce
@@ -150,7 +150,8 @@ lemma [simp]: "fvs(es\<^sub>1 @ es\<^sub>2) = fvs es\<^sub>1 \<union> fvs es\<^s
 lemma [simp]: "fvs(map Val vs) = {}"
 (*<*)by (induct vs) auto(*>*)
 
-(**********)
+
+subsection\<open>Accessing Expression Constructor Arguments\<close>
 
 fun val_of :: "'a exp \<Rightarrow> val option" where
 "val_of (Val v) = Some v" |
@@ -227,8 +228,9 @@ fun throw_of :: "'a exp \<Rightarrow> 'a exp option" where
 lemma throw_of_spec: "throw_of e = Some e' \<Longrightarrow> e = throw e'"
 proof(cases e) qed(auto)
 
-subsection\<open>Initializing Classes\<close>
+subsection\<open>Class Initialization Information\<close>
 
+(* True if expression contains INIT, RI, or a call to a static method "clinit" *)
 primrec sub_RI :: "'a exp \<Rightarrow> bool" and sub_RIs :: "'a exp list \<Rightarrow> bool" where
   "sub_RI(new C) = False"
 | "sub_RI(Cast C e) = sub_RI e"
@@ -270,7 +272,6 @@ lemma nsub_RI_Vals[simp]: "\<not>sub_RIs (map Val vs)"
 lemma lass_val_of_nsub_RI: "lass_val_of e = \<lfloor>a\<rfloor> \<Longrightarrow> \<not>sub_RI e"
  by(drule lass_val_of_spec, simp)
 
-(***************************)
 
 (* is not currently initializing class C' (point past checking flag) *)
 primrec not_init :: "cname \<Rightarrow> 'a exp \<Rightarrow> bool" and not_inits :: "cname \<Rightarrow> 'a exp list \<Rightarrow> bool" where
@@ -310,7 +311,7 @@ proof(induct e) qed(auto intro: nsub_RIs_not_inits_aux)
 
 lemma nsub_RIs_not_inits: "\<not>sub_RIs es \<Longrightarrow> not_inits C es"
 apply(rule nsub_RIs_not_inits_aux)
-apply(simp_all add: nsub_RI_not_init)
+ apply(simp_all add: nsub_RI_not_init)
 done
 
 subsection\<open>Subexpressions\<close>
@@ -461,6 +462,7 @@ qed(auto)
 
 
 subsection"Final expressions"
+(* these definitions and most of the lemmas were in BigStep.thy in the original Jinja *)
 
 definition final :: "'a exp \<Rightarrow> bool"
 where

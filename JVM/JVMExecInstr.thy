@@ -197,18 +197,11 @@ where
              else \<lfloor>the_Addr(hd stk)\<rfloor>
    in (xp', h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh))"
 
-(*   (case hd stk of
-        Addr a \<Rightarrow> (\<lfloor>a\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-      | _ \<Rightarrow> (\<lfloor>addr_of_sys_xcpt NullPointer\<rfloor>, h, (stk, loc, C\<^sub>0, M\<^sub>0, pc, ics)#frs, sh)
-   )" *)
 
-(** ******* **)
-
-(* HERE: MOVE? all below *)
 
 (* Given preallocated heap, a thrown exception is either a system exception or
    thrown directly by Throw *)
-lemma exec_instr_xcpts: (* HERE: RENAME? *)
+lemma exec_instr_xcpts:
 assumes "\<sigma>' = exec_instr i P h stk loc C M pc ics' frs sh"
   and "fst \<sigma>' = Some a"
 shows "i = (JVMInstructions.Throw) \<or> a \<in> {a. \<exists>x \<in> sys_xcpts. a = addr_of_sys_xcpt x}"

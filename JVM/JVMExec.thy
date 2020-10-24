@@ -115,7 +115,6 @@ lemma exec_all_conf:
   \<Longrightarrow> P \<turnstile> \<sigma>' -jvm\<rightarrow> \<sigma>'' \<or> P \<turnstile> \<sigma>'' -jvm\<rightarrow> \<sigma>'"
 (*<*)by(simp add: exec_all_def single_valued_def single_valued_confluent)(*>*)
 
-(* HERE: rename? *)
 lemma exec_1_exec_all_conf:
  "\<lbrakk> exec (P, \<sigma>) = Some \<sigma>'; P \<turnstile> \<sigma> -jvm\<rightarrow> \<sigma>''; \<sigma> \<noteq> \<sigma>'' \<rbrakk>
  \<Longrightarrow> P \<turnstile> \<sigma>' -jvm\<rightarrow> \<sigma>''"

@@ -296,7 +296,6 @@ proof -
   with assms show ?thesis by(cases frs; fastforce simp: conf_clinit_def)
 qed
 
-(* HERE: may want to generalize *)
 lemma conf_clinit_Cons_Cons:
  "conf_clinit P sh (f'#f#frs) \<Longrightarrow> conf_clinit P sh (f'#frs)"
  by(auto simp: conf_clinit_def distinct_clinit_def)
@@ -388,7 +387,6 @@ proof -
   with cr show ?thesis by(cases frs; fastforce simp: correct_state_def)
 qed
 
-(* HERE: unused *)
 lemma correct_state_shupd:
 assumes cs: "P,\<Phi> |- (xp,h,frs,sh) [ok]" and shC: "sh C = Some(sfs,i)"
  and dist: "distinct (C#clinit_classes frs)"

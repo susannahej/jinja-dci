@@ -4,7 +4,7 @@
     Copyright   2003 Technische Universitaet Muenchen
 *)
 (*
-  Expanded to include support for static fields and methods.
+  Expanded to include support for static fields and methods and dynamic class initialization.
   Susannah Mansky
   2017, UIUC
 *)

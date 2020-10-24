@@ -2,14 +2,14 @@
 
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
 section \<open> Progress of Small Step Semantics \<close>
 
 theory Progress
-imports (*Equivalence*) WellTypeRT DefAss "../Common/Conform" EConform
+imports WellTypeRT DefAss "../Common/Conform" EConform
 begin
 
 lemma final_addrE:
@@ -371,7 +371,7 @@ case (WTrtSFAcc C F T D E) then show ?case
       using bconf_def[of P sh "C\<bullet>\<^sub>sF{D}" b] WTrtSFAcc.prems(2) initPD_def by auto
     with shconf have "P,h,D \<turnstile>\<^sub>s sfs \<surd>" using shconf_def[of P h sh] by auto
     then obtain v where sfsF: "sfs F = Some v" using WTrtSFAcc.hyps
-      apply(unfold soconf_def) by(auto dest:has_field_idemp)
+      by(unfold soconf_def) (auto dest:has_field_idemp)
     then show ?thesis using WTrtSFAcc.hyps shD sfsF True
       by(fastforce elim:RedSFAcc)
   next
@@ -456,7 +456,6 @@ next
     thus ?thesis
     proof (rule finalE)
       fix v assume ev: "e2 = Val v"
-      (*obtain es b where b: "b = (es, b)" by (cases b)*)
       then show ?case
       proof (cases b)
         case True
@@ -464,7 +463,7 @@ next
           using bconf_def[of P _ "C\<bullet>\<^sub>sF{D} := e2"] WTrtSFAss.prems(2) initPD_def ev by auto
         with shconf have "P,h,D \<turnstile>\<^sub>s sfs \<surd>" using shconf_def[of P] by auto
         then obtain v where sfsF: "sfs F = Some v" using field
-          apply(unfold soconf_def) by(auto dest:has_field_idemp)
+          by(unfold soconf_def) (auto dest:has_field_idemp)
         then show ?thesis using WTrtSFAss.hyps shD sfsF True ev
           by(fastforce elim:RedSFAss)
       next
@@ -886,7 +885,7 @@ next
     assume nf: "\<not> final e"
     then have "val_of e = None" proof(cases e)qed(auto)
     then have "P,sh \<turnstile>\<^sub>b (e,b) \<surd>" using WTrtRI.prems(2) by(simp add: bconf_RI)
-    with WTrtRI nf show ?thesis apply simp by (meson red_reds.RInitRed)
+    with WTrtRI nf show ?thesis by simp (meson red_reds.RInitRed)
   qed
 qed
 (*>*)

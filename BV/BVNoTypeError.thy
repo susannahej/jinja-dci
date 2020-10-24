@@ -317,7 +317,7 @@ corollary welltyped_commutes:
   assumes wf: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P" and conforms: "P,\<Phi> \<turnstile> \<sigma> \<surd>" 
   shows "P \<turnstile> (Normal \<sigma>) -jvmd\<rightarrow> (Normal \<sigma>') = P \<turnstile> \<sigma> -jvm\<rightarrow> \<sigma>'"
   apply rule
-  apply (erule defensive_imp_aggressive)
+   apply (erule defensive_imp_aggressive)
   apply (erule welltyped_aggressive_imp_defensive [OF wf conforms])
   done
 

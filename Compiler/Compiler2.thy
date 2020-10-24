@@ -1,6 +1,7 @@
 (*  Title:      Jinja/Compiler/Compiler2.thy
     Author:     Tobias Nipkow
     Copyright   TUM 2003
+
     Expanded to include statics and class initialization by Susannah Mansky
     2018, UIUC
 *)
@@ -11,8 +12,8 @@ theory Compiler2
 imports PCompiler J1 "../JVM/JVMExec"
 begin
 
-(* HERE: MOVE *)
-lemma [simp]: "length (case bop of Eq \<Rightarrow> [CmpEq] | Add \<Rightarrow> [IAdd]) = Suc 0"
+lemma bop_expr_length_aux [simp]:
+ "length (case bop of Eq \<Rightarrow> [CmpEq] | Add \<Rightarrow> [IAdd]) = Suc 0"
  by(cases bop, simp+)
 
 primrec compE\<^sub>2 :: "expr\<^sub>1 \<Rightarrow> instr list"
@@ -128,6 +129,11 @@ lemma max_stack1': "\<not>sub_RI e \<Longrightarrow> 1 \<le> max_stack e"
 lemma compE\<^sub>2_not_Nil': "\<not>sub_RI e \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
 (*<*)by(induct e) auto(*>*)
 
+lemma compE\<^sub>2_nRet: "\<And>i. i \<in> set (compE\<^sub>2 e\<^sub>1) \<Longrightarrow> i \<noteq> Return"
+ and "\<And>i. i \<in> set (compEs\<^sub>2 es\<^sub>1) \<Longrightarrow> i \<noteq> Return"
+ by(induct rule: compE\<^sub>2.induct compEs\<^sub>2.induct, auto simp: nth_append split: bop.splits)
+
+
 definition compMb\<^sub>2 :: "staticb \<Rightarrow> expr\<^sub>1 \<Rightarrow> jvm_method"
 where
   "compMb\<^sub>2  \<equiv>  \<lambda>b body.
@@ -147,20 +153,5 @@ lemma compMb\<^sub>2 [simp]:
   "compMb\<^sub>2 b e = (max_stack e, max_vars e,
                    compE\<^sub>2 e @ [Return], compxE\<^sub>2 e 0 0)"
 (*<*)by (simp add: compMb\<^sub>2_def)(*>*)
-
-(*************************)
-
-
-(* HERE: MOVE ! ! *)
-(*lemma compE\<^sub>2_nsub_RI_nmt: "\<not>sub_RI e \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
- and "\<not>sub_RIs es \<Longrightarrow> es \<noteq> [] \<Longrightarrow> compEs\<^sub>2 es \<noteq> []"
- by(induct rule: compE\<^sub>2.induct compEs\<^sub>2.induct, auto) *)
-
-
-(* HERE: MOVE? *)
-(*compE\<^sub>2_nRI_nRet*)
-lemma compE\<^sub>2_nRet: "\<And>i. i \<in> set (compE\<^sub>2 e\<^sub>1) \<Longrightarrow> i \<noteq> Return"
- and "\<And>i. i \<in> set (compEs\<^sub>2 es\<^sub>1) \<Longrightarrow> i \<noteq> Return"
- by(induct rule: compE\<^sub>2.induct compEs\<^sub>2.induct, auto simp: nth_append split: bop.splits)
 
 end

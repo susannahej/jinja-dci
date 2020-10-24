@@ -2,7 +2,7 @@
 
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -32,7 +32,7 @@ abbreviation
   wwf_J_prog :: "J_prog \<Rightarrow> bool" where
   "wwf_J_prog \<equiv> wf_prog wwf_J_mdecl"
 
-(* HERE: MOVE? *)
+
 lemma sees_wwf_nsub_RI:
  "\<lbrakk> wwf_J_prog P; P \<turnstile> C sees M,b : Ts\<rightarrow>T = (pns, body) in D \<rbrakk> \<Longrightarrow> \<not>sub_RI body"
 apply(drule sees_wf_mdecl, simp)

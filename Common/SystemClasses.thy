@@ -3,7 +3,8 @@
     Author:     Gerwin Klein
     Copyright   2002 Technische Universitaet Muenchen
     
-    Added more Exception types - Susannah Mansky
+    Added more exception types
+    Susannah Mansky
     2017, UIUC
 *)
 

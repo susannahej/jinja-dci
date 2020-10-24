@@ -17,6 +17,9 @@ begin
 declare nth_append[simp]
 (*>*)
 
+lemma max_stack1: "P,E \<turnstile>\<^sub>1 e :: T \<Longrightarrow> 1 \<le> max_stack e"
+(*<*)using max_stack1'[OF WT\<^sub>1_nsub_RI] by simp(*>*)
+
 locale TC0 =
   fixes P :: "J\<^sub>1_prog" and mxl :: nat
 begin
@@ -146,10 +149,6 @@ end
 
 lemma compE\<^sub>2_not_Nil[simp]: "P,E \<turnstile>\<^sub>1 e :: T \<Longrightarrow> compE\<^sub>2 e \<noteq> []"
 (*<*)by(simp add: compE\<^sub>2_not_Nil' WT\<^sub>1_nsub_RI)(*>*)
-
-(* HERE: MOVE? *)
-lemma max_stack1: "P,E \<turnstile>\<^sub>1 e :: T \<Longrightarrow> 1 \<le> max_stack e"
-(*<*)using max_stack1'[OF WT\<^sub>1_nsub_RI] by simp(*>*)
 
 lemma (in TC1) compT_sizes':
 shows "\<And>E A ST. \<not>sub_RI e \<Longrightarrow> size(compT E A ST e) = size(compE\<^sub>2 e) - 1"
@@ -1287,7 +1286,7 @@ lemma [simp]: "app\<^sub>i (i, compP f P, pc, mpc, T, \<tau>) = app\<^sub>i (i, 
    apply (fastforce dest!: sees_method_compPD)
   apply (force dest: sees_method_compP)
 (* Invokestatic *)
-  apply (force dest!: sees_method_compPD)
+   apply (force dest!: sees_method_compPD)
   apply (force dest: sees_method_compP)
   done
 (*>*)
@@ -1352,24 +1351,24 @@ lemma compT_method_NonStatic:
 (*<*)
 using assms apply (simp add: wt_method_def compT\<^sub>a_def after_def mxl)
 apply (rule conjI)
-apply (simp add: check_types_def OK_ty\<^sub>i'_in_statesI)
+ apply (simp add: check_types_def OK_ty\<^sub>i'_in_statesI)
+ apply (rule conjI)
+  apply (drule (1) WT\<^sub>1_is_type)
+   apply simp
+  apply (insert max_stack1 [where e=e])
+  apply (rule OK_ty\<^sub>i'_in_statesI) apply (simp_all add: mxs)[3]
+ apply (erule compT_states(1))
+     apply assumption
+    apply (simp_all add: mxs mxl)[4]
 apply (rule conjI)
-apply (drule (1) WT\<^sub>1_is_type)
-apply simp
-apply (insert max_stack1 [where e=e])
-apply (rule OK_ty\<^sub>i'_in_statesI) apply (simp_all add: mxs)[3]
-apply (erule compT_states(1))
-apply assumption
-apply (simp_all add: mxs mxl)[4]
-apply (rule conjI)
-apply (auto simp add: wt_start_def ty\<^sub>i'_def ty\<^sub>l_def list_all2_conv_all_nth
-  nth_Cons mxl split: nat.split dest: less_antisym)[1]
+ apply (auto simp add: wt_start_def ty\<^sub>i'_def ty\<^sub>l_def list_all2_conv_all_nth
+   nth_Cons mxl split: nat.split dest: less_antisym)[1]
 apply (frule (1) TC2.compT_wt_instrs [of P _ _ _ _ "[]" "max_stack e" "Suc (length Ts + max_vars e)" T\<^sub>r])
-apply simp_all
+   apply simp_all
 apply (clarsimp simp: after_def)
 apply hypsubst_thin
 apply (rule conjI)
-apply (clarsimp simp: wt_instrs_def after_def mxl mxs)
+ apply (clarsimp simp: wt_instrs_def after_def mxl mxs)
 apply clarsimp
 apply (drule (1) less_antisym)
 apply (clarsimp simp: wt_defs xcpt_app_pcs xcpt_eff_pcs ty\<^sub>i'_def)
@@ -1391,24 +1390,24 @@ lemma compT_method_Static:
 (*<*)
 using assms apply (simp add: wt_method_def compT\<^sub>a_def after_def mxl)
 apply (rule conjI)
-apply (simp add: check_types_def OK_ty\<^sub>i'_in_statesI)
+ apply (simp add: check_types_def OK_ty\<^sub>i'_in_statesI)
+ apply (rule conjI)
+  apply (drule (1) WT\<^sub>1_is_type)
+   apply simp
+  apply (insert max_stack1 [where e=e])
+  apply (rule OK_ty\<^sub>i'_in_statesI) apply (simp_all add: mxs)[3]
+ apply (erule compT_states(1))
+     apply assumption
+    apply (simp_all add: mxs mxl)[4]
 apply (rule conjI)
-apply (drule (1) WT\<^sub>1_is_type)
-apply simp
-apply (insert max_stack1 [where e=e])
-apply (rule OK_ty\<^sub>i'_in_statesI) apply (simp_all add: mxs)[3]
-apply (erule compT_states(1))
-apply assumption
-apply (simp_all add: mxs mxl)[4]
-apply (rule conjI)
-apply (auto simp add: wt_start_def ty\<^sub>i'_def ty\<^sub>l_def list_all2_conv_all_nth
-  nth_Cons mxl split: nat.split dest: less_antisym)[1] defer
+ apply (auto simp add: wt_start_def ty\<^sub>i'_def ty\<^sub>l_def list_all2_conv_all_nth
+   nth_Cons mxl split: nat.split dest: less_antisym)[1]
 apply (frule (1) TC2.compT_wt_instrs [of P _ _ _ _ "[]" "max_stack e" "length Ts + max_vars e" T\<^sub>r])
-apply simp_all
+   apply simp_all
 apply (clarsimp simp: after_def)
 apply hypsubst_thin
 apply (rule conjI)
-apply (clarsimp simp: wt_instrs_def after_def mxl mxs)
+ apply (clarsimp simp: wt_instrs_def after_def mxl mxs)
 apply clarsimp
 apply (drule (1) less_antisym)
 apply (clarsimp simp: wt_defs xcpt_app_pcs xcpt_eff_pcs ty\<^sub>i'_def)
@@ -1433,31 +1432,31 @@ theorem wt_compP\<^sub>2:
   apply (rule wf_prog_compPI)
    prefer 2 apply assumption
   apply (simp add: compTP_def) apply(rename_tac C M b Ts T m)
-apply(case_tac b)
+  apply(case_tac b)
 (* Static *)
   apply (clarsimp simp add: wf_mdecl_def)
   apply (rule TC2.compT_method_Static [simplified])
-       apply (rule refl)
-       apply (rule refl)
+         apply (rule refl)
+        apply (rule refl)
        apply assumption
-       apply assumption
-       apply assumption
-       apply assumption
-    apply (drule (1) sees_wf_mdecl)
-    apply (simp add: wf_mdecl_def)
+      apply assumption
+     apply assumption
+    apply assumption
+   apply (drule (1) sees_wf_mdecl)
+   apply (simp add: wf_mdecl_def)
    apply (blast intro: sees_method_is_class)
   apply assumption
 (* NonStatic *)
   apply (clarsimp simp add: wf_mdecl_def)
   apply (rule TC2.compT_method_NonStatic [simplified])
-       apply (rule refl)
-       apply (rule refl)
-       apply assumption
-       apply assumption
-       apply assumption
-       apply assumption
-    apply (drule (1) sees_wf_mdecl)
-    apply (simp add: wf_mdecl_def)
+         apply (rule refl)
+        apply (rule refl)
+      apply assumption
+     apply assumption
+    apply assumption
+    apply assumption
+   apply (drule (1) sees_wf_mdecl)
+   apply (simp add: wf_mdecl_def)
    apply (blast intro: sees_method_is_class)
   apply assumption
   done

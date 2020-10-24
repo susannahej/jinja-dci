@@ -2,7 +2,7 @@
     Author:     Gerwin Klein
     Copyright   GPL
 
-    Expanded to include static instructions by Susannah Mansky
+    Expanded to include static instructions and dynamic class initialization by Susannah Mansky
     2018, UIUC
 *)
 

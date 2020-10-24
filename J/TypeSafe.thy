@@ -4,7 +4,7 @@
     Copyright   2003 Technische Universitaet Muenchen
 *)
 (*
-  Expanded to include support for static fields and methods.
+  Expanded to include support for static fields and methods and dynamic class initialization.
   Susannah Mansky
   2017, UIUC
 *)
@@ -31,7 +31,7 @@ proof -
   then have sP: "(C, D, fs, ms) \<in> set P" using ex map_of_SomeD[of P C a] by(simp add: class_def)
   then have "wf_clinit ms" using assms by(unfold wf_prog_def wf_cdecl_def, auto)
   then obtain pns body where sm: "(clinit, Static, [], Void, pns, body) \<in> set ms"
-    apply(unfold wf_clinit_def) by auto
+    by(unfold wf_clinit_def) auto
   then have "P \<turnstile> C sees clinit,Static:[] \<rightarrow> Void = (pns,body) in C"
     using mdecl_visible[OF wf sP sm] by simp
   then show ?thesis using WTrtSCall proc by simp
@@ -39,7 +39,7 @@ qed
 
 subsection\<open>Basic preservation lemmas\<close>
 
-text\<open> First three easy preservation lemmas. \<close>
+text\<open> First some easy preservation lemmas. \<close>
 
 theorem red_preserves_hconf:
   "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle> \<Longrightarrow> (\<And>T E. \<lbrakk> P,E,h,sh \<turnstile> e : T; P \<turnstile> h \<surd> \<rbrakk> \<Longrightarrow> P \<turnstile> h' \<surd>)"
@@ -387,7 +387,7 @@ next
   qed
 next
   case (SCallInitDoneRed C M Ts T pns body D sh sfs vs h l)
-    then show ?case apply(auto simp: bconf_def initPD_def) by(rule_tac x=D in exI, auto)+
+    then show ?case by(auto simp: bconf_def initPD_def) (rule_tac x=D in exI, auto)+
 next
   case (RedSCallNonStatic C M Ts T a b D vs h l sh b) then show ?case
     using sees_method_fun[of P C M NonStatic] by (auto simp: bconf_def)
@@ -439,8 +439,8 @@ next
   proof(cases b') qed((clarsimp,fast),simp add: bconfs_def)
 next
   case (RedInit C b' e X Y b b'')
-  then show ?case apply(clarsimp simp: bconf_def)
-   by(frule icheck_ss_exp, frule icheck_curr_init, auto simp: icheck_init_class)
+  then show ?case
+   by(auto simp: bconf_def icheck_ss_exp icheck_init_class icheck_curr_init)
 next
   case (RInitRed e a a b b e' a a b b' C Cs e\<^sub>0) then show ?case
   proof(cases b') qed(simp, simp add: bconf_def)
@@ -490,12 +490,10 @@ next
   case CallObj thus ?case by (auto elim!: Ds_mono[OF red_lA_incr])
 next
   case RedCall thus ?case
-    apply (auto dest!:sees_wf_mdecl[OF wf] simp:wf_mdecl_def elim!:D_mono')
-    by(auto simp:hyperset_defs)
+    by (auto dest!:sees_wf_mdecl[OF wf] simp:wf_mdecl_def hyperset_defs elim!:D_mono')
 next
   case RedSCall thus ?case
-    apply (auto dest!:sees_wf_mdecl[OF wf] simp:wf_mdecl_def elim!:D_mono')
-    by(auto simp:hyperset_defs)
+    by (auto dest!:sees_wf_mdecl[OF wf] simp:wf_mdecl_def hyperset_defs elim!:D_mono')
 next
   case SCallInitRed
   then show ?case by(auto simp:hyperset_defs Ds_Vals)
@@ -528,7 +526,7 @@ qed(auto simp:hyperset_defs)
 (*>*)
 
 
-text\<open> Combining conformance of heap and local variables: \<close>
+text\<open> Combining conformance of heap, static heap, and local variables: \<close>
 
 definition sconf :: "J_prog \<Rightarrow> env \<Rightarrow> state \<Rightarrow> bool"   ("_,_ \<turnstile> _ \<surd>"   [51,51,51]50)
 where
@@ -672,7 +670,7 @@ next
     using LAssRed.hyps(2) LAssRed.prems(1,2) Te widen_trans[OF _ wide] by auto
   then obtain T' where wt: "P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> Te" by clarsimp
   have "P,E,h',sh' \<turnstile> V:=e' : Void" using LAssRed wt widen_trans[OF _ wide] by auto
-  then show ?case using LAssRed apply(rule_tac x = Void in exI) by auto
+  then show ?case using LAssRed by(rule_tac x = Void in exI) auto
 next
   case (FAccRed e h l sh b e' h' l' sh' b' F D)
   have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
@@ -999,7 +997,6 @@ next
                  \<Longrightarrow> \<exists>Us. P,E,h',sh' \<turnstile> es' [:] Us \<and> P \<turnstile> Us [\<le>] Ts"
    and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (C\<bullet>\<^sub>sM(es))"
    and wt: "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sM(es) : T" by fact+
-(*  then obtain sfs where clinit: "M = clinit \<longrightarrow> sh C = \<lfloor>(sfs, Processing)\<rfloor>" by simp *)
   have iconfs: "iconfs sh es" using iconf by simp
   from wt show ?case
   proof (rule WTrt_elim_cases)
@@ -1051,15 +1048,15 @@ next
   then have sh: "sh \<unlhd>\<^sub>s sh(C \<mapsto> (sblank P C, Prepared))" by(simp add: shext_def)
   have wt: "P,E,h,sh(C \<mapsto> (sblank P C, Prepared)) \<turnstile> INIT C' (C # Cs,False) \<leftarrow> e : T"
       using InitNoneRed WTrt_shext_mono[OF _ sh] by fastforce
-  then show ?case apply(rule_tac x = T in exI) by(simp add: fun_upd_def)
+  then show ?case by(rule_tac x = T in exI) (simp add: fun_upd_def)
 next
   case (RedInitDone sh C sfs C' Cs e h l b)
-  then have "P,E,h,sh \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" apply auto by (metis Nil_tl list.set_sel(2))
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then have "P,E,h,sh \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" by auto (metis Nil_tl list.set_sel(2))
+  then show ?case by(rule_tac x = T in exI) simp
 next
   case (RedInitProcessing sh C sfs C' Cs e h l b)
-  then have "P,E,h,sh \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" apply auto by (metis Nil_tl list.set_sel(2))+
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then have "P,E,h,sh \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" by auto (metis Nil_tl list.set_sel(2))+
+  then show ?case by(rule_tac x = T in exI) simp
 next
   case RedInitError then show ?case
     by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoClassDefFoundError
@@ -1069,7 +1066,7 @@ next
   then have sh: "sh \<unlhd>\<^sub>s sh(Object \<mapsto> (sfs, Processing))" by(simp add: shext_def)
   have "P,E,h,sh' \<turnstile> INIT C' (C # Cs,True) \<leftarrow> e : T"
     using InitObjectRed WTrt_shext_mono[OF _ sh] by auto
-  then show ?case apply(rule_tac x = T in exI) by(simp add: fun_upd_def)
+  then show ?case by(rule_tac x = T in exI) (simp add: fun_upd_def)
 next
   case (InitNonObjectSuperRed sh C sfs D fs ms sh' C' Cs e h l b)
   then have sh: "sh \<unlhd>\<^sub>s sh(C \<mapsto> (sfs, Processing))" by(simp add: shext_def)
@@ -1082,15 +1079,15 @@ next
     using wf_supercls_distinct_app[OF wf InitNonObjectSuperRed.hyps(2-3) sup'] by simp
   have "P,E,h,sh' \<turnstile> INIT C' (D # C # Cs,False) \<leftarrow> e : T"
     using InitNonObjectSuperRed WTrt_shext_mono[OF _ sh] cd sup dist by auto
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then show ?case by(rule_tac x = T in exI) simp
 next
   case (RedInitRInit C' C Cs e' h l sh b E T)
   then obtain a sfs where C: "class P C = \<lfloor>a\<rfloor>" and proc: "sh C = \<lfloor>(sfs, Processing)\<rfloor>"
     using WTrtInit by(auto simp: is_class_def)
   then have T': "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sclinit([]) : Void" using wf_types_clinit[OF wf C] by simp
   have "P,E,h,sh \<turnstile> RI (C,C\<bullet>\<^sub>sclinit([])) ; Cs \<leftarrow> e' : T"
-    using RedInitRInit apply auto using T' by simp
-  then show ?case apply(rule_tac x = T in exI) by simp
+    using RedInitRInit by(auto intro: T')
+  then show ?case by(rule_tac x = T in exI) simp
 next
   case (RInitRed e h l sh b e' h' l' sh' b' C Cs e\<^sub>0 E T)
   then have "(\<And>E T. P,E \<turnstile> (h, l, sh) \<surd> \<Longrightarrow> P,E,h,sh \<turnstile> e : T \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T)"
@@ -1104,7 +1101,7 @@ next
   have shC: "\<exists>sfs. sh' C = \<lfloor>(sfs, Processing)\<rfloor> \<or> sh' C = \<lfloor>(sfs, Error)\<rfloor> \<and> e' = THROW NoClassDefFoundError"
     using RInitRed red_proc_pres[OF wf_prog_wwf_prog[OF wf] RInitRed.hyps(1)] by blast
   have "P,E,h',sh' \<turnstile> RI (C,e') ; Cs \<leftarrow> e\<^sub>0 : T" using RInitRed e' wt\<^sub>0 nip shC by auto
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then show ?case by(rule_tac x = T in exI) simp
 next
   case (RedRInit sh C sfs i sh' C' Cs v e h l b)
   then have sh: "sh \<unlhd>\<^sub>s sh(C \<mapsto> (sfs, Done))" by(auto simp: shext_def)
@@ -1112,7 +1109,7 @@ next
     using RedRInit WTrt_shext_mono[OF _ sh] by auto
   have shC: "\<forall>C' \<in> set(tl Cs). \<exists>sfs. sh C' = \<lfloor>(sfs, Processing)\<rfloor>" using RedRInit by(cases Cs, auto)
   have "P,E,h,sh' \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" using RedRInit wt shC by(cases Cs, auto)
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then show ?case by(rule_tac x = T in exI) simp
 next
 (******************************************************)
 next
@@ -1146,7 +1143,7 @@ next
   have wt: "P,E,h,sh(C \<mapsto> (sfs, Error)) \<turnstile> e : T"
    using RInitInitThrow WTrt_shext_mono[OF _ sh] by clarsimp
   then have "P,E,h,sh' \<turnstile> RI (D,Throw a) ; Cs \<leftarrow> e : T" using RInitInitThrow by auto
-  then show ?case apply(rule_tac x = T in exI) by simp
+  then show ?case by(rule_tac x = T in exI) simp
 (**************)
 next
   case (SCallThrowParams es vs e es' C M h l sh b)
@@ -1199,8 +1196,7 @@ proof (induct rule:converse_rtrancl_induct3)
   case refl show ?case by fact
 next
   case (step e s b e' s' b')
-  thus ?case using wf step apply(cases s, cases s', simp)
-    by(blast intro:red_preserves_iconf)
+  thus ?case using wf step by(cases s, cases s', simp) (blast intro:red_preserves_iconf)
 qed
 (*>*)
 
@@ -1213,8 +1209,7 @@ proof (induct rule:converse_rtrancl_induct3)
   case refl show ?case by fact
 next
   case (step e s b e' s' b')
-  thus ?case using wf step apply(cases s, cases s', simp)
-    by(blast intro:reds_preserves_iconf)
+  thus ?case using wf step by(cases s, cases s', simp) (blast intro:reds_preserves_iconf)
 qed
 (*>*)
 
@@ -1228,9 +1223,8 @@ proof (induct rule:converse_rtrancl_induct3)
 next
   case (step e s1 b e' s2 b')
   then have "iconf (shp s2) e'" using step red_preserves_iconf[OF wf]
-   apply(cases s1, cases s2) by auto
-  thus ?case using step apply(cases s1, cases s2, simp)
-    by(blast intro:red_preserves_bconf)
+   by(cases s1, cases s2) auto
+  thus ?case using step by(cases s1, cases s2, simp) (blast intro:red_preserves_bconf)
 qed
 (*>*)
 
@@ -1244,9 +1238,8 @@ proof (induct rule:converse_rtrancl_induct3)
 next
   case (step es s1 b es' s2 b')
   then have "iconfs (shp s2) es'" using step reds_preserves_iconf[OF wf]
-   apply(cases s1, cases s2) by auto
-  thus ?case using step apply(cases s1, cases s2, simp)
-    by(blast intro:reds_preserves_bconf)
+   by(cases s1, cases s2) auto
+  thus ?case using step by(cases s1, cases s2, simp) (blast intro:reds_preserves_bconf)
 qed
 (*>*)
 
@@ -1290,10 +1283,10 @@ theorem Subject_reduction: assumes wf: "wf_J_prog P"
 shows "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle> \<Longrightarrow> P,E,s \<turnstile> e : T \<surd>
        \<Longrightarrow> \<exists>T'. P,E,s' \<turnstile> e' : T' \<surd> \<and> P \<turnstile> T' \<le> T"
 (*<*)
-apply(cases s, cases s')
-by(force simp: wf_config_def
-   elim:red_preserves_sconf red_preserves_iconf[OF wf_prog_wwf_prog[OF wf]]
-   dest:subject_reduction[OF wf])
+by(cases s, cases s')
+  (force simp: wf_config_def
+         elim:red_preserves_sconf red_preserves_iconf[OF wf_prog_wwf_prog[OF wf]]
+         dest:subject_reduction[OF wf])
 (*>*)
 
 
@@ -1315,9 +1308,8 @@ corollary Progress: assumes wf: "wf_J_prog P"
 shows "\<lbrakk> P,E,s  \<turnstile> e : T \<surd>; \<D> e \<lfloor>dom(lcl s)\<rfloor>; P,shp s \<turnstile>\<^sub>b (e,b) \<surd>; \<not> final e \<rbrakk>
    \<Longrightarrow> \<exists>e' s' b'. P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>"
 (*<*)
-apply(cases b)
 using progress[OF wf_prog_wwf_prog[OF wf]]
-by(auto simp:wf_config_def sconf_def)
+by(cases b) (auto simp:wf_config_def sconf_def)
 (*>*)
 
 corollary TypeSafety:
@@ -1343,6 +1335,5 @@ apply (fastforce simp:wf_config_def final_def conf_def dest: Progress)
 done
 (*>*)
 
-text\<open>Final bits moved to/proved in equivalence theory\<close>
 
 end

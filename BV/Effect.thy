@@ -397,9 +397,9 @@ lemma appIfFalse [simp]:
   (\<exists>ST LT. s = (Boolean#ST,LT) \<and> 0 \<le> int pc + b)"
 (*<*)
   apply (rule length_cases2)
-  apply simp
+   apply simp
   apply (case_tac l) 
-  apply auto
+      apply auto
   done
 (*>*)
 

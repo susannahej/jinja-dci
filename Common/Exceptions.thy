@@ -109,7 +109,7 @@ lemma start_heap_sys_xcpts:
 assumes "C \<in> sys_xcpts"
 shows "start_heap P (addr_of_sys_xcpt C) = Some(blank P C)"
 apply(rule sys_xcpts_cases[OF assms])
-apply(auto simp add: start_heap_def sys_xcpts_def addr_of_sys_xcpt_def sys_xcpts_defs)
+      apply(auto simp add: start_heap_def sys_xcpts_def addr_of_sys_xcpt_def sys_xcpts_defs)
 done
 
 subsection "@{term preallocated}"

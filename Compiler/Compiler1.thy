@@ -1,7 +1,9 @@
 (*  Title:      Jinja/Compiler/Compiler1.thy
     Author:     Tobias Nipkow
     Copyright   TUM 2003
-    Expanded to include statics and class initialization by Susannah Mansky
+
+    Expanded to include statics and class initialization
+    Susannah Mansky
     2018, UIUC
 *)
 

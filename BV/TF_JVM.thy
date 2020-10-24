@@ -128,7 +128,7 @@ theorem (in start_context) exec_pres_type:
   \<comment> \<open>Checkcast\<close>
   apply fastforce
 
-  defer defer \<comment> \<open>Invoke(static) deferred\<close>
+  defer defer \<comment> \<open>Invoke and Invokestatic deferred\<close>
   
   \<comment> \<open>Return\<close>
   apply fastforce
@@ -268,7 +268,7 @@ theorem (in JVM_sl) step_mono:
    apply simp
   apply clarify
   apply (drule eff_mono)
-  apply (auto simp add: lesub_def)
+     apply (auto simp add: lesub_def)
   done
 (*>*)
 

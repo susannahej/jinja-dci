@@ -1,7 +1,7 @@
 (*  Title:      Jinja/J/SmallStep.thy
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -25,12 +25,12 @@ by (induct rule:blocks_induct) auto
 (*>*)
 
 
-lemma sub_RI_blocks_body[iff]: "length vs = length pns \<Longrightarrow> length Ts = length pns \<Longrightarrow>
-sub_RI (blocks (pns, Ts, vs, body)) \<longleftrightarrow> sub_RI body"
+lemma sub_RI_blocks_body[iff]: "length vs = length pns \<Longrightarrow> length Ts = length pns
+ \<Longrightarrow> sub_RI (blocks (pns, Ts, vs, body)) \<longleftrightarrow> sub_RI body"
 proof(induct pns arbitrary: Ts vs)
   case Nil then show ?case by simp
 next
-  case Cons then show ?case apply(cases vs; cases Ts) by auto
+  case Cons then show ?case by(cases vs; cases Ts) auto
 qed
 
 
@@ -468,7 +468,7 @@ lemma [iff]: "\<not> P \<turnstile> \<langle>Throw a,s,b\<rangle> \<rightarrow> 
 (*<*)by(fastforce elim: red.cases)(*>*)
 
 
-lemma [iff]: "\<not> P \<turnstile> \<langle>map Val vs,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
+lemma map_Vals_no_step [iff]: "\<not> P \<turnstile> \<langle>map Val vs,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
 (*<*)
 apply(induct vs arbitrary: es', simp)
 apply(rule notI)
@@ -479,7 +479,7 @@ done
 lemma vals_no_step: "map_vals_of es = \<lfloor>vs\<rfloor> \<Longrightarrow> \<not> P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
 (*<*)by(drule map_vals_of_spec, simp)(*>*)
 
-lemma [iff]: "\<not> P \<turnstile> \<langle>map Val vs @ Throw a # es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
+lemma vals_throw_no_step [iff]: "\<not> P \<turnstile> \<langle>map Val vs @ Throw a # es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
 (*<*)
 apply(induct vs arbitrary: es', auto)
 apply(erule reds.cases, auto)
@@ -487,10 +487,10 @@ apply(erule reds.cases, auto)
 done
 (*>*)
 
-lemma [iff]: "final e \<Longrightarrow> \<not> P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>"
+lemma final_no_step [iff]: "final e \<Longrightarrow> \<not> P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>"
 (*<*)by(erule finalE, simp+)(*>*)
 
-lemma [iff]: "finals es \<Longrightarrow> \<not> P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
+lemma finals_no_step [iff]: "finals es \<Longrightarrow> \<not> P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es',s',b'\<rangle>"
 (*<*)by(erule finalsE, simp+)(*>*)
 
 lemma reds_final_same:

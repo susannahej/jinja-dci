@@ -8,7 +8,7 @@ theory ClassAdd
 imports BVConform
 begin
 
-(* HERE: MOVE *)
+
 lemma err_mono: "A \<subseteq> B \<Longrightarrow> err A \<subseteq> err B"
  by(unfold err_def) auto
 
@@ -676,124 +676,5 @@ assumes wf: "wf_prog wf_md P" and "P,h \<turnstile>\<^sub>s sh \<surd>" and "\<n
 shows "class_add P (C, cdec),h \<turnstile>\<^sub>s sh \<surd>"
 using wf_subcls_nCls[OF wf] assms by(fastforce simp: shconf_def)
 
-(******************************************)
-
-(* ACTUALLY: generalize
-lemma class_add_wf_jvm_prog_phi:
-assumes wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P"
- and nclass: "\<not> is_class P C"
- and meth: "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D" and nclinit: "M \<noteq> clinit"
- and \<Phi>: "\<And>C'. C' \<noteq> C \<Longrightarrow> \<Phi>' C' = \<Phi> C'"
- and \<Phi>': "\<Phi>' C start_m = start_\<phi>\<^sub>m" "\<Phi>' C clinit = start_\<phi>\<^sub>m"
- and Obj_start_m: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees start_m, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-shows "wf_jvm_prog\<^bsub>\<Phi>'\<^esub> (class_add P (C, cdec))"
-proof -
-  let ?wf_md = "(\<lambda>P C (M,b,Ts,T\<^sub>r,(mxs,mxl\<^sub>0,is,xt)). wt_method P C b Ts T\<^sub>r mxs mxl\<^sub>0 is xt (\<Phi> C M))"
-  let ?wf_md' = "(\<lambda>P C (M,b,Ts,T\<^sub>r,(mxs,mxl\<^sub>0,is,xt)). wt_method P C b Ts T\<^sub>r mxs mxl\<^sub>0 is xt (\<Phi>' C M))"
-  from wtp have wf: "wf_prog ?wf_md P" by(simp add: wf_jvm_prog_phi_def)
-  from wf_subcls_nCls'[OF wf nclass]
-  have ncp: "\<And>cd D'. cd \<in> set P \<Longrightarrow> \<not>P \<turnstile> fst cd \<preceq>\<^sup>* C" by simp
-  have wf_md':
-    "\<And>C\<^sub>0 S fs ms m. (C\<^sub>0, S, fs, ms) \<in> set P \<Longrightarrow> m \<in> set ms \<Longrightarrow> ?wf_md' (class_add P (C, cdec)) C\<^sub>0 m"
-  proof -
-    fix C\<^sub>0 S fs ms m assume asms: "(C\<^sub>0, S, fs, ms) \<in> set P" "m \<in> set ms"
-    with nclass have ns: "C\<^sub>0 \<noteq> C" by(auto simp: is_class_def class_def dest: weak_map_of_SomeI)
-    from wf asms have "?wf_md P C\<^sub>0 m" by(auto simp: wf_prog_def wf_cdecl_def wf_mdecl_def)
-
-    with \<Phi>[OF ns] class_add_wt_method[OF _ wf nclass]
-     show "?wf_md' (class_add P (C, cdec)) C\<^sub>0 m" by fastforce
-  qed
-  from wtp have a1: "is_class P Object" by (simp add: wf_jvm_prog_phi_def)
-  with wf_sees_clinit[where P=P and C=Object] wtp
-   have a2: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees clinit, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-    by(fastforce simp: wf_jvm_prog_phi_def is_class_def dest: sees_method_fun)
-  from wf have dist: "distinct_fst P" by (simp add: wf_prog_def)
-  then have "distinct_fst (class_add P (C, cdec))" by(rule class_add_distinct_fst[OF _ nclass])
-  moreover from wf have "wf_syscls (class_add P (C, cdec))" by(simp add: wf_prog_def wf_syscls_def)
-  moreover
-  from class_add_wf_cdecl'[where wf_md'="?wf_md'", OF _ _ ncp dist wf_md' nclass] wf
-  have "\<And>c. c \<in> set P \<Longrightarrow> wf_cdecl ?wf_md' (class_add P (C, cdec)) c" by(auto simp: wf_prog_def)
-  moreover from meth nclinit nclass \<Phi>' a1 Obj_start_m a2
-  have "wf_cdecl ?wf_md' (class_add P (C, cdec)) (start_class C M)" by(simp add: start_class_wf)
-  ultimately show ?thesis by(simp add: wf_jvm_prog_phi_def wf_prog_def)
-qed
-
-lemma class_add_wf_jvm_prog:
-assumes wf: "wf_jvm_prog P"
- and nclass: "\<not> is_class P C"
- and meth: "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D" and nclinit: "M \<noteq> clinit"
- and Obj_start_m: "\<And>b' Ts' T' m' D'. P \<turnstile> Object sees start_m, b' :  Ts'\<rightarrow>T' = m' in D'
-         \<Longrightarrow> b' = Static \<and> Ts' = [] \<and> T' = Void"
-shows "wf_jvm_prog (class_add P (C, cdec))"
-proof -
-  from wf obtain \<Phi> where wtp: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P" by(clarsimp simp: wf_jvm_prog_def)
-
-  let ?\<Phi>' = "\<lambda>C f. if C = C \<and> (f = start_m \<or> f = clinit) then start_\<phi>\<^sub>m else \<Phi> C f"
-
-  from class_add_wf_jvm_prog_phi[OF wtp nclass meth nclinit _ _ _ Obj_start_m] have
-    "wf_jvm_prog\<^bsub>?\<Phi>'\<^esub> (class_add P (C, cdec))" by simp
-  then show ?thesis by(auto simp: wf_jvm_prog_def)
-qed
-
-
-lemma class_add_Start_sees_methods:
- "P \<turnstile> Object sees_methods Mm
- \<Longrightarrow> class_add P (C, cdec) \<turnstile>
-  C sees_methods Mm ++ (map_option (\<lambda>m. (m,Start)) \<circ> map_of [start_method C M, start_clinit])"
- by (auto simp: start_class_def class_def fun_upd_apply
-          dest!: class_add_sees_methods_Obj[of P] intro: sees_methods_rec)
-
-lemma class_add_Start_sees_start_method:
- "P \<turnstile> Object sees_methods Mm
-  \<Longrightarrow> class_add P (C, cdec) \<turnstile>
-         C sees start_m, Static : []\<rightarrow>Void = (1, 0, [Invokestatic C M 0,Return], []) in C"
- by(auto simp: start_class_def start_method_def Method_def fun_upd_apply
-         dest!: class_add_Start_sees_methods)
-
-(* HERE: MOVE *)
-lemma wf_class_add_Start_sees_start_method:
-assumes wf: "wf_prog wf_md P"
-shows "class_add P (C, cdec) \<turnstile>
-         C sees start_m, Static : []\<rightarrow>Void = (1, 0, [Invokestatic C M 0,Return], []) in C"
-proof -
-  from wf have "is_class P Object" by simp
-  with sees_methods_Object  obtain Mm where "P \<turnstile> Object sees_methods Mm"
-   by(fastforce simp: is_class_def dest: sees_methods_Object)
-  then show ?thesis by(rule class_add_Start_sees_start_method)
-qed
-
-(* HERE: MOVE *)
-lemma class_add_start_m_instrs:
-assumes wf: "wf_prog wf_md P"
-shows "(instrs_of (class_add P (C, cdec)) C start_m) = [Invokestatic C M 0, Return]"
-proof -
-  from wf_class_add_Start_sees_start_method[OF wf]
-  have "class_add P (C, cdec) \<turnstile> C sees start_m, Static :
-           []\<rightarrow>Void = (1,0,[Invokestatic C M 0,Return],[]) in C" by simp
-  then show ?thesis by simp
-qed
-
-
-(* HERE: MOVE ? *)
-lemma class_add_Start_fields:
- "class_add P (C, cdec) \<turnstile> C has_fields FDTs \<Longrightarrow> map_of FDTs (F, C) = None"
- by(drule Fields.cases, auto simp: start_class_def class_def fun_upd_apply Object_fields)
-
-lemma class_add_Start_soconf:
- "(class_add P (C, cdec)),h,Start \<turnstile>\<^sub>s Map.empty \<surd>"
- by(simp add: soconf_def has_field_def class_add_Start_fields)
-
-lemma class_add_start_shconf:
- "class_add P (C, cdec),start_heap P \<turnstile>\<^sub>s start_sheap \<surd>"
-(*<*)
-  apply (unfold shconf_def)
-  apply (simp add: preallocated_start fun_upd_apply class_add_Start_soconf)
-  done
-(*>*)
-*)
-
-(*************************************)
 
 end

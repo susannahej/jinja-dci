@@ -511,7 +511,9 @@ proof(cases "C = Object")
     using has_fields_mono_lem[OF sub, of FDTs'] has_fields_fun[OF hf] by fastforce
   have "C \<notin> (\<lambda>t. snd (fst t)) ` set FDTs'"
     using has_fields_declaring_classes[OF hf] cls False fdts'
-      apply clarsimp apply(drule (1) has_fields_fun) by auto
+      apply clarsimp
+      apply(drule (1) has_fields_fun)
+      by auto
   then have "map_of FDTs' (F,C) = None" by(rule map_of_set_pcs_notin)
   then show ?thesis using fdts' int by simp
 qed(auto dest: has_fields_Object has_fields_fun)
@@ -547,15 +549,14 @@ lemma has_field_fun:
   "\<lbrakk>P \<turnstile> C has F,b:T in D; P \<turnstile> C has F,b':T' in D\<rbrakk> \<Longrightarrow> b = b' \<and> T' = T"
 (*<*)by(fastforce simp:has_field_def dest:has_fields_fun)(*>*)
 
-(* FIXME ugly *)  
+
 lemma has_field_idemp:
   "P \<turnstile> C has F,b:T in D \<Longrightarrow> P \<turnstile> D has F,b:T in D"
 (*<*)
   apply (unfold has_field_def)
   apply clarsimp
   apply (rule_tac P = "map_of xs (F,D) = y" for xs y in mp)
-   prefer 2 
-   apply assumption 
+   prefer 2 apply assumption 
   apply (thin_tac "map_of xs (F,D) = y" for xs y)
   apply (erule Fields.induct)
    (* not Object *)
@@ -628,15 +629,14 @@ apply(blast intro: has_fields_decl_above map_of_SomeD map_of_remap_SomeD2)
 done
 (*>*)
 
-(* FIXME ugly *)  
+
 lemma sees_field_idemp:
   "P \<turnstile> C sees F,b:T in D \<Longrightarrow> P \<turnstile> D sees F,b:T in D"
 (*<*)
   apply (unfold sees_field_def)
   apply clarsimp
   apply (rule_tac P = "map_of xs F = y" for xs y in mp)
-   prefer 2 
-   apply assumption 
+   prefer 2 apply assumption 
   apply (thin_tac "map_of xs F = y" for xs y)
   apply (erule Fields.induct)
    (* not Object *)
@@ -702,7 +702,7 @@ lemma seeing_class_def2[simp]:
  by(fastforce simp: seeing_class_def)
 
 
-(* the two below are the fields for initializing an object (non-static fields) and
+(* the two below defs are the fields for initializing an object (non-static fields) and
  a class (just that class's static fields), respectively *)
 definition ifields :: "'m prog \<Rightarrow> cname \<Rightarrow> ((vname \<times> cname) \<times> staticb \<times> ty) list" 
 where

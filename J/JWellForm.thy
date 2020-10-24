@@ -2,7 +2,7 @@
 
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -65,9 +65,11 @@ done
 (*>*)
                                   
 lemma wf_mdecl_wwf_mdecl: "wf_J_mdecl P C Md \<Longrightarrow> wwf_J_mdecl P C Md"
-(*<*)apply(clarsimp simp:wwf_J_mdecl_def) apply(rename_tac M b Ts T pns body)
- apply (case_tac b)
- by (fastforce dest!:WT_fv)+(*>*)
+(*<*)
+apply(clarsimp simp:wwf_J_mdecl_def) apply(rename_tac M b Ts T pns body)
+apply (case_tac b)
+ by (fastforce dest!:WT_fv)+
+(*>*)
 
 lemma wf_prog_wwf_prog: "wf_J_prog P \<Longrightarrow> wwf_J_prog P"
 (*<*)

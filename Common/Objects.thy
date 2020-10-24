@@ -49,7 +49,7 @@ lemma [simp]: "obj_ty (C,fs) = Class C"
 (*<*)by (simp add: obj_ty_def)(*>*)
 
 (* replaced all vname, cname in below with `char list' and \<rightharpoonup> with returned option
-  so that pretty printing works *)
+  so that pretty printing works  -SM *)
 translations
   (type) "fields" <= (type) "char list \<times> char list \<Rightarrow> val option"
   (type) "obj" <= (type) "char list \<times> fields"
@@ -59,7 +59,7 @@ subsection\<open> Heap \<close>
 
 type_synonym heap  = "addr \<rightharpoonup> obj"
 
-(* replaced addr with nat and \<rightharpoonup> with returned option so that pretty printing works *)
+(* replaced addr with nat and \<rightharpoonup> with returned option so that pretty printing works  -SM *)
 translations
  (type) "heap" <= (type) "nat \<Rightarrow> obj option"
 

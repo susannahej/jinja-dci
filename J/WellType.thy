@@ -2,7 +2,7 @@
 
     Author:     Tobias Nipkow
     Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
+    Expanded to include statics and dynamic class initialization by Susannah Mansky
     2017, UIUC
 *)
 
@@ -129,9 +129,9 @@ lemmas WT_WTs_induct = WT_WTs.induct [split_format (complete)]
   and WT_WTs_inducts = WT_WTs.inducts [split_format (complete)]
 (*>*)
 
-lemma [simp]:"\<not>P,E \<turnstile> INIT C (Cs,b) \<leftarrow> e :: T"
+lemma init_nwt [simp]:"\<not>P,E \<turnstile> INIT C (Cs,b) \<leftarrow> e :: T"
  by(auto elim:WT.cases)
-lemma [simp]:"\<not>P,E \<turnstile> RI(C,e);Cs \<leftarrow> e' :: T"
+lemma ri_nwt [simp]:"\<not>P,E \<turnstile> RI(C,e);Cs \<leftarrow> e' :: T"
  by(auto elim:WT.cases)
 
 lemma [iff]: "(P,E \<turnstile> [] [::] Ts) = (Ts = [])"

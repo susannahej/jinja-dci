@@ -86,7 +86,7 @@ apply(erule Methods.induct)
  apply(simp add:compM_def map_of_map245 option.map_comp)
  apply(case_tac "map_of ms x")
   apply simp
- apply fastforce defer
+ apply fastforce
 apply(rule sees_methods_rec)
    apply(erule class_compP)
   apply assumption
@@ -125,7 +125,7 @@ apply(erule Methods.induct)
  apply(clarsimp simp:compC_def)
  apply(rule exI)
  apply(rule conjI, erule sees_methods_Object)
- apply(rule refl)
+  apply(rule refl)
  apply(rule ext)
  apply(simp add:compM_def map_of_map245 option.map_comp)
  apply(case_tac "map_of b x")
@@ -133,7 +133,7 @@ apply(erule Methods.induct)
  apply fastforce
 apply(clarsimp simp:compC_def)
 apply(rule exI, rule conjI)
-apply(erule (2) sees_methods_rec)
+ apply(erule (2) sees_methods_rec)
  apply(rule refl)
 apply(rule ext)
 apply(simp add:map_add_def compM_def map_of_map245 option.map_comp split:option.split)
@@ -169,7 +169,7 @@ lemma [simp]: "(compP f P \<turnstile> Ts [\<le>] Ts') = (P \<turnstile> Ts [\<l
 apply(induct Ts)
  apply simp
 apply(cases Ts')
-apply(auto simp:fun_of_def)
+ apply(auto simp:fun_of_def)
 done
 (*>*)
 
@@ -208,28 +208,28 @@ qed
 (*>*)
 
 
-lemma [simp]: "fields (compP f P) C = fields P C"
+lemma fields_compP [simp]: "fields (compP f P) C = fields P C"
 (*<*)by(simp add:fields_def)(*>*)
 
-lemma [simp]: "ifields (compP f P) C = ifields P C"
+lemma ifields_compP [simp]: "ifields (compP f P) C = ifields P C"
 (*<*)by(simp add:ifields_def)(*>*)
 
-lemma [simp]: "blank (compP f P) C = blank P C"
+lemma blank_compP [simp]: "blank (compP f P) C = blank P C"
 (*<*)by(simp add:blank_def)(*>*)
 
-lemma [simp]: "isfields (compP f P) C = isfields P C"
+lemma isfields_compP [simp]: "isfields (compP f P) C = isfields P C"
 (*<*)by(simp add:isfields_def)(*>*)
 
-lemma [simp]: "sblank (compP f P) C = sblank P C"
+lemma sblank_compP [simp]: "sblank (compP f P) C = sblank P C"
 (*<*)by(simp add:sblank_def)(*>*)
 
-lemma [simp]: "(compP f P \<turnstile> C sees F,b:T in D) = (P \<turnstile> C sees F,b:T in D)"
+lemma sees_fields_compP [simp]: "(compP f P \<turnstile> C sees F,b:T in D) = (P \<turnstile> C sees F,b:T in D)"
 (*<*)by(simp add:sees_field_def)(*>*)
 
-lemma [simp]: "(compP f P \<turnstile> C has F,b:T in D) = (P \<turnstile> C has F,b:T in D)"
+lemma has_field_compP [simp]: "(compP f P \<turnstile> C has F,b:T in D) = (P \<turnstile> C has F,b:T in D)"
 (*<*)by(simp add:has_field_def)(*>*)
 
-lemma [simp]: "field (compP f P) F D = field P F D"
+lemma field_compP [simp]: "field (compP f P) F D = field P F D"
 (*<*)by(simp add:field_def)(*>*)
 
 
@@ -261,7 +261,7 @@ lemma [iff]: "wf_fdecl (compP f P) = wf_fdecl P"
 (*<*)by(simp add:wf_fdecl_def)(*>*)
 
 
-lemma [iff]: "wf_clinit (map (compM f) ms) = wf_clinit ms"
+lemma wf_clinit_compM [iff]: "wf_clinit (map (compM f) ms) = wf_clinit ms"
 (*<*)
 apply(simp add: wf_clinit_def compM_def)
 apply(rule iffI)

@@ -3,7 +3,7 @@
     Copyright   2001 Technische Universitaet Muenchen
 *)
 (*
-  Expanded to include dynamic class initialization by Susannah Mansky
+  Expanded to include statics and dynamic class initialization by Susannah Mansky
   2016-17, UIUC
 *)
 
@@ -114,15 +114,5 @@ next
       by(fastforce simp: split_beta split: bool.splits init_call_status.splits list.splits)
   qed
 qed
-
-(* HERE: true, but unused
-lemma find_handler_sheap_no_effect:
-assumes "find_handler P a h frs sh = (xp',h',frs',sh')"
-shows "find_handler P a h frs sh1 = (xp',h',frs',sh1)"
-using assms proof(induct frs)
-  case (Cons f' frs') then show ?case
-    by(cases f', auto split: bool.splits list.splits init_call_status.splits)
-qed(simp)
-*)
 
 end
