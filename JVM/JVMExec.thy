@@ -16,6 +16,9 @@ abbreviation
   instrs_of :: "jvm_prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> instr list" where
   "instrs_of P C M == fst(snd(snd(snd(snd(snd(snd(method P C M)))))))"
 
+fun curr_instr :: "jvm_prog \<Rightarrow> frame \<Rightarrow> instr" where
+"curr_instr P (stk,loc,C,M,pc,ics) = instrs_of P C M ! pc"
+
 (* execution of single step of the initialization procedure *)
 fun exec_Calling :: "[cname, cname list, jvm_prog, heap, val list, val list,
                   cname, mname, pc, frame list, sheap] \<Rightarrow> jvm_state"
