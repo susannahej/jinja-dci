@@ -186,43 +186,4 @@ and Ds_mono': "\<D>s es A \<Longrightarrow> A \<sqsubseteq> A' \<Longrightarrow>
 
 lemma Ds_Vals: "\<D>s (map Val vs) A" by(induct vs, auto)
 
-(** HERE: Below theory not currently used **)
-
-lemma [simp]: "A \<sqsubseteq> None" by(simp add: hyper_subset_def)
-
-lemma hyper_subset_or: "\<lfloor>D\<rfloor> \<sqsubseteq> \<lfloor>C\<rfloor> \<or> \<not> D \<subseteq> C" by (simp add: hyper_subset_def)
-
-lemma hyperUn_empty: "A \<squnion> B = \<lfloor>{}\<rfloor> \<Longrightarrow> A = \<lfloor>{}\<rfloor> \<and> B = \<lfloor>{}\<rfloor>"
- by(case_tac A;case_tac B, simp+)
-
-lemma Ds_cons: "\<lbrakk> \<A> e = \<lfloor>{}\<rfloor>; \<D>s (e#es) A \<rbrakk> \<Longrightarrow> \<D>s es A" by simp
-
-lemma Ds_cons': "\<lbrakk> \<A>s (e#es) = \<lfloor>{}\<rfloor>; \<D>s (e#es) A \<rbrakk> \<Longrightarrow> \<D>s es A"
-proof(induct es arbitrary:e A)
-  case Nil show ?case by simp
-next
-  case (Cons e' es')
-  then obtain B and B' where "\<A> e = \<lfloor>B\<rfloor>" and "\<A> e' \<squnion> \<A>s es' = \<lfloor>B'\<rfloor>"
-    by fastforce
-  then show ?case using Cons by (metis Ds_cons \<A>s.simps(2) hyperUn_empty)
-qed
-
-lemma D_Some_union: "\<D> e \<lfloor>A\<rfloor> \<Longrightarrow> \<D> e (\<lfloor>A\<rfloor> \<squnion> B)"
- by(case_tac B, auto simp: D_mono' hyper_subset_def)
-
-lemma Ds_Some_union: "\<D>s es \<lfloor>A\<rfloor> \<Longrightarrow> \<D>s es (\<lfloor>A\<rfloor> \<squnion> B)"
- by(case_tac B, auto simp: Ds_mono' hyper_subset_def)
-
-lemma D_Some_cons:
- "\<lbrakk> \<D> e \<lfloor>A\<rfloor>; \<D>s es \<lfloor>A\<rfloor> \<rbrakk> \<Longrightarrow> \<D>s (e#es) \<lfloor>A\<rfloor>"
-proof(induct es arbitrary: e)
-  case Nil then show ?case by auto
-next
-  case (Cons e' es)
-  have "\<lfloor>A\<rfloor> \<squnion> \<A> e \<squnion> \<A> e' = \<lfloor>A\<rfloor> \<squnion> \<A> e' \<squnion> \<A> e" by (metis hyperUn_assoc hyper_comm)
-  then show ?case using Cons
-    apply (auto simp: D_Some_union)
-    by (metis D_Some_union \<D>.simps(11))
-qed
-
 end

@@ -1,7 +1,9 @@
-(*  Title:      Jinja/Common/Type.thy
+(*  Title:      JinjaDCI/Common/Type.thy
 
-    Author:     David von Oheimb, Tobias Nipkow
-    Copyright   1999 Technische Universitaet Muenchen
+    Author:     David von Oheimb, Tobias Nipkow, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/Type.thy by David von Oheimb and Tobias Nipkow
 *)
 
 section \<open> Jinja types \<close>        
@@ -19,6 +21,20 @@ where
 definition this :: vname
 where
   "this \<equiv> ''this''"
+
+definition clinit :: "string" where "clinit = ''<clinit>''"
+definition init :: "string" where "init = ''<init>''"
+
+definition start_m :: "string" where "start_m = ''<start>''"
+definition Start :: "string" where "Start = ''<Start>''"
+
+lemma start_m_neq_clinit [simp]: "start_m \<noteq> clinit" by(simp add: start_m_def clinit_def)
+lemma Object_neq_Start [simp]: "Object \<noteq> Start" by(simp add: Object_def Start_def)
+lemma Start_neq_Object [simp]: "Start \<noteq> Object" by(simp add: Object_def Start_def)
+
+\<comment> \<open>field/method static flag\<close>
+
+datatype staticb = Static | NonStatic
 
 \<comment> \<open>types\<close>
 datatype ty

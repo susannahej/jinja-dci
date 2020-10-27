@@ -1,9 +1,9 @@
 (*  Title:      Jinja/JVM/JVMState.thy
 
-    Original Author:     Cornelia Pusch, Gerwin Klein
-    Copyright   1999 Technische Universitaet Muenchen
-    Expanded to include features for statics and dynamic class initialization by Susannah Mansky
-    2016-17, UIUC
+    Author:     Cornelia Pusch, Gerwin Klein, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory JVM/JVMState.thy by Cornelia Pusch and Gerwin Klein
 *)
 
 chapter \<open> Jinja Virtual Machine \label{cha:jvm} \<close>
@@ -27,13 +27,13 @@ subsection \<open> Frame Stack \<close>
 
 datatype init_call_status = No_ics | Calling cname "cname list"
                           | Called "cname list" | Throwing "cname list" addr
-	\<comment> \<open>No_ics = not currently calling or waiting for the result of an initialization procedure call\<close>
-  \<comment> \<open>Calling C Cs = current instruction is calling for initialization of classes C#Cs (last class
-      is the original) -- still collecting classes to be initialized, C most recently collected\<close>
-  \<comment> \<open>Called Cs = current instruction called initialization and is waiting for the result
+	\<comment> \<open>@{text "No_ics"} = not currently calling or waiting for the result of an initialization procedure call\<close>
+  \<comment> \<open>@{text "Calling C Cs"} = current instruction is calling for initialization of classes @{text "C#Cs"} (last class
+      is the original) -- still collecting classes to be initialized, @{text "C"} most recently collected\<close>
+  \<comment> \<open>@{text "Called Cs"} = current instruction called initialization and is waiting for the result
       -- now initializing classes in the list\<close>
-  \<comment> \<open>Throwing Cs a = frame threw or was thrown an error causing erroneous end of initialization
-        procedure for classes Cs\<close>
+  \<comment> \<open>@{text "Throwing Cs a"} = frame threw or was thrown an error causing erroneous end of initialization
+        procedure for classes @{text "Cs"}\<close>
 
 type_synonym
   frame = "val list \<times> val list \<times> cname \<times> mname \<times> pc \<times> init_call_status"
@@ -42,7 +42,7 @@ type_synonym
   \<comment> \<open>name of class where current method is defined\<close>
   \<comment> \<open>current method\<close>
   \<comment> \<open>program counter within frame\<close>
-  \<comment> \<open>indicates initialization call frame status\<close>
+  \<comment> \<open>indicates frame's initialization call status\<close>
 
 translations
   (type) "frame" <= (type) "val list \<times> val list \<times> char list \<times> char list \<times> nat \<times> init_call_status"
@@ -70,7 +70,7 @@ subsection \<open> Runtime State \<close>
 
 type_synonym
   jvm_state = "addr option \<times> heap \<times> frame list \<times> sheap"  
-  \<comment> \<open>exception flag, heap, frames, information about statics\<close>
+  \<comment> \<open>exception flag, heap, frames, static heap\<close>
 
 translations
   (type) "jvm_state" <= (type) "nat option \<times> heap \<times> frame list \<times> sheap"

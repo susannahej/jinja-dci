@@ -103,18 +103,18 @@ fun is_relevant_class :: "instr \<Rightarrow> 'm prog \<Rightarrow> cname \<Righ
             \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Getstatic:
     "is_relevant_class (Getstatic C F D)
-     = (\<lambda>P C. True \<comment> \<open>P \<turnstile> NoSuchFieldError \<preceq>^* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>^* C\<close>)"
+     = (\<lambda>P C. True)"
 | rel_Putfield:
     "is_relevant_class (Putfield F D)
      = (\<lambda>P C. P \<turnstile> NullPointer \<preceq>\<^sup>* C \<or> P \<turnstile> NoSuchFieldError \<preceq>\<^sup>* C
             \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>\<^sup>* C)" 
 | rel_Putstatic:
     "is_relevant_class (Putstatic C F D)
-     = (\<lambda>P C. True \<comment> \<open>P \<turnstile> NoSuchFieldError \<preceq>^* C \<or> P \<turnstile> IncompatibleClassChangeError \<preceq>^* C\<close>)" 
+     = (\<lambda>P C. True)" 
 | rel_Checkcast:
     "is_relevant_class (Checkcast D)  = (\<lambda>P C. P \<turnstile> ClassCast \<preceq>\<^sup>* C)" 
 | rel_New:
-    "is_relevant_class (New D)        = (\<lambda>P C. True \<comment> \<open>P \<turnstile> OutOfMemory \<preceq>^* C\<close>)"
+    "is_relevant_class (New D)        = (\<lambda>P C. True)"
 | rel_Throw:
     "is_relevant_class Throw          = (\<lambda>P C. True)"
 | rel_Invoke:

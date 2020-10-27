@@ -1,10 +1,11 @@
-(*  Title:      Jinja/JVM/JVMInstructions.thy
+(*  Title:      JinjaDCI/JVM/JVMInstructions.thy
 
-    Original Author:     Gerwin Klein
-    Copyright   2000 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
-    2016-17, UIUC
+    Author:     Gerwin Klein, Susannah Mansky
+    Copyright   2000 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory JVM/JVMInstructions.thy by Gerwin Klein
 *)
+
 section \<open> Instructions of the JVM \<close>
 
 

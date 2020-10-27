@@ -183,7 +183,7 @@ lemma confTs_Err [iff]:
   "P,h \<turnstile> replicate n v [:\<le>\<^sub>\<top>] replicate n Err"
   by (induct n) auto
 
-subsection \<open> valid init_call_status \<close>
+subsection \<open> valid @{text "init_call_status"} \<close>
 
 lemma valid_ics_shupd:
 assumes "P,h,sh \<turnstile>\<^sub>i (C, M, pc, ics)" and "distinct (C'#ics_classes ics)"

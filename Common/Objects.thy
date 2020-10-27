@@ -1,12 +1,9 @@
-(*  Title:      HOL/MicroJava/J/State.thy
+(*  Title:      JinjaDCI/Common/Objects.thy
 
-    Author:     David von Oheimb
-    Copyright   1999 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include statics
-  Susannah Mansky
-  2016-17, UIUC
+    Author:     David von Oheimb, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/Objects.thy by David von Oheimb
 *)
 
 section \<open> Objects and the Heap \<close>
@@ -26,7 +23,7 @@ definition obj_ty  :: "obj \<Rightarrow> ty"
 where
   "obj_ty obj  \<equiv>  Class (fst obj)"
 
-(* initializes a given list of fields *)
+ \<comment> \<open> initializes a given list of fields \<close>
 definition init_fields :: "((vname \<times> cname) \<times> staticb \<times> ty) list \<Rightarrow> fields"
 where
   "init_fields FDTs  \<equiv>  (map_of \<circ> map (\<lambda>((F,D),b,T). ((F,D),default_val T))) FDTs"
@@ -177,45 +174,13 @@ apply(fastforce simp:hext_def)
 done
 (*>*)
 
-text \<open> Code generator setup for @{term "new_Addr"} \<close>
-
-definition gen_new_Addr :: "heap \<Rightarrow> addr \<Rightarrow> addr option"
-where "gen_new_Addr h n \<equiv> if \<exists>a. a \<ge> n \<and> h a = None then Some(LEAST a. a \<ge> n \<and> h a = None) else None"
-
-lemma new_Addr_code_code [code]:
-  "new_Addr h = gen_new_Addr h 0"
-by(simp add: new_Addr_def gen_new_Addr_def split del: if_split cong: if_cong)
-
-lemma gen_new_Addr_code [code]:
-  "gen_new_Addr h n = (if h n = None then Some n else gen_new_Addr h (Suc n))"
-apply(simp add: gen_new_Addr_def)
-apply(rule impI)
-apply(rule conjI)
- apply safe[1]
-  apply(fastforce intro: Least_equality)
- apply(rule arg_cong[where f=Least])
- apply(rule ext)
- apply(case_tac "n = ac")
-  apply simp
- apply(auto)[1]
-apply clarify
-apply(subgoal_tac "a = n")
- apply simp
- apply(rule Least_equality)
- apply auto[2]
-apply(rule ccontr)
-apply(erule_tac x="a" in allE)
-apply simp
-done
-
-
 subsection\<open> Static field information function \<close>
 
 datatype init_state = Done | Processing | Prepared | Error
-	\<comment> \<open>Done = initialized\<close>
-	\<comment> \<open>Processing = currently being initialized\<close>
-	\<comment> \<open>Prepared = uninitialized and not currently being initialized\<close>
-	\<comment> \<open>Error = previous initialization attempt resulted in erroneous state\<close>
+	\<comment> \<open>@{term Done} = initialized\<close>
+	\<comment> \<open>@{term Processing} = currently being initialized\<close>
+	\<comment> \<open>@{term Prepared} = uninitialized and not currently being initialized\<close>
+	\<comment> \<open>@{term Error} = previous initialization attempt resulted in erroneous state\<close>
 
 inductive iprog :: "init_state \<Rightarrow> init_state \<Rightarrow> bool" ("_ \<le>\<^sub>i _" [51,51] 50)
 where
@@ -238,9 +203,13 @@ apply(case_tac i, simp_all)
 apply(case_tac i', simp_all)
 done
 
+subsection\<open> Static Heap \<close>
+
+text \<open>The static heap (sheap) is used for storing information about static
+ field values and initialization status for classes.\<close>
+
 type_synonym
   sheap = "cname \<rightharpoonup> sfields \<times> init_state"
-  \<comment> \<open>For storing information about static field values and initialization status for classes\<close>
 
 translations
  (type) "sheap" <= (type) "char list \<Rightarrow> (sfields \<times> init_state) option"
@@ -249,7 +218,6 @@ definition shext :: "sheap \<Rightarrow> sheap \<Rightarrow> bool" ("_ \<unlhd>\
 where
   "sh \<unlhd>\<^sub>s sh'  \<equiv>  \<forall>C sfs i. sh C = Some(sfs,i) \<longrightarrow> (\<exists>sfs' i'. sh' C = Some(sfs',i') \<and> i \<le>\<^sub>i i')"
 
-subsection \<open> SHeap extension @{text"\<unlhd>\<^sub>s"} \<close>
 
 lemma shextI: "\<forall>C sfs i. sh C = Some(sfs,i) \<longrightarrow> (\<exists>sfs' i'. sh' C = Some(sfs',i') \<and> i \<le>\<^sub>i i') \<Longrightarrow> sh \<unlhd>\<^sub>s sh'"
 (*<*)

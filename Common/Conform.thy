@@ -1,12 +1,9 @@
-(*  Title:      Jinja/J/Conform.thy
+(*  Title:      JinjaDCI/Common/Conform.thy
 
-    Author:     David von Oheimb, Tobias Nipkow
-    Copyright   1999 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include statics
-  Susannah Mansky
-  2017-18, UIUC
+    Author:     David von Oheimb, Tobias Nipkow, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/Conform.thy by David von Oheimb and Tobias Nipkow
 *)
 
 section \<open> Conformance Relations for Type Soundness Proofs \<close>
@@ -197,7 +194,7 @@ lemmas oconf_new = oconf_hext [OF _ hext_new]
 lemmas oconf_upd_obj = oconf_hext [OF _ hext_upd_obj]
 (*>*)
 
-subsection "Static Object conformance"
+subsection "Static object conformance"
 
 lemma soconf_hext: "P,h,C \<turnstile>\<^sub>s obj \<surd> \<Longrightarrow> h \<unlhd> h' \<Longrightarrow> P,h',C \<turnstile>\<^sub>s obj \<surd>"
 (*<*)

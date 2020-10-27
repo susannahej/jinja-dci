@@ -139,7 +139,7 @@ where
 
 | RedSFAcc:
   "\<lbrakk> P \<turnstile> C has F,Static:t in D;
-     sh D = Some (sfs,i); \<comment> \<open>sfs = fst(the(sh D));\<close> 
+     sh D = Some (sfs,i);
      sfs F = Some v \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},(h,l,sh),True\<rangle> \<rightarrow> \<langle>Val v,(h,l,sh),False\<rangle>"
 
@@ -190,7 +190,7 @@ where
 
 | RedSFAss:
   "\<lbrakk> P \<turnstile> C has F,Static:t in D;
-     sh D = Some(sfs,i); \<comment> \<open>sfs = fst(the(sh D)); i = snd(the(sh D));\<close>
+     sh D = Some(sfs,i);
      sfs' = sfs(F\<mapsto>v); sh' = sh(D\<mapsto>(sfs',i)) \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D}:=(Val v),(h,l,sh),True\<rangle> \<rightarrow> \<langle>unit,(h,l,sh'),False\<rangle>"
 
@@ -360,7 +360,7 @@ where
 | InitNonObjectSuperRed:
   "\<lbrakk> sh C = Some(sfs,Prepared);
      C \<noteq> Object;
-     \<comment> \<open>P \<turnstile> C \<prec>^1 D;\<close> class P C = Some (D,r);
+     class P C = Some (D,r);
      sh' = sh(C \<mapsto> (sfs,Processing)) \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>INIT C' (C#Cs,False) \<leftarrow> e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>INIT C' (D#C#Cs,False) \<leftarrow> e,(h,l,sh'),b\<rangle>"
 
@@ -372,7 +372,7 @@ where
   P \<turnstile> \<langle>RI (C,e);Cs \<leftarrow> e\<^sub>0, s, b\<rangle> \<rightarrow> \<langle>RI (C,e');Cs \<leftarrow> e\<^sub>0, s', b'\<rangle>"
 
 | RedRInit:
-  "\<lbrakk> sh C = Some (sfs, i); \<comment> \<open>sfs = fst(the(sh c));\<close>
+  "\<lbrakk> sh C = Some (sfs, i);
      sh' = sh(C \<mapsto> (sfs,Done));
      C' = last(C#Cs) \<rbrakk> \<Longrightarrow>
   P \<turnstile> \<langle>RI (C, Val v);Cs \<leftarrow> e, (h,l,sh), b\<rangle> \<rightarrow> \<langle>INIT C' (Cs,True) \<leftarrow> e, (h,l,sh'), b\<rangle>"

@@ -1,11 +1,8 @@
-(*  Title:      Jinja/J/Expr.thy
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include support for static fields and methods and dynamic class initialization.
-  Susannah Mansky
-  2017, UIUC
+(*  Title:      JinjaDCI/J/Expr.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/Expr.thy by Tobias Nipkow
 *)
 
 section \<open> Expressions \<close>
@@ -35,8 +32,8 @@ datatype 'a exp
   | While "('a exp)" "('a exp)"     ("while '(_') _"     [80,79]70)
   | throw "('a exp)"
   | TryCatch "('a exp)" cname 'a "('a exp)"     ("try _/ catch'(_ _') _"  [0,99,80,79] 70)
-  | INIT cname "cname list" bool "('a exp)" ("INIT _ '(_,_') \<leftarrow> _" [60,60,60,60] 60) \<comment> \<open>internal initialization command: class, preparation flag; command on hold\<close>
-  | RI cname "('a exp)" "cname list" "('a exp)" ("RI '(_,_') ; _ \<leftarrow> _" [60,60,60,60] 60) \<comment> \<open>running of the initialization procedure for class with expression; command on hold\<close>
+  | INIT cname "cname list" bool "('a exp)" ("INIT _ '(_,_') \<leftarrow> _" [60,60,60,60] 60) \<comment> \<open>internal initialization command: class, list of superclasses to initialize, preparation flag; command on hold\<close>
+  | RI cname "('a exp)" "cname list" "('a exp)" ("RI '(_,_') ; _ \<leftarrow> _" [60,60,60,60] 60) \<comment> \<open>running of the initialization procedure for class with expression, classes still to initialize command on hold\<close>
 
 type_synonym
   expr = "vname exp"            \<comment> \<open>Jinja expression\<close>
@@ -151,7 +148,7 @@ lemma [simp]: "fvs(map Val vs) = {}"
 (*<*)by (induct vs) auto(*>*)
 
 
-subsection\<open>Accessing Expression Constructor Arguments\<close>
+subsection\<open>Accessing expression constructor arguments\<close>
 
 fun val_of :: "'a exp \<Rightarrow> val option" where
 "val_of (Val v) = Some v" |
@@ -228,9 +225,12 @@ fun throw_of :: "'a exp \<Rightarrow> 'a exp option" where
 lemma throw_of_spec: "throw_of e = Some e' \<Longrightarrow> e = throw e'"
 proof(cases e) qed(auto)
 
-subsection\<open>Class Initialization Information\<close>
+subsection\<open>Class initialization\<close>
 
-(* True if expression contains INIT, RI, or a call to a static method "clinit" *)
+text \<open> This section defines a few functions that return information
+ about an expression's current initialization status. \<close>
+
+ \<comment> \<open> True if expression contains @{text INIT}, @{text RI}, or a call to a static method @{term clinit} \<close>
 primrec sub_RI :: "'a exp \<Rightarrow> bool" and sub_RIs :: "'a exp list \<Rightarrow> bool" where
   "sub_RI(new C) = False"
 | "sub_RI(Cast C e) = sub_RI e"
@@ -273,7 +273,7 @@ lemma lass_val_of_nsub_RI: "lass_val_of e = \<lfloor>a\<rfloor> \<Longrightarrow
  by(drule lass_val_of_spec, simp)
 
 
-(* is not currently initializing class C' (point past checking flag) *)
+ \<comment> \<open> is not currently initializing class @{text C'} (point past checking flag) \<close>
 primrec not_init :: "cname \<Rightarrow> 'a exp \<Rightarrow> bool" and not_inits :: "cname \<Rightarrow> 'a exp list \<Rightarrow> bool" where
   "not_init C' (new C) = True"
 | "not_init C' (Cast C e) = not_init C' e"
@@ -316,7 +316,7 @@ done
 
 subsection\<open>Subexpressions\<close>
 
-(* all smaller subexps *)
+ \<comment> \<open> all strictly smaller subexpressions; does not include self \<close>
  primrec subexp :: "'a exp \<Rightarrow> 'a exp set" and subexps :: "'a exp list \<Rightarrow> 'a exp set" where
   "subexp(new C) = {}"
 | "subexp(Cast C e) = {e} \<union> subexp e"
@@ -357,7 +357,7 @@ qed(auto)
 
 lemma subexps_def2: "subexps es = set es \<union> (\<Union>e \<in> set es. subexp e)" by(induct es, auto)
 
-(* Strong Induction *)
+ \<comment> \<open> strong induction \<close>
 lemma shows subexp_induct[consumes 1]: 
 "(\<And>e. subexp e = {} \<Longrightarrow> R e) \<Longrightarrow> (\<And>e. (\<And>e'. e' \<in> subexp e \<Longrightarrow> R e') \<Longrightarrow> R e)
    \<Longrightarrow> (\<And>es. (\<And>e'. e' \<in> subexps es \<Longrightarrow> R e') \<Longrightarrow> Rs es) \<Longrightarrow> (\<forall>e'. e' \<in> subexp e \<longrightarrow> R e') \<and> R e"

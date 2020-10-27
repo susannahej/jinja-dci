@@ -1,19 +1,14 @@
-(*  Title:      HOL/MicroJava/J/Decl.thy
+(*  Title:      JinjaDCI/Common/Decl.thy
 
-    Author:     David von Oheimb
-    Copyright   1999 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include statics
-  Susannah Mansky
-  2016-17, UIUC
+    Author:     David von Oheimb, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/Decl.thy by David von Oheimb
 *)
 
 section \<open> Class Declarations and Programs \<close>
 
 theory Decl imports Type begin
-
-datatype staticb = Static | NonStatic
 
 type_synonym 
   fdecl    = "vname \<times> staticb \<times> ty"        \<comment> \<open>field declaration\<close>
@@ -41,16 +36,6 @@ definition "class" :: "'m prog \<Rightarrow> cname \<rightharpoonup> 'm class"
 where
   "class  \<equiv>  map_of"
 
-definition clinit :: "string" where "clinit = ''<clinit>''"
-definition init :: "string" where "init = ''<init>''"
-
-definition start_m :: "string" where "start_m = ''<start>''"
-definition Start :: "string" where "Start = ''<Start>''"
-
-lemma [simp]: "start_m \<noteq> clinit" by(simp add: start_m_def clinit_def)
-lemma [simp]: "Object \<noteq> Start" by(simp add: Object_def Start_def)
-lemma [simp]: "Start \<noteq> Object" by(simp add: Object_def Start_def)
-
 (* Not difficult to prove, but useful for directing particular sequences of equality -SM *)
 lemma class_cons: "\<lbrakk> C \<noteq> fst x \<rbrakk> \<Longrightarrow> class (x # P) C = class P C"
  by (simp add: class_def)
@@ -60,7 +45,6 @@ where
   "is_class P C  \<equiv>  class P C \<noteq> None"
 
 lemma finite_is_class: "finite {C. is_class P C}"
-
 (*<*)
 apply (unfold is_class_def class_def)
 apply (fold dom_def)

@@ -1,9 +1,8 @@
-(*  Title:      HOL/MicroJava/JVM/JVMDefensive.thy
-    Author:     Gerwin Klein
-    Copyright   GPL
+(*  Title:      JinjaDCI/JVM/JVMDefensive.thy
+    Author:     Gerwin Klein, Susannah Mansky
+    Copyright   GPL, UIUC
 
-    Expanded to include static instructions and dynamic class initialization by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory JVM/JVMDefensive.thy by Gerwin Klein
 *)
 
 section \<open> A Defensive JVM \<close>

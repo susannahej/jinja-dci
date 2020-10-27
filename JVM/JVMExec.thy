@@ -1,9 +1,9 @@
 
-(*  Title:      Jinja/JVM/JVMExec.thy
-    Original file by: Cornelia Pusch, Gerwin Klein
-    Copyright   1999 Technische Universitaet Muenchen
-    Expanded to include statics and class initialization by Susannah Mansky
-    2016-18, UIUC
+(*  Title:      JinjaDCI/JVM/JVMExec.thy
+    Author: Cornelia Pusch, Gerwin Klein, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20
+
+    Based on the Jinja theory JVM/JVMExec.thy by Cornelia Pusch and Gerwin Klein
 *)
 
 section \<open> Program Execution in the JVM in full small step style \<close>
@@ -19,7 +19,7 @@ abbreviation
 fun curr_instr :: "jvm_prog \<Rightarrow> frame \<Rightarrow> instr" where
 "curr_instr P (stk,loc,C,M,pc,ics) = instrs_of P C M ! pc"
 
-(* execution of single step of the initialization procedure *)
+\<comment> \<open> execution of single step of the initialization procedure \<close>
 fun exec_Calling :: "[cname, cname list, jvm_prog, heap, val list, val list,
                   cname, mname, pc, frame list, sheap] \<Rightarrow> jvm_state"
 where
@@ -41,7 +41,7 @@ where
           )
   )"
 
-(* single step of execution without error handling *)
+\<comment> \<open> single step of execution without error handling \<close>
 fun exec_step :: "[jvm_prog, heap, val list, val list,
                   cname, mname, pc, init_call_status, frame list, sheap] \<Rightarrow> jvm_state"
 where
@@ -56,7 +56,7 @@ where
 "exec_step P h stk loc C M pc ics frs sh
    = exec_instr (instrs_of P C M ! pc) P h stk loc C M pc ics frs sh"
 
-(* execution including error handling *)
+\<comment> \<open> execution including error handling \<close>
 fun exec :: "jvm_prog \<times> jvm_state \<Rightarrow> jvm_state option" \<comment> \<open>single step execution\<close> where
 "exec (P, None, h, (stk,loc,C,M,pc,ics)#frs, sh) =
    (let (xp', h', frs', sh') = exec_step P h stk loc C M pc ics frs sh
@@ -79,7 +79,6 @@ where
 \<comment> \<open>reflexive transitive closure:\<close>
 definition exec_all :: "jvm_prog \<Rightarrow> jvm_state \<Rightarrow> jvm_state \<Rightarrow> bool"
     ("(_ \<turnstile>/ _ -jvm\<rightarrow>/ _)" [61,61,61]60) where
-(* FIXME exec_all \<rightarrow> exec_star, also in Def.JVM *)
   exec_all_def1: "P \<turnstile> \<sigma> -jvm\<rightarrow> \<sigma>' \<longleftrightarrow> (\<sigma>,\<sigma>') \<in> (exec_1 P)\<^sup>*"
 
 notation (ASCII)
@@ -139,6 +138,8 @@ apply(drule (1) exec_all_conf)
 apply(blast dest!: exec_all_finalD)
 done
 (*>*)
+
+subsection "Preservation of preallocated"
 
 lemma exec_Calling_prealloc_pres:
 assumes "preallocated h"
@@ -200,6 +201,12 @@ proof(cases "\<exists>x. xp = \<lfloor>x\<rfloor> \<or> frs = []")
   qed(auto split: init_call_status.splits)
 qed(auto)
 
+subsection "Start state"
+
+text \<open> The @{term Start} class is defined based on a given initial class
+ and method. It has two methods: one that calls the initial method in the
+ initial class, which is called by the starting program, and @{term clinit},
+ as required for the class to be well-formed. \<close>
 definition start_method :: "cname \<Rightarrow> mname \<Rightarrow> jvm_method mdecl" where
 "start_method C M = (start_m, Static, [], Void, (1,0,[Invokestatic C M 0,Return],[]))"
 abbreviation start_clinit :: "jvm_method mdecl" where
@@ -211,13 +218,13 @@ text \<open>
   The start configuration of the JVM in program @{text P}:
   in the start heap, we call the ``start'' method of the
   ``Start''; this method performs @{text Invokestatic} on the
-  class and method given to create the start program's Start class.
+  class and method given to create the start program's @{term Start} class.
   This allows the initialization procedure to be called on the
   initial class in a natural way before the initial method is performed. 
-  There is no @{text this} pointer of the frame as start is Static.
+  There is no @{text this} pointer of the frame as @{term start} is @{term Static}.
   The start sheap has every class pre-prepared; this decision is not
   necessary.
-  The starting program includes the added Start class, given a 
+  The starting program includes the added @{term Start} class, given a 
   method @{text M} of class @{text C}, added to program @{text P}.
 \<close>
 definition start_state :: "jvm_prog \<Rightarrow> jvm_state" where

@@ -1,11 +1,9 @@
-(*  Title:      HOL/MicroJava/J/SystemClasses.thy
+(*  Title:     JinjaDCI/Common/SystemClasses.thy
 
-    Author:     Gerwin Klein
-    Copyright   2002 Technische Universitaet Muenchen
+    Author:     Gerwin Klein, Susannah Mansky
+    Copyright   2002 Technische Universitaet Muenchen, 2019-20 UIUC
     
-    Added more exception types
-    Susannah Mansky
-    2017, UIUC
+    Based on the Jinja theory Common/SystemClasses.thy by Gerwin Klein
 *)
 
 section \<open> System Classes \<close>

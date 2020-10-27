@@ -1,11 +1,8 @@
-(*  Title:      Jinja/Common/TypeRel.thy
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include statics
-  Susannah Mansky
-  2016-17, UIUC
+(*  Title:      JinjaDCI/Common/TypeRel.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/TypeRel.thy by Tobias Nipkow
 *)
 
 section \<open> Relations between Jinja Types \<close>
@@ -13,7 +10,6 @@ section \<open> Relations between Jinja Types \<close>
 theory TypeRel imports 
   "HOL-Library.Transitive_Closure_Table"
   Decl
-  "../MapOfThy"
 begin
 
 subsection \<open> The subclass relations \<close>
@@ -67,20 +63,6 @@ primrec supercls_lst :: "'m prog \<Rightarrow> cname list \<Rightarrow> bool" wh
 lemma supercls_lst_app:
  "\<lbrakk> supercls_lst P (C#Cs); P \<turnstile> C \<preceq>\<^sup>* C' \<rbrakk> \<Longrightarrow> supercls_lst P (C'#C#Cs)"
  by auto
-(*
-lemma subcls_is_class: "(C,D) \<in> (subcls1 P)\<^sup>+ \<Longrightarrow> is_class P C"
-apply (unfold is_class_def)
-apply(erule trancl_trans_induct)
-apply (auto dest!: subcls1D)
-done
-
-lemma subcls_is_class: "P \<turnstile> C \<preceq>\<^sup>* D \<Longrightarrow> is_class P D \<longrightarrow> is_class P C"
-apply (unfold is_class_def)
-apply (erule rtrancl_induct)
-apply  (drule_tac [2] subcls1D)
-apply  auto
-done
-*)
 
 subsection\<open> The subtype relations \<close>
 
@@ -396,7 +378,7 @@ assumes sub: "P \<turnstile> C has_fields FDTs"
 shows "\<lbrakk> P \<turnstile> C \<preceq>\<^sup>* D; class P D = Some(D',fs,ms); (F,b,T) \<in> set fs \<rbrakk>
        \<Longrightarrow> ((F,D),b,T) \<in> set FDTs"
 (*<*)
-using sub apply(induct, simp_all)
+using sub apply(induct)
  apply(simp add:image_def)
  apply(erule converse_rtranclE)
   apply(force)
@@ -480,10 +462,10 @@ done
 
 lemma has_fields_declaring_classes:
 shows "P \<turnstile> C has_fields FDTs
-         \<Longrightarrow> \<exists>pre FDTs'. FDTs = pre@FDTs'
-                 \<and> (C \<noteq> Object \<longrightarrow> (\<exists>D fs ms. class P C = \<lfloor>(D,fs,ms)\<rfloor> \<and> P \<turnstile> D has_fields FDTs'))
-                     \<and> set(map (\<lambda>t. snd(fst t)) pre) \<subseteq> {C}
-                        \<and> set(map (\<lambda>t. snd(fst t)) FDTs') \<subseteq> {C'. C' \<noteq> C \<and> P \<turnstile> C \<preceq>\<^sup>* C'}"
+ \<Longrightarrow> \<exists>pre FDTs'. FDTs = pre@FDTs'
+         \<and> (C \<noteq> Object \<longrightarrow> (\<exists>D fs ms. class P C = \<lfloor>(D,fs,ms)\<rfloor> \<and> P \<turnstile> D has_fields FDTs'))
+             \<and> set(map (\<lambda>t. snd(fst t)) pre) \<subseteq> {C}
+                \<and> set(map (\<lambda>t. snd(fst t)) FDTs') \<subseteq> {C'. C' \<noteq> C \<and> P \<turnstile> C \<preceq>\<^sup>* C'}"
 proof(induct rule:Fields.induct)
   case (has_fields_rec C D fs ms FDTs FDTs')
   have sup1: "P \<turnstile> C \<prec>\<^sup>1 D" using has_fields_rec.hyps(1,2) by (simp add: subcls1.subcls1I)
@@ -505,15 +487,14 @@ proof(cases "C = Object")
   case False
   let ?pre = "map (\<lambda>(F,b,T). ((F,C),b,T)) fs"
   have sub: "P \<turnstile> C \<preceq>\<^sup>* D" using cls False by (simp add: r_into_rtrancl subcls1.subcls1I)
-  obtain FDTs' where fdts': "P \<turnstile> D has_fields FDTs' \<and> FDTs = ?pre @ FDTs'"
+  obtain FDTs' where fdts': "P \<turnstile> D has_fields FDTs'" "FDTs = ?pre @ FDTs'"
     using False assms(1,2) Fields.simps[of P C FDTs] by clarsimp
   then have int: "dom (map_of ?pre) \<inter> dom (map_of FDTs') = {}"
     using has_fields_mono_lem[OF sub, of FDTs'] has_fields_fun[OF hf] by fastforce
   have "C \<notin> (\<lambda>t. snd (fst t)) ` set FDTs'"
-    using has_fields_declaring_classes[OF hf] cls False fdts'
-      apply clarsimp
-      apply(drule (1) has_fields_fun)
-      by auto
+    using has_fields_declaring_classes[OF hf] cls False
+          has_fields_fun[OF fdts'(1)] fdts'(2)
+      by clarify auto
   then have "map_of FDTs' (F,C) = None" by(rule map_of_set_pcs_notin)
   then show ?thesis using fdts' int by simp
 qed(auto dest: has_fields_Object has_fields_fun)
@@ -528,7 +509,6 @@ lemma Object_fields:
  by(drule Fields.cases, auto simp: map_of_reinsert_neq_None)
 
 
-(* FIXME why is Field not displayed correctly? TypeRel qualifier seems to confuse printer*)
 definition has_field :: "'m prog \<Rightarrow> cname \<Rightarrow> vname \<Rightarrow> staticb \<Rightarrow> ty \<Rightarrow> cname \<Rightarrow> bool"
                    ("_ \<turnstile> _ has _,_:_ in _" [51,51,51,51,51,51] 50)
 where
@@ -667,6 +647,14 @@ qed
 lemma has_field_sees: "P \<turnstile> C has F,b:T in C \<Longrightarrow> P \<turnstile> C sees F,b:T in C"
  by(auto simp:has_field_def sees_field_def has_field_sees_aux)
 
+lemma has_field_is_class:
+ "P \<turnstile> C has F,b:T in D \<Longrightarrow> is_class P C"
+(*<*)by (auto simp add: is_class_def has_field_def elim: Fields.induct)(*>*)
+
+lemma has_field_is_class':
+ "P \<turnstile> C has F,b:T in D \<Longrightarrow> is_class P D"
+(*<*)by(drule has_field_idemp, rule has_field_is_class, assumption)(*>*)
+
 subsection "Functional lookup"
 
 definition "method" :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> cname \<times> staticb \<times> ty list \<times> ty \<times> 'm"
@@ -691,19 +679,9 @@ lemma method_def2 [simp]: "P \<turnstile> C sees M,b: Ts\<rightarrow>T = m in D 
 (*<*)by (unfold method_def) (auto dest: sees_method_fun)(*>*)
 
 
-definition seeing_class :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> cname option" where
-"seeing_class P C M =
-  (if \<exists>Ts T m D. P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D
- then Some (fst(method P C M))
- else None)"
+text \<open> The following are the fields for initializing an object (non-static fields)
+ and a class (just that class's static fields), respectively. \<close>
 
-lemma seeing_class_def2[simp]:
- "P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D \<Longrightarrow> seeing_class P C M = Some D"
- by(fastforce simp: seeing_class_def)
-
-
-(* the two below defs are the fields for initializing an object (non-static fields) and
- a class (just that class's static fields), respectively *)
 definition ifields :: "'m prog \<Rightarrow> cname \<Rightarrow> ((vname \<times> cname) \<times> staticb \<times> ty) list" 
 where
   "ifields P C  \<equiv>  filter (\<lambda>((F,D),b,T). b = NonStatic) (fields P C)"
@@ -725,131 +703,15 @@ lemma isfields_def3: "\<lbrakk> P \<turnstile> C sees F,b:T in D; b = Static; D 
 (*<*) by (unfold isfields_def) (auto simp: sees_field_def map_of_SomeD map_of_remap_SomeD2) (*>*)
 
 
-lemma has_field_is_class:
- "P \<turnstile> C has F,b:T in D \<Longrightarrow> is_class P C"
-(*<*)by (auto simp add: is_class_def has_field_def elim: Fields.induct)(*>*)
+definition seeing_class :: "'m prog \<Rightarrow> cname \<Rightarrow> mname \<Rightarrow> cname option" where
+"seeing_class P C M =
+  (if \<exists>Ts T m D. P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D
+ then Some (fst(method P C M))
+ else None)"
 
-lemma has_field_is_class':
- "P \<turnstile> C has F,b:T in D \<Longrightarrow> is_class P D"
-(*<*)by(drule has_field_idemp, rule has_field_is_class, assumption)(*>*)
-
-
-subsection "Code generator setup"
-
-code_pred 
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> bool)
-  subcls1p 
-.
-declare subcls1_def [code_pred_def]
-
-code_pred 
-  (modes: i \<Rightarrow> i \<times> o \<Rightarrow> bool, i \<Rightarrow> i \<times> i \<Rightarrow> bool)
-  [inductify]
-  subcls1 
-.
-definition subcls' where "subcls' G = (subcls1p G)^**"
-code_pred
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> bool)
-  [inductify]
-  subcls'
-.
-
-lemma subcls_conv_subcls' [code_unfold]:
-  "(subcls1 G)^* = {(C, D). subcls' G C D}"
-  by (simp add: subcls'_def subcls1_def rtrancl_def)
-
-code_pred 
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool)
-  widen 
-.
-
-code_pred 
-  (modes: i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> bool)
-  Fields
-.
-
-lemma has_field_code [code_pred_intro]:
-  "\<lbrakk> P \<turnstile> C has_fields FDTs; map_of FDTs (F, D) = \<lfloor>(b,T)\<rfloor> \<rbrakk>
-  \<Longrightarrow> P \<turnstile> C has F,b:T in D"
-by(auto simp add: has_field_def)
-
-code_pred 
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool)
-  has_field
-by(auto simp add: has_field_def)
-
-lemma sees_field_code [code_pred_intro]:
-  "\<lbrakk> P \<turnstile> C has_fields FDTs; map_of (map (\<lambda>((F, D), b, T). (F, D, b, T)) FDTs) F = \<lfloor>(D, b, T)\<rfloor> \<rbrakk>
-  \<Longrightarrow> P \<turnstile> C sees F,b:T in D"
-by(auto simp add: sees_field_def)
-
-code_pred 
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> o \<Rightarrow> o \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> o \<Rightarrow> i \<Rightarrow> bool,
-          i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> i \<Rightarrow> bool,
-          i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> bool, i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool)
-  sees_field
-by(auto simp add: sees_field_def)
-
-code_pred
-  (modes: i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> bool)
-  Methods
-.
-
-lemma Method_code [code_pred_intro]:
-  "\<lbrakk> P \<turnstile> C sees_methods Mm; Mm M = \<lfloor>((b, Ts, T, m), D)\<rfloor> \<rbrakk>
-  \<Longrightarrow> P \<turnstile> C sees M,b: Ts\<rightarrow>T = m in D"
-by(auto simp add: Method_def)
-
-code_pred
-  (modes: i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> o \<Rightarrow> o \<Rightarrow> o \<Rightarrow> o \<Rightarrow> o \<Rightarrow> bool,
-          i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> bool)
-  Method
-by(auto simp add: Method_def)
-
-lemma eval_Method_i_i_i_o_o_o_o_o_conv:
-  "Predicate.eval (Method_i_i_i_o_o_o_o_o P C M) = (\<lambda>(b, Ts, T, m, D). P \<turnstile> C sees M,b:Ts\<rightarrow>T=m in D)"
-by(auto intro: Method_i_i_i_o_o_o_o_oI elim: Method_i_i_i_o_o_o_o_oE intro!: ext)
-
-lemma method_code [code]:
-  "method P C M = 
-  Predicate.the (Predicate.bind (Method_i_i_i_o_o_o_o_o P C M) (\<lambda>(b, Ts, T, m, D). Predicate.single (D, b, Ts, T, m)))"
-apply (rule sym, rule the_eqI)
-apply (simp add: method_def eval_Method_i_i_i_o_o_o_o_o_conv)
-apply (rule arg_cong [where f=The])
-apply (auto simp add: Sup_fun_def Sup_bool_def fun_eq_iff)
-done
-
-lemma eval_Fields_conv:
-  "Predicate.eval (Fields_i_i_o P C) = (\<lambda>FDTs. P \<turnstile> C has_fields FDTs)"
-by(auto intro: Fields_i_i_oI elim: Fields_i_i_oE intro!: ext)
-
-lemma fields_code [code]:
-  "fields P C = Predicate.the (Fields_i_i_o P C)"
-by(simp add: fields_def Predicate.the_def eval_Fields_conv)
-
-lemma eval_sees_field_i_i_i_o_o_o_conv:
-  "Predicate.eval (sees_field_i_i_i_o_o_o P C F) = (\<lambda>(b, T, D). P \<turnstile> C sees F,b:T in D)"
-by(auto intro!: ext intro: sees_field_i_i_i_o_o_oI elim: sees_field_i_i_i_o_o_oE)
-
-lemma eval_sees_field_i_i_i_o_o_i_conv:
-  "Predicate.eval (sees_field_i_i_i_o_o_i P C F D) = (\<lambda>(b, T). P \<turnstile> C sees F,b:T in D)"
-by(auto intro!: ext intro: sees_field_i_i_i_o_o_iI elim: sees_field_i_i_i_o_o_iE)
-
-lemma eval_sees_field_i_i_i_o_i_i_conv:
-  "Predicate.eval (sees_field_i_i_i_o_i_i P C F T D) = (\<lambda>b. P \<turnstile> C sees F,b:T in D)"
-by(auto intro!: ext intro: sees_field_i_i_i_o_i_iI elim: sees_field_i_i_i_o_i_iE)
-
-lemma eval_sees_field_i_i_i_i_o_i_conv:
-  "Predicate.eval (sees_field_i_i_i_i_o_i P C F b D) = (\<lambda>T. P \<turnstile> C sees F,b:T in D)"
-by(auto intro!: ext intro: sees_field_i_i_i_i_o_iI elim: sees_field_i_i_i_i_o_iE)
-
-lemma field_code [code]:
-  "field P C F = Predicate.the (Predicate.bind (sees_field_i_i_i_o_o_o P C F) (\<lambda>(b, T, D). Predicate.single (D, b, T)))"
-apply (rule sym, rule the_eqI)
-apply (simp add: field_def eval_sees_field_i_i_i_o_o_o_conv)
-apply (rule arg_cong [where f=The])
-apply (auto simp add: Sup_fun_def Sup_bool_def fun_eq_iff)
-done
+lemma seeing_class_def2[simp]:
+ "P \<turnstile> C sees M,Static:Ts\<rightarrow>T = m in D \<Longrightarrow> seeing_class P C M = Some D"
+ by(fastforce simp: seeing_class_def)
 
 (*<*)
 end

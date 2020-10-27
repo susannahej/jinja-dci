@@ -1,10 +1,8 @@
-(*  Title:      HOL/MicroJava/JVM/JVMExceptions.thy
-    Author:     Gerwin Klein, Martin Strecker
-    Copyright   2001 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include statics and dynamic class initialization by Susannah Mansky
-  2016-17, UIUC
+(*  Title:      JinjaDCI/JVM/JVMExceptions.thy
+    Author:     Gerwin Klein, Martin Strecker, Susannah Mansky
+    Copyright   2001 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory JVM/JVMExceptions.thy by Gerwin Klein and Martin Strecker
 *)
 
 section \<open> Exception handling in the JVM \<close>

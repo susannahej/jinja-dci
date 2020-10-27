@@ -1,12 +1,9 @@
-(*  Title:      Jinja/J/State.thy
+(*  Title:      JinjaDCI/J/State.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include support for static fields and methods.
-  Susannah Mansky
-  2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/State.thy by Tobias Nipkow
 *)
 
 section \<open> Program State \<close>

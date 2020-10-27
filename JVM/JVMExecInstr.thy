@@ -1,9 +1,9 @@
 
-(*  Title:      Jinja/JVM/JVMExecInstr.thy
-    Original file by: Cornelia Pusch, Gerwin Klein
+(*  Title:      JinjaDCI/JVM/JVMExecInstr.thy
+    Author: Cornelia Pusch, Gerwin Klein, Susannah Mansky
     Copyright   1999 Technische Universitaet Muenchen
-    Expanded to include statics and class initialization by Susannah Mansky
-    2016-17, UIUC
+
+    Based on the Jinja theory JVM/JVMExecInstr.thy by Cornelia Pusch and Gerwin Klein
 *)
 
 section \<open> Program Execution in the JVM \<close>
@@ -12,6 +12,8 @@ theory JVMExecInstr
 imports JVMInstructions JVMExceptions
 begin
 
+ \<comment> \<open> frame calling the class initialization method for the given class
+ in the given program \<close>
 fun create_init_frame :: "[jvm_prog, cname] \<Rightarrow> frame" where
 "create_init_frame P C =
   (let (D,b,Ts,T,(mxs,mxl\<^sub>0,ins,xt)) = method P C clinit
@@ -199,8 +201,8 @@ where
 
 
 
-(* Given preallocated heap, a thrown exception is either a system exception or
-   thrown directly by Throw *)
+text "Given a preallocated heap, a thrown exception is either a system exception or
+   thrown directly by @{term Throw}."
 lemma exec_instr_xcpts:
 assumes "\<sigma>' = exec_instr i P h stk loc C M pc ics' frs sh"
   and "fst \<sigma>' = Some a"

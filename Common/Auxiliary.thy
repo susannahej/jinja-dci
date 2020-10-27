@@ -1,7 +1,9 @@
-(*  Title:      Jinja/Common/Basis.thy
+(*  Title:      JinjaDCI/Common/Auxiliary.thy
 
-    Author:     David von Oheimb, Tobias Nipkow
-    Copyright   1999 TU Muenchen
+    Author:     David von Oheimb, Tobias Nipkow, Susannah Mansky
+    Copyright   1999 TU Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Common/Auxiliary.thy by David von Oheimb and Tobias Nipkow
 *)
 
 chapter \<open> Jinja Source Language \label{cha:j} \<close>
@@ -51,16 +53,7 @@ apply (unfold distinct_fst_def)
 apply (auto simp:image_def)
 done
 (*>*)
-(*
-lemma distinct_fst_append:
- "\<lbrakk> distinct_fst kxs'; distinct_fst kxs; \<forall>(k,x) \<in> set kxs. \<forall>(k',x') \<in> set kxs'. k' \<noteq> k \<rbrakk>
-  \<Longrightarrow> distinct_fst(kxs @ kxs')"
-by (induct kxs) (auto dest: fst_in_set_lemma)
 
-lemma distinct_fst_map_inj:
-  "\<lbrakk> distinct_fst kxs; inj f \<rbrakk> \<Longrightarrow> distinct_fst (map (\<lambda>(k,x). (f k, g k x)) kxs)"
-by (induct kxs) (auto dest: fst_in_set_lemma simp: inj_eq)
-*)
 lemma distinct_fst_appendD:
  "distinct_fst(kxs @ kxs') \<Longrightarrow> distinct_fst kxs \<and> distinct_fst kxs'"
 by(induct kxs, auto)
@@ -124,5 +117,62 @@ lemma rel_list_all2I:
   (*<*)by (erule list_all2_all_nthI) simp(*>*)
 
 (*<*)declare fun_of_def [simp del](*>*)
+
+section \<open> Auxiliary properties of @{text "map_of"} function \<close>
+
+
+lemma map_of_set_pcs_notin: "C \<notin> (\<lambda>t. snd (fst t)) ` set FDTs \<Longrightarrow> map_of FDTs (F, C) = None"
+  by (metis image_eqI image_image map_of_eq_None_iff snd_conv)
+
+lemma map_of_insertmap_SomeD':
+  "map_of fs F = Some y \<Longrightarrow> map_of (map (\<lambda>(F, y). (F, D, y)) fs) F = Some(D,y)"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+lemma map_of_reinsert_neq_None:
+  "Ca \<noteq> D \<Longrightarrow> map_of (map (\<lambda>(F, y). ((F, Ca), y)) fs) (F, D) = None"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+lemma map_of_remap_insertmap:
+  "map_of (map ((\<lambda>((F, D), b, T). (F, D, b, T)) \<circ> (\<lambda>(F, y). ((F, D), y))) fs)
+    = map_of (map (\<lambda>(F, y). (F, D, y)) fs)"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+
+lemma map_of_reinsert_SomeD:
+  "map_of (map (\<lambda>(F, y). ((F, D), y)) fs) (F, D) = Some T \<Longrightarrow> map_of fs F = Some T"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+lemma map_of_filtered_SomeD:
+"map_of fs (F,D) = Some (a, T) \<Longrightarrow> Q ((F,D),a,T) \<Longrightarrow>
+       map_of (map (\<lambda>((F,D), b, T). ((F,D), P T)) (filter Q fs))
+        (F,D) = Some (P T)"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+
+lemma map_of_remove_filtered_SomeD:
+"map_of fs (F,C) = Some (a, T) \<Longrightarrow> Q ((F,C),a,T) \<Longrightarrow>
+       map_of (map (\<lambda>((F,D), b, T). (F, P T)) [((F, D), b, T)\<leftarrow>fs . Q ((F, D), b, T) \<and> D = C])
+        F = Some (P T)"
+(*<*)by (induct fs) (auto simp:fun_upd_apply split: if_split_asm)(*>*)
+
+
+lemma map_of_Some_None_split:
+assumes "t = map (\<lambda>(F, y). ((F, C), y)) fs @ t'" "map_of t' (F, C) = None" "map_of t (F, C) = Some y"
+shows "map_of (map (\<lambda>((F, D), b, T). (F, D, b, T)) t) F = Some (C, y)"
+proof -
+  have "map_of (map (\<lambda>(F, y). ((F, C), y)) fs) (F, C) = Some y" using assms by auto
+  then have "\<forall>p. map_of fs F = Some p \<or> Some y \<noteq> Some p"
+    by (metis map_of_reinsert_SomeD)
+  then have "\<forall>f b p pa. ((f ++ map_of (map (\<lambda>(a, p). (a, b::'b, p)) fs)) F = Some p \<or> Some (b, pa) \<noteq> Some p)
+     \<or> Some y \<noteq> Some pa"
+    by (metis (no_types) map_add_find_right map_of_insertmap_SomeD')
+  then have "(map_of (map (\<lambda>((a, b), c, d). (a, b, c, d)) t')
+                     ++ map_of (map (\<lambda>(a, p). (a, C, p)) fs)) F = Some (C, y)"
+    by blast
+  then have "(map_of (map (\<lambda>((a, b), c, d). (a, b, c, d)) t')
+      ++ map_of (map ((\<lambda>((a, b), c, d). (a, b, c, d)) \<circ> (\<lambda>(a, y). ((a, C), y))) fs)) F = Some (C, y)"
+    by (simp add: map_of_remap_insertmap)
+  then show ?thesis using assms by auto
+qed
 
 end
