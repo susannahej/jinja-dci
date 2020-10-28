@@ -1,10 +1,9 @@
-(*  Title:      HOL/MicroJava/BV/EffMono.thy
+(*  Title:      JinjaDCI/BV/EffMono.thy
 
-    Author:     Gerwin Klein
-    Copyright   2000 Technische Universitaet Muenchen
+    Author:     Gerwin Klein, Susannah Mansky
+    Copyright   2000 Technische Universitaet Muenchen, 2019-20 UIUC
 
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory BV/EffectMono.thy by Gerwin Klein
 *)
 
 section \<open> Monotonicity of eff and app \<close>

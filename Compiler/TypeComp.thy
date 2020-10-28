@@ -1,10 +1,9 @@
-(*  Title:      Jinja/Compiler/TypeComp.thy
+(*  Title:      JinjaDCI/Compiler/TypeComp.thy
 
-    Author:     Tobias Nipkow
-    Copyright   TUM 2003
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   TUM 2003, UIUC 2019-20
 
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory Compiler/TypeComp.thy by Tobias Nipkow
 *)
 
 section \<open> Preservation of Well-Typedness \<close>
@@ -216,7 +215,7 @@ next
     by(fastforce simp:hyperset_defs elim!:sup_state_opt_trans)
 next
   case TryCatch thus ?case
-    by(fastforce simp:hyperset_defs intro!:(* ty\<^sub>i'_env_antimono *) ty\<^sub>i'_incr
+    by(fastforce simp:hyperset_defs intro!: ty\<^sub>i'_incr
                 elim!:sup_state_opt_trans)
 qed (auto simp:hyperset_defs)
 
@@ -1282,10 +1281,10 @@ lemma [simp]: "app\<^sub>i (i, compP f P, pc, mpc, T, \<tau>) = app\<^sub>i (i, 
   apply (cases \<tau>)  
   apply (cases i)
   apply auto
-(* Invoke *)
+\<comment> \<open> Invoke \<close>
    apply (fastforce dest!: sees_method_compPD)
   apply (force dest: sees_method_compP)
-(* Invokestatic *)
+\<comment> \<open> Invokestatic \<close>
    apply (force dest!: sees_method_compPD)
   apply (force dest: sees_method_compP)
   done
@@ -1433,7 +1432,7 @@ theorem wt_compP\<^sub>2:
    prefer 2 apply assumption
   apply (simp add: compTP_def) apply(rename_tac C M b Ts T m)
   apply(case_tac b)
-(* Static *)
+\<comment> \<open> Static \<close>
   apply (clarsimp simp add: wf_mdecl_def)
   apply (rule TC2.compT_method_Static [simplified])
          apply (rule refl)
@@ -1446,7 +1445,7 @@ theorem wt_compP\<^sub>2:
    apply (simp add: wf_mdecl_def)
    apply (blast intro: sees_method_is_class)
   apply assumption
-(* NonStatic *)
+\<comment> \<open> NonStatic \<close>
   apply (clarsimp simp add: wf_mdecl_def)
   apply (rule TC2.compT_method_NonStatic [simplified])
          apply (rule refl)

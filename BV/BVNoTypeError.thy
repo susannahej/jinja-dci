@@ -361,8 +361,7 @@ theorem (in cnf) no_type_errors:
   apply clarsimp
   apply (drule defensive_imp_aggressive)
   apply (frule (2) BV_correct)
-  apply (drule (1) no_type_error) back
-  apply (auto simp add: exec_1_d_eq)
+  apply (auto simp add: exec_1_d_eq dest: no_type_error)
   done
 
 locale start =

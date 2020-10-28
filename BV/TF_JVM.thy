@@ -1,10 +1,9 @@
-(*  Title:      HOL/MicroJava/BV/JVM.thy
+(*  Title:      JinjaDCI/BV/TF_JVM.thy
 
-    Author:     Tobias Nipkow, Gerwin Klein
-    Copyright   2000 TUM
+    Author:     Tobias Nipkow, Gerwin Klein, Susannah Mansky
+    Copyright   2000 TUM, 2019-20 UIUC
 
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory BV/TF_JVM.thy by Tobias Nipkow and Gerwin Klein
 *)
 
 section \<open> The Typing Framework for the JVM \label{sec:JVM} \<close>
@@ -114,7 +113,6 @@ theorem (in start_context) exec_pres_type:
 
   \<comment> \<open>Getfield\<close>
   apply (fastforce dest: sees_field_is_type)
-
 
   \<comment> \<open>Getstatic\<close>
   apply (fastforce dest: sees_field_is_type)
