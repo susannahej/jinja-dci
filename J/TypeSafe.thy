@@ -1,12 +1,9 @@
-(*  Title:      Jinja/J/SmallTypeSafe.thy
+(*  Title:      JinjaDCI/J/TypeSafe.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include support for static fields and methods and dynamic class initialization.
-  Susannah Mansky
-  2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/TypeSafe.thy by Tobias Nipkow
 *)
 
 section \<open> Type Safety Proof \<close>
@@ -15,6 +12,7 @@ theory TypeSafe
 imports Progress BigStep SmallStep JWellForm
 begin
 
+(* here because it requires well-typing def *)
 lemma red_shext_incr: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>
   \<Longrightarrow> (\<And>E T. P,E,h,sh \<turnstile> e : T \<Longrightarrow> sh \<unlhd>\<^sub>s sh')"
   and reds_shext_incr: "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle>
@@ -569,27 +567,7 @@ and subjects_reduction2: "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<righ
             \<Longrightarrow> \<exists>Ts'. P,E,h',sh' \<turnstile> es' [:] Ts' \<and> P \<turnstile> Ts' [\<le>] Ts)"
 (*<*)
 proof (induct rule:red_reds_inducts)
-  case (RedCall h a C fs M Ts T pns body D vs l sh b E T')
-  have hp: "h a = Some(C,fs)"
-   and "method": "P \<turnstile> C sees M,NonStatic: Ts\<rightarrow>T = (pns,body) in D"
-   and wt: "P,E,h,sh \<turnstile> addr a\<bullet>M(map Val vs) : T'" by fact+
-  obtain Ts' where wtes: "P,E,h,sh \<turnstile> map Val vs [:] Ts'"
-    and subs: "P \<turnstile> Ts' [\<le>] Ts" and T'isT: "T' = T"
-    using wt "method" hp by (auto dest:sees_method_fun)
-  from wtes subs have length_vs: "length vs = length Ts"
-    by(fastforce simp:list_all2_iff dest!:WTrts_same_length)
-  from sees_wf_mdecl[OF wf "method"] obtain T''
-    where wtabody: "P,[this#pns [\<mapsto>] Class D#Ts] \<turnstile> body :: T''"
-    and T''subT: "P \<turnstile> T'' \<le> T" and length_pns: "length pns = length Ts"
-    by(fastforce simp:wf_mdecl_def simp del:map_upds_twist)
-  from wtabody have "P,Map.empty(this#pns [\<mapsto>] Class D#Ts),h,sh \<turnstile> body : T''"
-    by(rule WT_implies_WTrt)
-  hence "P,E(this#pns [\<mapsto>] Class D#Ts),h,sh \<turnstile> body : T''"
-    by(rule WTrt_env_mono) simp
-  hence "P,E,h,sh \<turnstile> blocks(this#pns, Class D#Ts, Addr a#vs, body) : T''"
-  using wtes subs hp sees_method_decl_above[OF "method"] length_vs length_pns
-    by(fastforce simp add:wt_blocks rel_list_all2_Cons2)
-  with T''subT T'isT show ?case by blast
+  case RedNew then show ?case by (auto simp: blank_def)
 next
   case RedNewFail thus ?case
     by (unfold sconf_def hconf_def) (fastforce elim!:typeof_OutOfMemory)
@@ -707,6 +685,31 @@ next
     by(fastforce intro: widen_refl WTThrow[OF WTVal] elim!: typeof_NullPointer
                 simp: sconf_def hconf_def)
 next
+  case RedSFAccNone then show ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoSuchFieldError
+      simp: sconf_def hconf_def)
+next
+  case RedFAccStatic then show ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
+      simp: sconf_def hconf_def)
+next
+  case (RedSFAcc C F t D sh sfs i v h l es)
+  then have "P \<turnstile> C has F,Static:T in D" by fast
+  then have dM: "P \<turnstile> D has F,Static:T in D" by(rule has_field_idemp)
+  then show ?case using RedSFAcc by(fastforce simp:sconf_def shconf_def soconf_def conf_def)
+next
+  case SFAccInitDoneRed then show ?case by (meson widen_refl)
+next
+  case (SFAccInitRed C F t D sh h l E T)
+  have "is_class P D" using SFAccInitRed.hyps(1) by(rule has_field_is_class')
+  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D} : T \<and> P \<turnstile> T \<le> T"
+    using SFAccInitRed WTrtInit[OF SFAccInitRed.prems(3)] by clarsimp
+  then show ?case by(rule exI)
+next
+  case RedSFAccNonStatic then show ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
+      simp: sconf_def hconf_def)
+next
   case (FAssRed1 e h l sh b e' h' l' sh' b' F D e\<^sub>2)
   have red: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
    and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
@@ -778,6 +781,45 @@ next
 next
   case RedFAssNull thus ?case
     by(fastforce intro: WTThrow[OF WTVal] elim!:typeof_NullPointer simp:sconf_def hconf_def)
+next
+  case RedFAssStatic then show ?case 
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
+      simp: sconf_def hconf_def)
+next
+  case (SFAssRed e h l sh b e' h' l' sh' b' C F D E T)
+  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+                 \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
+   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (C\<bullet>\<^sub>sF{D} := e)"
+   and wt: "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sF{D}:=e : T" by fact+
+  have iconf': "iconf sh e" using iconf by simp
+  from wt have [simp]: "T = Void" by auto
+  from wt show ?case
+  proof (rule WTrt_elim_cases)
+    fix TF T1
+    assume has: "P \<turnstile> C has F,Static:TF in D"
+      and wt1: "P,E,h,sh \<turnstile> e : T1" and TsubTF: "P \<turnstile> T1 \<le> TF"
+    obtain T' where wt1': "P,E,h',sh' \<turnstile> e' : T'" and T'subT: "P \<turnstile> T' \<le> T1"
+      using IH[OF conf iconf' wt1] by blast
+    have "P,E,h',sh' \<turnstile> C\<bullet>\<^sub>sF{D}:=e' : Void"
+      by(rule WTrtSFAss[OF wt1' has widen_trans[OF T'subT TsubTF]])
+    thus ?case by auto
+  qed
+next
+  case SFAssInitDoneRed then show ?case by (meson widen_refl)
+next
+  case (SFAssInitRed C F t D sh v h l E T)
+  have "is_class P D" using SFAssInitRed.hyps(1) by(rule has_field_is_class')
+  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D} := Val v : T \<and> P \<turnstile> T \<le> T"
+    using SFAssInitRed WTrtInit[OF SFAssInitRed.prems(3)] by clarsimp
+  then show ?case by(rule exI)
+next
+  case RedSFAssNone then show ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoSuchFieldError
+      simp: sconf_def hconf_def)
+next
+  case RedSFAssNonStatic then show ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
+      simp: sconf_def hconf_def)
 next
   case (CallObj e h l sh b e' h' l' sh' b' M es)
   have red: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
@@ -851,142 +893,30 @@ next
     ultimately show ?thesis by(fastforce intro:WTrtCallNT)
   qed
 next
+  case (RedCall h a C fs M Ts T pns body D vs l sh b E T')
+  have hp: "h a = Some(C,fs)"
+   and "method": "P \<turnstile> C sees M,NonStatic: Ts\<rightarrow>T = (pns,body) in D"
+   and wt: "P,E,h,sh \<turnstile> addr a\<bullet>M(map Val vs) : T'" by fact+
+  obtain Ts' where wtes: "P,E,h,sh \<turnstile> map Val vs [:] Ts'"
+    and subs: "P \<turnstile> Ts' [\<le>] Ts" and T'isT: "T' = T"
+    using wt "method" hp by (auto dest:sees_method_fun)
+  from wtes subs have length_vs: "length vs = length Ts"
+    by(fastforce simp:list_all2_iff dest!:WTrts_same_length)
+  from sees_wf_mdecl[OF wf "method"] obtain T''
+    where wtabody: "P,[this#pns [\<mapsto>] Class D#Ts] \<turnstile> body :: T''"
+    and T''subT: "P \<turnstile> T'' \<le> T" and length_pns: "length pns = length Ts"
+    by(fastforce simp:wf_mdecl_def simp del:map_upds_twist)
+  from wtabody have "P,Map.empty(this#pns [\<mapsto>] Class D#Ts),h,sh \<turnstile> body : T''"
+    by(rule WT_implies_WTrt)
+  hence "P,E(this#pns [\<mapsto>] Class D#Ts),h,sh \<turnstile> body : T''"
+    by(rule WTrt_env_mono) simp
+  hence "P,E,h,sh \<turnstile> blocks(this#pns, Class D#Ts, Addr a#vs, body) : T''"
+  using wtes subs hp sees_method_decl_above[OF "method"] length_vs length_pns
+    by(fastforce simp add:wt_blocks rel_list_all2_Cons2)
+  with T''subT T'isT show ?case by blast
+next
   case RedCallNull thus ?case
     by(fastforce intro: WTThrow[OF WTVal] elim!:typeof_NullPointer simp: sconf_def hconf_def)
-next
-  case (InitBlockRed e h l V v sh b e' h' l' sh' b' v' T E T')
-  have red: "P \<turnstile> \<langle>e, (h,l(V\<mapsto>v),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V\<mapsto>v),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
-                    \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and v': "l' V = Some v'" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
-   and iconf: "iconf sh {V:T; V:=Val v;; e}"
-   and wt: "P,E,h,sh \<turnstile> {V:T := Val v; e} : T'" by fact+
-  from wt obtain T\<^sub>1 where wt\<^sub>1: "typeof\<^bsub>h\<^esub> v = Some T\<^sub>1"
-    and T1subT: "P \<turnstile> T\<^sub>1 \<le> T" and wt\<^sub>2: "P,E(V\<mapsto>T),h,sh \<turnstile> e : T'" by auto
-  have lconf\<^sub>2: "P,h \<turnstile> l(V\<mapsto>v) (:\<le>) E(V\<mapsto>T)" using conf wt\<^sub>1 T1subT
-    by(simp add:sconf_def lconf_upd2 conf_def)
-  have "\<exists>T\<^sub>1'. typeof\<^bsub>h'\<^esub> v' = Some T\<^sub>1' \<and> P \<turnstile> T\<^sub>1' \<le> T"
-    using v' red_preserves_lconf[OF red wt\<^sub>2 lconf\<^sub>2]
-    by(fastforce simp:lconf_def conf_def)
-  with IH conf iconf lconf\<^sub>2 wt\<^sub>2 show ?case by (fastforce simp add:sconf_def)
-next
-  case BlockRedNone thus ?case
-    by(auto simp del:fun_upd_apply)(fastforce simp:sconf_def lconf_def)
-next
-  case (BlockRedSome e h l V sh b e' h' l' sh' b' v T E Te)
-  have red: "P \<turnstile> \<langle>e,(h,l(V:=None),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
-   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V:=None),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
-                   \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T"
-   and Some: "l' V = Some v" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
-   and iconf: "iconf sh {V:T; e}"
-   and wt: "P,E,h,sh \<turnstile> {V:T; e} : Te" by fact+
-  obtain Te' where IH': "P,E(V\<mapsto>T),h',sh' \<turnstile> e' : Te' \<and> P \<turnstile> Te' \<le> Te"
-    using IH conf iconf wt by(fastforce simp:sconf_def lconf_def)
-  have "P,h' \<turnstile> l' (:\<le>) E(V\<mapsto>T)" using conf wt
-    by(fastforce intro:red_preserves_lconf[OF red] simp:sconf_def lconf_def)
-  hence "P,h' \<turnstile> v :\<le> T" using Some by(fastforce simp:lconf_def)
-  with IH' show ?case
-    by(fastforce simp:sconf_def conf_def fun_upd_same simp del:fun_upd_apply)
-next
-  case (SeqRed e h l sh b e' h' l' sh' b' e\<^sub>2)
-  then have val: "val_of e = None" by (simp add: val_no_step)
-  show ?case
-  proof(cases "lass_val_of e")
-    case None
-    then show ?thesis
-      using SeqRed val by(auto elim: WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])
-  next
-    case (Some a)
-    have "sh = sh'" using SeqRed lass_val_of_spec[OF Some] by auto
-    then show ?thesis using SeqRed val Some
-      by(auto intro: lass_val_of_iconf[OF Some] elim: WTrt_hext_mono[OF _ red_hext_incr])
-  qed
-next
-  case CondRed thus ?case
-    by auto (blast intro:WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])+
-next
-  case ThrowRed thus ?case
-    by(auto simp:is_refT_def)(blast dest:widen_Class[THEN iffD1])+
-next
-  case RedThrowNull thus ?case
-    by(fastforce intro: WTThrow[OF WTVal] elim!:typeof_NullPointer simp:sconf_def hconf_def)
-next
-  case TryRed thus ?case
-    by auto (blast intro:widen_trans WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])
-next
-  case RedTryFail thus ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] simp:sconf_def hconf_def)
-next
-  case (ListRed1 e h l sh b e' h' l' sh' b' es)
-    then have val: "val_of e = None" by(simp add: val_no_step)
-    obtain U Us where Ts: "Ts = U # Us" using ListRed1 by auto
-    then have nsub_RI: "\<not> sub_RIs es" and wts: "P,E,h,sh \<turnstile> es [:] Us" and wt: "P,E,h,sh \<turnstile> e : U"
-     and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h, l, sh) \<surd>; P,E,h,sh \<turnstile> e : T\<rbrakk> \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T"
-      using ListRed1 val by auto
-    obtain T' where
-    "\<forall>E0 E1. (\<exists>T2. P,E1,h',sh' \<turnstile> e' : T2 \<and> P \<turnstile> T2 \<le> E0) = (P,E1,h',sh' \<turnstile> e' : T' E0 E1 \<and> P \<turnstile> T' E0 E1 \<le> E0)"
-      by moura
-    then have disj: "\<forall>E t. \<not> P,E \<turnstile> (h, l, sh) \<surd> \<or> \<not> P,E,h,sh \<turnstile> e : t \<or> P,E,h',sh' \<turnstile> e' : T' t E \<and> P \<turnstile> T' t E \<le> t"
-      using IH by presburger
-    have "P,E,h',sh' \<turnstile> es [:] Us"
-      using nsub_RI wts wt by (metis (no_types) ListRed1.hyps(1) WTrts_hext_shext_mono red_hext_incr red_shext_incr)
-    then have "\<exists>ts. (\<exists>t tsa. ts = t # tsa \<and> P,E,h',sh' \<turnstile> e' : t \<and> P,E,h',sh' \<turnstile> es [:] tsa) \<and> P \<turnstile> ts [\<le>] (U # Us)"
-      using disj wt ListRed1.prems(1) by blast
-    then show ?case using Ts by auto
-next
-  case ListRed2 thus ?case
-    by(fastforce dest: hext_typeof_mono[OF reds_hext_incr])
-next
-(*********************************************************************)
-  case RedNew then show ?case by (auto simp: blank_def)
-next
-  case RedFAccStatic then show ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
-      simp: sconf_def hconf_def)
-next
-  case (RedSFAcc C F t D sh sfs i v h l es)
-  then have "P \<turnstile> C has F,Static:T in D" by fast
-  then have dM: "P \<turnstile> D has F,Static:T in D" by(rule has_field_idemp)
-  then show ?case using RedSFAcc by(fastforce simp:sconf_def shconf_def soconf_def conf_def)
-next
-  case RedSFAccNone then show ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoSuchFieldError
-      simp: sconf_def hconf_def)
-next
-  case RedSFAccNonStatic then show ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
-      simp: sconf_def hconf_def)
-next
-  case RedFAssStatic then show ?case 
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
-      simp: sconf_def hconf_def)
-next
-  case (SFAssRed e h l sh b e' h' l' sh' b' C F D E T)
-  have IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l,sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
-                 \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
-   and conf: "P,E \<turnstile> (h,l,sh) \<surd>" and iconf: "iconf sh (C\<bullet>\<^sub>sF{D} := e)"
-   and wt: "P,E,h,sh \<turnstile> C\<bullet>\<^sub>sF{D}:=e : T" by fact+
-  have iconf': "iconf sh e" using iconf by simp
-  from wt have [simp]: "T = Void" by auto
-  from wt show ?case
-  proof (rule WTrt_elim_cases)
-    fix TF T1
-    assume has: "P \<turnstile> C has F,Static:TF in D"
-      and wt1: "P,E,h,sh \<turnstile> e : T1" and TsubTF: "P \<turnstile> T1 \<le> TF"
-    obtain T' where wt1': "P,E,h',sh' \<turnstile> e' : T'" and T'subT: "P \<turnstile> T' \<le> T1"
-      using IH[OF conf iconf' wt1] by blast
-    have "P,E,h',sh' \<turnstile> C\<bullet>\<^sub>sF{D}:=e' : Void"
-      by(rule WTrtSFAss[OF wt1' has widen_trans[OF T'subT TsubTF]])
-    thus ?case by auto
-  qed
-next
-  case RedSFAssNone then show ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoSuchFieldError
-      simp: sconf_def hconf_def)
-next
-  case RedSFAssNonStatic then show ?case
-    by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
-      simp: sconf_def hconf_def)
 next
   case RedCallStatic then show ?case 
     by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
@@ -1036,6 +966,14 @@ next
     by(fastforce simp add:wt_blocks rel_list_all2_Cons2)
   with T''subT T'isT show ?case by blast
 next
+  case SCallInitDoneRed then show ?case by (meson widen_refl)
+next
+  case (SCallInitRed C F Ts t pns body D sh v h l E T)
+  have "is_class P D" using SCallInitRed.hyps(1) by(rule sees_method_is_class')
+  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF(map Val v) : T \<and> P \<turnstile> T \<le> T"
+    using SCallInitRed WTrtInit[OF SCallInitRed.prems(3)] by clarsimp
+  then show ?case by(rule exI)
+next
   case RedSCallNone then show ?case
     by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_NoSuchMethodError
       simp: sconf_def hconf_def)
@@ -1043,6 +981,89 @@ next
   case RedSCallNonStatic then show ?case 
     by(fastforce intro: WTrtThrow[OF WTrtVal] elim!: typeof_IncompatibleClassChangeError
       simp: sconf_def hconf_def)
+next
+  case BlockRedNone thus ?case
+    by(auto simp del:fun_upd_apply)(fastforce simp:sconf_def lconf_def)
+next
+  case (BlockRedSome e h l V sh b e' h' l' sh' b' v T E Te)
+  have red: "P \<turnstile> \<langle>e,(h,l(V:=None),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V:=None),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+                   \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T"
+   and Some: "l' V = Some v" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
+   and iconf: "iconf sh {V:T; e}"
+   and wt: "P,E,h,sh \<turnstile> {V:T; e} : Te" by fact+
+  obtain Te' where IH': "P,E(V\<mapsto>T),h',sh' \<turnstile> e' : Te' \<and> P \<turnstile> Te' \<le> Te"
+    using IH conf iconf wt by(fastforce simp:sconf_def lconf_def)
+  have "P,h' \<turnstile> l' (:\<le>) E(V\<mapsto>T)" using conf wt
+    by(fastforce intro:red_preserves_lconf[OF red] simp:sconf_def lconf_def)
+  hence "P,h' \<turnstile> v :\<le> T" using Some by(fastforce simp:lconf_def)
+  with IH' show ?case
+    by(fastforce simp:sconf_def conf_def fun_upd_same simp del:fun_upd_apply)
+next
+  case (InitBlockRed e h l V v sh b e' h' l' sh' b' v' T E T')
+  have red: "P \<turnstile> \<langle>e, (h,l(V\<mapsto>v),sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>"
+   and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h,l(V\<mapsto>v),sh) \<surd>; iconf sh e; P,E,h,sh \<turnstile> e : T\<rbrakk>
+                    \<Longrightarrow> \<exists>U. P,E,h',sh' \<turnstile> e' : U \<and> P \<turnstile> U \<le> T"
+   and v': "l' V = Some v'" and conf: "P,E \<turnstile> (h,l,sh) \<surd>"
+   and iconf: "iconf sh {V:T; V:=Val v;; e}"
+   and wt: "P,E,h,sh \<turnstile> {V:T := Val v; e} : T'" by fact+
+  from wt obtain T\<^sub>1 where wt\<^sub>1: "typeof\<^bsub>h\<^esub> v = Some T\<^sub>1"
+    and T1subT: "P \<turnstile> T\<^sub>1 \<le> T" and wt\<^sub>2: "P,E(V\<mapsto>T),h,sh \<turnstile> e : T'" by auto
+  have lconf\<^sub>2: "P,h \<turnstile> l(V\<mapsto>v) (:\<le>) E(V\<mapsto>T)" using conf wt\<^sub>1 T1subT
+    by(simp add:sconf_def lconf_upd2 conf_def)
+  have "\<exists>T\<^sub>1'. typeof\<^bsub>h'\<^esub> v' = Some T\<^sub>1' \<and> P \<turnstile> T\<^sub>1' \<le> T"
+    using v' red_preserves_lconf[OF red wt\<^sub>2 lconf\<^sub>2]
+    by(fastforce simp:lconf_def conf_def)
+  with IH conf iconf lconf\<^sub>2 wt\<^sub>2 show ?case by (fastforce simp add:sconf_def)
+next
+  case (SeqRed e h l sh b e' h' l' sh' b' e\<^sub>2)
+  then have val: "val_of e = None" by (simp add: val_no_step)
+  show ?case
+  proof(cases "lass_val_of e")
+    case None
+    then show ?thesis
+      using SeqRed val by(auto elim: WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])
+  next
+    case (Some a)
+    have "sh = sh'" using SeqRed lass_val_of_spec[OF Some] by auto
+    then show ?thesis using SeqRed val Some
+      by(auto intro: lass_val_of_iconf[OF Some] elim: WTrt_hext_mono[OF _ red_hext_incr])
+  qed
+next
+  case CondRed thus ?case
+    by auto (blast intro:WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])+
+next
+  case ThrowRed thus ?case
+    by(auto simp:is_refT_def)(blast dest:widen_Class[THEN iffD1])+
+next
+  case RedThrowNull thus ?case
+    by(fastforce intro: WTThrow[OF WTVal] elim!:typeof_NullPointer simp:sconf_def hconf_def)
+next
+  case TryRed thus ?case
+    by auto (blast intro:widen_trans WTrt_hext_shext_mono[OF _ red_hext_incr red_shext_incr])
+next
+  case RedTryFail thus ?case
+    by(fastforce intro: WTrtThrow[OF WTrtVal] simp:sconf_def hconf_def)
+next
+  case (ListRed1 e h l sh b e' h' l' sh' b' es)
+    then have val: "val_of e = None" by(simp add: val_no_step)
+    obtain U Us where Ts: "Ts = U # Us" using ListRed1 by auto
+    then have nsub_RI: "\<not> sub_RIs es" and wts: "P,E,h,sh \<turnstile> es [:] Us" and wt: "P,E,h,sh \<turnstile> e : U"
+     and IH: "\<And>E T. \<lbrakk>P,E \<turnstile> (h, l, sh) \<surd>; P,E,h,sh \<turnstile> e : T\<rbrakk> \<Longrightarrow> \<exists>T'. P,E,h',sh' \<turnstile> e' : T' \<and> P \<turnstile> T' \<le> T"
+      using ListRed1 val by auto
+    obtain T' where
+    "\<forall>E0 E1. (\<exists>T2. P,E1,h',sh' \<turnstile> e' : T2 \<and> P \<turnstile> T2 \<le> E0) = (P,E1,h',sh' \<turnstile> e' : T' E0 E1 \<and> P \<turnstile> T' E0 E1 \<le> E0)"
+      by moura
+    then have disj: "\<forall>E t. \<not> P,E \<turnstile> (h, l, sh) \<surd> \<or> \<not> P,E,h,sh \<turnstile> e : t \<or> P,E,h',sh' \<turnstile> e' : T' t E \<and> P \<turnstile> T' t E \<le> t"
+      using IH by presburger
+    have "P,E,h',sh' \<turnstile> es [:] Us"
+      using nsub_RI wts wt by (metis (no_types) ListRed1.hyps(1) WTrts_hext_shext_mono red_hext_incr red_shext_incr)
+    then have "\<exists>ts. (\<exists>t tsa. ts = t # tsa \<and> P,E,h',sh' \<turnstile> e' : t \<and> P,E,h',sh' \<turnstile> es [:] tsa) \<and> P \<turnstile> ts [\<le>] (U # Us)"
+      using disj wt ListRed1.prems(1) by blast
+    then show ?case using Ts by auto
+next
+  case ListRed2 thus ?case
+    by(fastforce dest: hext_typeof_mono[OF reds_hext_incr])
 next
   case (InitNoneRed sh C C' Cs e h l b)
   then have sh: "sh \<unlhd>\<^sub>s sh(C \<mapsto> (sblank P C, Prepared))" by(simp add: shext_def)
@@ -1111,43 +1132,15 @@ next
   have "P,E,h,sh' \<turnstile> INIT C' (Cs,True) \<leftarrow> e : T" using RedRInit wt shC by(cases Cs, auto)
   then show ?case by(rule_tac x = T in exI) simp
 next
-(******************************************************)
+  case (SCallThrowParams es vs e es' C M h l sh b)
+    then show ?case using map_Val_nthrow_neq[of _ vs e es'] by fastforce
 next
-  case SFAccInitDoneRed then show ?case by (meson widen_refl)
-next
-  case (SFAccInitRed C F t D sh h l E T)
-  have "is_class P D" using SFAccInitRed.hyps(1) by(rule has_field_is_class')
-  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D} : T \<and> P \<turnstile> T \<le> T"
-    using SFAccInitRed WTrtInit[OF SFAccInitRed.prems(3)] by clarsimp
-  then show ?case by(rule exI)
-next
-  case SFAssInitDoneRed then show ?case by (meson widen_refl)
-next
-  case (SFAssInitRed C F t D sh v h l E T)
-  have "is_class P D" using SFAssInitRed.hyps(1) by(rule has_field_is_class')
-  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF{D} := Val v : T \<and> P \<turnstile> T \<le> T"
-    using SFAssInitRed WTrtInit[OF SFAssInitRed.prems(3)] by clarsimp
-  then show ?case by(rule exI)
-next
-  case SCallInitDoneRed then show ?case by (meson widen_refl)
-next
-  case (SCallInitRed C F Ts t pns body D sh v h l E T)
-  have "is_class P D" using SCallInitRed.hyps(1) by(rule sees_method_is_class')
-  then have "P,E,h,sh \<turnstile> INIT D ([D],False) \<leftarrow> C\<bullet>\<^sub>sF(map Val v) : T \<and> P \<turnstile> T \<le> T"
-    using SCallInitRed WTrtInit[OF SCallInitRed.prems(3)] by clarsimp
-  then show ?case by(rule exI)
-next
-(***********************)
   case (RInitInitThrow sh C sfs i sh' a D Cs e h l b)
   then have sh: "sh \<unlhd>\<^sub>s sh(C \<mapsto> (sfs, Error))" by(auto simp: shext_def)
   have wt: "P,E,h,sh(C \<mapsto> (sfs, Error)) \<turnstile> e : T"
    using RInitInitThrow WTrt_shext_mono[OF _ sh] by clarsimp
   then have "P,E,h,sh' \<turnstile> RI (D,Throw a) ; Cs \<leftarrow> e : T" using RInitInitThrow by auto
   then show ?case by(rule_tac x = T in exI) simp
-(**************)
-next
-  case (SCallThrowParams es vs e es' C M h l sh b)
-    then show ?case using map_Val_nthrow_neq[of _ vs e es'] by fastforce
 qed fastforce+ (* esp all Throw propagation rules except RInitInit are dealt with here *)
 (*>*)
 

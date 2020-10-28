@@ -1,10 +1,8 @@
-(*  Title:      Jinja/Compiler/Correctness1.thy
-    Author:     Tobias Nipkow
-    Copyright   TUM 2003
+(*  Title:      JinjaDCI/Compiler/Correctness1.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   TUM 2003, UIUC 2019-20
 
-    Expanded to include statics
-    Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory Compiler/Correctness1.thy by Tobias Nipkow
 *)
 
 section \<open> Correctness of Stage 1 \<close>
@@ -688,7 +686,7 @@ next
     by(auto simp add: comp_def
                 intro!: SCallInit\<^sub>1 dest!:evals_final)
 next
-(* init cases *)
+\<comment> \<open> init cases \<close>
   case InitFinal then show ?case by(fastforce intro:eval\<^sub>1_evals\<^sub>1.intros)
 next
   case (InitNone sh C C' Cs e h l e' h' l' sh')

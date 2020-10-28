@@ -1,14 +1,19 @@
 (*  Title: JinjaDCI/BV/StartProg.thy
     Author:     Susannah Mansky
-    2018, UIUC
+    2019-20, UIUC
 *)
-(* Properties and types of the starting program *)
+section "Properties and types of the starting program"
 
 theory StartProg
 imports ClassAdd
 begin
 
 lemmas wt_defs = correct_state_def conf_f_def wt_instr_def eff_def norm_eff_def app_def xcpt_app_def
+
+declare wt_defs [simp] \<comment> \<open> removed from @{text simp} at the end of file \<close>
+declare start_class_def [simp]
+
+subsection "Types"
 
 abbreviation start_\<phi>\<^sub>m :: "ty\<^sub>m" where
 "start_\<phi>\<^sub>m \<equiv> [Some([],[]),Some([Void],[])]"
@@ -23,10 +28,9 @@ lemma \<Phi>_start: "\<And>C. C \<noteq> Start \<Longrightarrow> \<Phi>_start \<
 lemma check_types_\<phi>\<^sub>m: "check_types (start_prog P C M) 1 0 (map OK start_\<phi>\<^sub>m)"
  by (auto simp: check_types_def JVM_states_unfold)
 
-declare wt_defs [simp]
-declare start_class_def [simp]
-
 (***************************************************************************************)
+
+subsection "Some simple properties"
 
 lemma preallocated_start_state: "start_state P = \<sigma> \<Longrightarrow> preallocated (fst(snd \<sigma>))"
 using preallocated_start[of P] by(auto simp: start_state_def split_beta)
@@ -47,6 +51,8 @@ lemma start_prog_start_shconf:
 (*<*) using start_prog_Start_soconf by (simp add: shconf_def fun_upd_apply) (*>*)
 
 (************************************)
+
+subsection "Well-typed and well-formed"
 
 lemma start_wt_method:
 assumes "P \<turnstile> C sees M, Static :  []\<rightarrow>Void = m in D" and "M \<noteq> clinit" and "\<not> is_class P Start"
@@ -177,6 +183,8 @@ proof -
 qed
 
 (*****************************************************************************)
+
+subsection "Methods and instructions"
 
 lemma start_prog_Start_sees_methods:
  "P \<turnstile> Object sees_methods Mm

@@ -1,11 +1,9 @@
-(*  Title:      Jinja/J/WellForm.thy
+(*  Title:      JinjaDCI/Common/WellForm.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
 
-    Expanded to include statics
-    Susannah Mansky
-    2017, UIUC
+    Based on the Jinja theory J/WellForm.thy by Tobias Nipkow
 *)
 
 section \<open> Generic Well-formedness of programs \<close>
@@ -91,12 +89,6 @@ using sub apply(induct)
 apply(auto simp:wf_cdecl_def is_class_def
            dest!:class_wf[OF _ wf] subcls1D)
 done
-
-(*
-This is NOT true because P \<turnstile> NT \<le> Class C for any Class C
-lemma is_type_suptype: "\<lbrakk> wf_prog p P; is_type P T; P \<turnstile> T \<le> T' \<rbrakk>
- \<Longrightarrow> is_type P T'"
-*)
 
 lemma is_class_xcpt:
   "\<lbrakk> C \<in> sys_xcpts; wf_prog wf_md P \<rbrakk> \<Longrightarrow> is_class P C"
@@ -488,7 +480,7 @@ apply (simp add: image_def SystemClasses_def wf_syscls_def sys_xcpts_def
                  ObjectC_def NullPointerC_def ClassCastC_def OutOfMemoryC_def
                  NoClassDefFoundC_def
                  IncompatibleClassChangeC_def NoSuchFieldC_def NoSuchMethodC_def)
- apply force
+apply force
 done
 (*>*)
 

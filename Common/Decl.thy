@@ -70,10 +70,10 @@ abbreviation
 lemma class_exists_equiv:
  "(\<exists>x. fst x = cn \<and> x \<in> set P) = (class P cn \<noteq> None)"
 apply (rule iffI)
-(* \<Rightarrow> *)
+\<comment> \<open> \<Rightarrow> \<close>
 apply (simp, simp only: class_def)
 using weak_map_of_SomeI apply fastforce
-(* \<Leftarrow> *)
+\<comment> \<open> \<Leftarrow> \<close>
 apply (simp add: class_def)
 apply (meson map_of_SomeD)
 done

@@ -1,11 +1,11 @@
-(*  Title:      HOL/MicroJava/BV/BVSpecTypeSafe.thy
+(*  Title:      JinjaDCI/BV/BVSpecTypeSafe.thy
 
-    Author:     Cornelia Pusch, Gerwin Klein
-    Copyright   1999 Technische Universitaet Muenchen
+    Author:     Cornelia Pusch, Gerwin Klein, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
 
-    Expanded to include statics and class initialization by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory BV/BVSpecTypeSafe.thy by Cornelia Pusch and Gerwin Klein
 *)
+
 
 section \<open> BV Type Safety Proof \label{sec:BVSpecTypeSafe} \<close>
 
@@ -71,7 +71,7 @@ text \<open>
   in the current frame). We require that the exception is a valid
   heap address, and that the state before the exception occurred
   conforms. 
-\<close> term find_handler
+\<close>
 lemma uncaught_xcpt_correct:
   assumes wt: "wf_jvm_prog\<^bsub>\<Phi>\<^esub> P"
   assumes h:  "h xcp = Some obj"
@@ -606,7 +606,13 @@ qed
 (**********Non-exception Single-step correctness*************************)
 declare defs1 [simp]
 
-subsection \<open> Non-instruction single steps \<close>
+subsection \<open> Initialization procedure steps \<close>
+
+text \<open>
+  In this section we prove that, for states that result in a step of the
+  initialization procedure rather than an instruction execution, the state
+  after execution of the step still conforms.
+\<close>
 
 lemma Calling_correct:
   fixes \<sigma>' :: jvm_state
@@ -670,7 +676,7 @@ proof -
     from confc ics have last: "\<exists>sobj. sh (last(C'#Cs)) = Some sobj"
       by(fastforce simp: conf_clinit_def)
 
-    let "?f ics'" = "(stk, loc, C, M, pc, ics'::init_call_status)"
+    let "?f" = "\<lambda>ics'. (stk, loc, C, M, pc, ics'::init_call_status)"
 
     { assume i: "i = Done \<or> i = Processing"
       let ?ics = "Called Cs"
@@ -864,7 +870,9 @@ text \<open>
   In this section we prove for each single (welltyped) instruction
   that the state after execution of the instruction still conforms.
   Since we have already handled exceptions above, we can now assume that
-  no exception occurs in this step.
+  no exception occurs in this step. For instructions that may call
+  the initialization procedure, we cover the calling and non-calling
+  cases separately.
 \<close>
 
 lemma Invoke_correct: 
@@ -2042,10 +2050,11 @@ done
 
 text \<open>
   The next theorem collects the results of the sections above,
-  i.e.~exception handling and the execution step for each 
-  instruction. It states type safety for single step execution:
-  in welltyped programs, a conforming state is transformed
-  into another conforming state when one instruction is executed.
+  i.e.~exception handling, initialization procedure steps, and
+  the execution step for each instruction. It states type safety
+  for single step execution: in welltyped programs, a conforming
+  state is transformed into another conforming state when one
+  step of execution is performed.
 \<close>
 lemma step_correct:
 fixes \<sigma>' :: jvm_state

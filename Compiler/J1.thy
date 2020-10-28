@@ -1,8 +1,8 @@
-(*  Title:      Jinja/Compiler/J1.thy
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+(*  Title:      JinjaDCI/Compiler/J1.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Compiler/J1.thy by Tobias Nipkow
 *)
 
 chapter \<open> Compilation \label{cha:comp} \<close>
@@ -342,7 +342,7 @@ where
   "P \<turnstile>\<^sub>1 \<langle>e,s\<^sub>0\<rangle> \<Rightarrow> \<langle>throw e',s\<^sub>1\<rangle> \<Longrightarrow>
   P \<turnstile>\<^sub>1 \<langle>e#es,s\<^sub>0\<rangle> [\<Rightarrow>] \<langle>throw e' # es, s\<^sub>1\<rangle>"
 
-(* init rules *)
+\<comment> \<open> init rules \<close>
 
 | InitFinal\<^sub>1:
   "P \<turnstile>\<^sub>1 \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile>\<^sub>1 \<langle>INIT C (Nil,b) \<leftarrow> e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -398,21 +398,6 @@ lemmas eval\<^sub>1_evals\<^sub>1_induct = eval\<^sub>1_evals\<^sub>1.induct [sp
   and eval\<^sub>1_evals\<^sub>1_inducts = eval\<^sub>1_evals\<^sub>1.inducts [split_format (complete)]
 (*>*)
 
-lemma eval\<^sub>1_preserves_len:
-  "P \<turnstile>\<^sub>1 \<langle>e\<^sub>0,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> \<Rightarrow> \<langle>e\<^sub>1,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow> length ls\<^sub>0 = length ls\<^sub>1"
-and evals\<^sub>1_preserves_len:
-  "P \<turnstile>\<^sub>1 \<langle>es\<^sub>0,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> [\<Rightarrow>] \<langle>es\<^sub>1,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow> length ls\<^sub>0 = length ls\<^sub>1"
-(*<*)by (induct rule:eval\<^sub>1_evals\<^sub>1_inducts, simp_all)(*>*)
-
-
-lemma evals\<^sub>1_preserves_elen:
-  "\<And>es' s s'. P \<turnstile>\<^sub>1 \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> length es = length es'"
-(*<*)
-apply(induct es type:list)
-apply (auto elim:evals\<^sub>1.cases)
-done
-(*>*)
-
 
 inductive_cases eval\<^sub>1_cases [cases set]:
  "P \<turnstile>\<^sub>1 \<langle>new C,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -441,18 +426,36 @@ inductive_cases evals\<^sub>1_cases [cases set]:
  "P \<turnstile>\<^sub>1 \<langle>e#es,s\<rangle> [\<Rightarrow>] \<langle>e',s'\<rangle>"
 (*>*) 
 
+
 lemma eval\<^sub>1_final: "P \<turnstile>\<^sub>1 \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> final e'"
  and evals\<^sub>1_final: "P \<turnstile>\<^sub>1 \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> finals es'"
 (*<*)by(induct rule:eval\<^sub>1_evals\<^sub>1.inducts, simp_all)(*>*)
+
 
 lemma eval\<^sub>1_final_same: "\<lbrakk> P \<turnstile>\<^sub>1 \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>; final e \<rbrakk> \<Longrightarrow> e = e' \<and> s = s'"
 (*<*)
 apply(erule finalE)
  using eval\<^sub>1_cases(3) apply blast
-by (metis eval\<^sub>1_cases(17) eval\<^sub>1_cases(3) exp.distinct(101) exp.inject(3) val.distinct(13))
+by (metis eval\<^sub>1_cases(3,17) exp.distinct(101) exp.inject(3) val.distinct(13))
 (*>*)
 
-(*********************************)
+subsection "Property preservation"
+
+lemma eval\<^sub>1_preserves_len:
+  "P \<turnstile>\<^sub>1 \<langle>e\<^sub>0,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> \<Rightarrow> \<langle>e\<^sub>1,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow> length ls\<^sub>0 = length ls\<^sub>1"
+and evals\<^sub>1_preserves_len:
+  "P \<turnstile>\<^sub>1 \<langle>es\<^sub>0,(h\<^sub>0,ls\<^sub>0,sh\<^sub>0)\<rangle> [\<Rightarrow>] \<langle>es\<^sub>1,(h\<^sub>1,ls\<^sub>1,sh\<^sub>1)\<rangle> \<Longrightarrow> length ls\<^sub>0 = length ls\<^sub>1"
+(*<*)by (induct rule:eval\<^sub>1_evals\<^sub>1_inducts, simp_all)(*>*)
+
+
+lemma evals\<^sub>1_preserves_elen:
+  "\<And>es' s s'. P \<turnstile>\<^sub>1 \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> length es = length es'"
+(*<*)
+apply(induct es type:list)
+apply (auto elim:evals\<^sub>1.cases)
+done
+(*>*)
+
 
 lemma clinit\<^sub>1_loc_pres:
  "P \<turnstile>\<^sub>1 \<langle>C\<^sub>0\<bullet>\<^sub>sclinit([]),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h',l',sh')\<rangle> \<Longrightarrow> l = l'"
@@ -493,6 +496,8 @@ next
 qed (auto elim!: hext_trans)
 (*>*)
 
+subsection "Initialization"
+
 lemma rinit\<^sub>1_throw:
  "P\<^sub>1 \<turnstile>\<^sub>1 \<langle>RI (D,Throw xa) ; Cs \<leftarrow> e,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',(h', l', sh')\<rangle>
     \<Longrightarrow> e' = Throw xa"
@@ -507,14 +512,14 @@ lemma rinit\<^sub>1_throwE:
 proof(induct Cs arbitrary: C e s)
   case Nil
   then show ?case
-  proof(rule eval\<^sub>1_cases(20)) (* RI *)
+  proof(rule eval\<^sub>1_cases(20)) \<comment> \<open> RI \<close>
     fix v h' l' sh' assume "P \<turnstile>\<^sub>1 \<langle>throw e,s\<rangle> \<Rightarrow> \<langle>Val v,(h', l', sh')\<rangle>"
     then show ?case using eval\<^sub>1_cases(17) by blast
   qed(auto)
 next
   case (Cons C' Cs')
   show ?case using Cons.prems(1)
-  proof(rule eval\<^sub>1_cases(20)) (* RI *)
+  proof(rule eval\<^sub>1_cases(20)) \<comment> \<open> RI \<close>
     fix v h' l' sh' assume "P \<turnstile>\<^sub>1 \<langle>throw e,s\<rangle> \<Rightarrow> \<langle>Val v,(h', l', sh')\<rangle>"
     then show ?case using eval\<^sub>1_cases(17) by blast
   next

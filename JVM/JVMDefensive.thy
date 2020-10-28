@@ -1,6 +1,6 @@
 (*  Title:      JinjaDCI/JVM/JVMDefensive.thy
     Author:     Gerwin Klein, Susannah Mansky
-    Copyright   GPL, UIUC
+    Copyright   GPL
 
     Based on the Jinja theory JVM/JVMDefensive.thy by Gerwin Klein
 *)

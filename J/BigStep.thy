@@ -1,9 +1,9 @@
-(*  Title:      Jinja/J/BigStep.thy
+(*  Title:      JinjaDCI/J/BigStep.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/BigStep.thy by Tobias Nipkow
 *)
 
 section \<open> Big Step Semantics \<close>
@@ -340,7 +340,7 @@ where
   "P \<turnstile> \<langle>e, s\<^sub>0\<rangle> \<Rightarrow> \<langle>throw e', s\<^sub>1\<rangle> \<Longrightarrow>
   P \<turnstile> \<langle>e#es, s\<^sub>0\<rangle> [\<Rightarrow>] \<langle>throw e' # es, s\<^sub>1\<rangle>"
 
-(* init rules *)
+\<comment> \<open> init rules \<close>
 
 | InitFinal:
   "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>INIT C (Nil,b) \<leftarrow> e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
@@ -357,7 +357,7 @@ where
   "\<lbrakk> sh C = Some(sfs,Processing); P \<turnstile> \<langle>INIT C' (Cs,True) \<leftarrow> e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<rbrakk>
   \<Longrightarrow> P \<turnstile> \<langle>INIT C' (C#Cs,False) \<leftarrow> e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 
-(* note that RI will mark all classes in the list Cs with the Error flag *)
+\<comment> \<open> note that @{text RI} will mark all classes in the list Cs with the Error flag \<close>
 | InitError:
   "\<lbrakk> sh C = Some(sfs,Error);
      P \<turnstile> \<langle>RI (C, THROW NoClassDefFoundError);Cs \<leftarrow> e,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<rbrakk>
@@ -431,7 +431,7 @@ inductive_cases evals_cases [cases set]:
  "P \<turnstile> \<langle>e#es,s\<rangle> [\<Rightarrow>] \<langle>e',s'\<rangle>"
 (*>*) 
 
-(* final expr theory *)
+subsection "Final expressions"
 
 lemma eval_final: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> final e'"
  and evals_final: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> finals es'"
@@ -507,6 +507,8 @@ next
   qed
 qed
 (*>*)
+
+subsection "Property preservation"
 
 lemma evals_length: "P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> length es = length es'"
  by(induct es arbitrary:es' s s', auto elim: evals_cases)
@@ -619,13 +621,13 @@ subsection\<open>Init Elimination rules\<close>
 lemma init_NilE:
 assumes init: "P \<turnstile> \<langle>INIT C (Nil,b) \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "e' = unit \<and> s' = s"
-proof(rule eval_cases(19)[OF init]) (* Init *) qed(auto dest: eval_final_same)
+proof(rule eval_cases(19)[OF init]) \<comment> \<open> Init \<close> qed(auto dest: eval_final_same)
 
 lemma init_ProcessingE:
 assumes shC: "sh C = \<lfloor>(sfs, Processing)\<rfloor>"
  and init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "e' = unit \<and> s' = (h,l,sh)"
-proof(rule eval_cases(19)[OF init]) (* Init *)
+proof(rule eval_cases(19)[OF init]) \<comment> \<open> Init \<close>
   fix sha Ca sfs Cs ha la
   assume "(h, l, sh) = (ha, la, sha)" and "sha Ca = \<lfloor>(sfs, Processing)\<rfloor>"
    and "P \<turnstile> \<langle>INIT C (Cs,True) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" and "[C] = Ca # Cs"
@@ -644,14 +646,14 @@ lemma rinit_throwE:
 proof(induct Cs arbitrary: C e s)
   case Nil
   then show ?case
-  proof(rule eval_cases(20)) (* RI *)
+  proof(rule eval_cases(20)) \<comment> \<open> RI \<close>
     fix v h' l' sh' assume "P \<turnstile> \<langle>throw e,s\<rangle> \<Rightarrow> \<langle>Val v,(h', l', sh')\<rangle>"
     then show ?case using eval_cases(17) by blast
   qed(auto)
 next
   case (Cons C' Cs')
   show ?case using Cons.prems(1)
-  proof(rule eval_cases(20)) (* RI *)
+  proof(rule eval_cases(20)) \<comment> \<open> RI \<close>
     fix v h' l' sh' assume "P \<turnstile> \<langle>throw e,s\<rangle> \<Rightarrow> \<langle>Val v,(h', l', sh')\<rangle>"
     then show ?case using eval_cases(17) by blast
   next
@@ -667,13 +669,13 @@ qed
 lemma rinit_ValE:
 assumes ri: "P \<turnstile> \<langle>RI (C,e) ; Cs \<leftarrow> unit,s\<rangle> \<Rightarrow> \<langle>Val v',s'\<rangle>"
 shows "\<exists>v'' s''. P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>Val v'',s''\<rangle>"
-proof(rule eval_cases(20)[OF ri]) (* RI *)
+proof(rule eval_cases(20)[OF ri]) \<comment> \<open> RI \<close>
   fix a h' l' sh' sfs i D Cs'
   assume "P \<turnstile> \<langle>RI (D,throw a) ; Cs' \<leftarrow> unit,(h', l', sh'(C \<mapsto> (sfs, Error)))\<rangle> \<Rightarrow> \<langle>Val v',s'\<rangle>"
   then show ?thesis using rinit_throwE by blast
 qed(auto)
 
-(****)
+subsection "Some specific evaluations"
 
 lemma lass_val_of_eval:
  "\<lbrakk> lass_val_of e = \<lfloor>a\<rfloor>; P \<turnstile> \<langle>e,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',(h', l', sh')\<rangle> \<rbrakk>

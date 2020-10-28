@@ -1,10 +1,9 @@
-(*  Title:      HOL/MicroJava/BV/BVNoTypeErrors.thy
+(*  Title:      JinjaDCI/BV/BVNoTypeErrors.thy
 
-    Author:     Gerwin Klein
+    Author:     Gerwin Klein, Susannah Mansky
     Copyright   GPL
 
-    Expanded to include statics and class initialization by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory BV/BVNoTypeErrors.thy by Gerwin Klein
 *)
 
 section \<open> Welltyped Programs produce no Type Errors \<close>

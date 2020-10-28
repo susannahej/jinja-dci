@@ -1,6 +1,6 @@
 (*  Title:      JinjaDCI/J/EConform.thy
     Author:     Susannah Mansky
-    2017, UIUC
+    2019-20 UIUC
 *)
 
 section \<open> Expression conformance properties \<close>
@@ -12,7 +12,9 @@ begin
 lemma cons_to_append: "list \<noteq> [] \<longrightarrow> (\<exists>ls. a # list = ls @ [last list])"
  by (metis append_butlast_last_id last_ConsR list.simps(3))
 
-(* returns class that can be initialized (if any) by top-level expression *)
+subsection "Initialization conformance"
+
+\<comment> \<open> returns class that can be initialized (if any) by top-level expression \<close>
 fun init_class :: "'m prog \<Rightarrow> 'a exp \<Rightarrow> cname option" where
 "init_class P (new C) = Some C" |
 "init_class P (C\<bullet>\<^sub>sF{D}) = Some D" |
@@ -25,7 +27,7 @@ apply(induct e, auto) apply(rename_tac x1 x2 x3 x4)
 apply(case_tac x4, auto)
 done
 
-(* exp to take next small step (in particular, subexp that may contain initialization *)
+\<comment> \<open> exp to take next small step (in particular, subexp that may contain initialization) \<close>
 fun ss_exp :: "'a exp \<Rightarrow> 'a exp" and ss_exps :: "'a exp list \<Rightarrow> 'a exp option" where
   "ss_exp (new C) = new C"
 | "ss_exp (Cast C e) = (case val_of e of Some v \<Rightarrow> Cast C e | _ \<Rightarrow> ss_exp e)"
@@ -110,7 +112,7 @@ lemma icheck_curr_inits: "icheck P C e \<Longrightarrow> ss_exps es = \<lfloor>e
 definition initPD :: "sheap \<Rightarrow> cname \<Rightarrow> bool" where
 "initPD sh C \<equiv> \<exists>sfs i. sh C = Some (sfs, i) \<and> (i = Done \<or> i = Processing)"
 
-(* checks that INIT and RI conform and are only in the main computation *)
+\<comment> \<open> checks that @{text INIT} and @{text RI} conform and are only in the main computation \<close>
 fun iconf :: "sheap \<Rightarrow> 'a exp \<Rightarrow> bool" and iconfs :: " sheap \<Rightarrow> 'a exp list \<Rightarrow> bool" where
   "iconf sh (new C) = True"
 | "iconf sh (Cast C e) = iconf sh e"
@@ -177,9 +179,12 @@ next
 next
 qed(auto)
 
-(* checks that the given expression, indicator boolean pair is allowed in small-step
-  (i.e., if b is True, then e is an initialization-calling expression to a class that is
-  marked either Processing or Done) *)
+
+subsection "Indicator boolean conformance"
+
+\<comment> \<open> checks that the given expression, indicator boolean pair is allowed in small-step
+  (i.e., if @{term b} is True, then @{term e} is an initialization-calling expression to
+  a class that is marked either @{term Processing} or @{term Done}) \<close>
 definition bconf :: "'m prog \<Rightarrow> sheap \<Rightarrow> 'a exp \<Rightarrow> bool \<Rightarrow> bool"  ("_,_ \<turnstile>\<^sub>b '(_,_') \<surd>" [51,51,0,0] 50)
 where
   "P,sh \<turnstile>\<^sub>b (e,b) \<surd>  \<equiv> b \<longrightarrow> (\<exists>C. icheck P C (ss_exp e) \<and> initPD sh C)"
@@ -190,7 +195,7 @@ where
                            \<and> (curr_inits P es = Some C) \<and> initPD sh C))"
 
 
-(* bconf helper lemmas *)
+\<comment> \<open> bconf helper lemmas \<close>
 
 lemma bconf_nonVal[simp]:
  "P,sh \<turnstile>\<^sub>b (e,True) \<surd> \<Longrightarrow> val_of e = None"

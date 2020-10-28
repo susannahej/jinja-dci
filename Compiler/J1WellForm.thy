@@ -1,9 +1,9 @@
-(*  Title:      Jinja/Compiler/WellType1.thy
+(*  Title:      JinjaDCI/Compiler/J1WellForm.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory Compiler/J1WellForm.thy by Tobias Nipkow
 *)
 
 section \<open> Well-Formedness of Intermediate Language \<close>
@@ -139,9 +139,9 @@ inductive_cases eee[elim!]:
   "P,E \<turnstile>\<^sub>1 e#es [::] Ts"
 (*>*)
 
-lemma [simp]:"\<not>P,E \<turnstile>\<^sub>1 INIT C (Cs,b) \<leftarrow> e :: T"
+lemma init_nWT\<^sub>1 [simp]:"\<not>P,E \<turnstile>\<^sub>1 INIT C (Cs,b) \<leftarrow> e :: T"
  by(auto elim:WT\<^sub>1.cases)
-lemma [simp]:"\<not>P,E \<turnstile>\<^sub>1 RI(C,e);Cs \<leftarrow> e' :: T"
+lemma rinit_nWT\<^sub>1 [simp]:"\<not>P,E \<turnstile>\<^sub>1 RI(C,e);Cs \<leftarrow> e' :: T"
  by(auto elim:WT\<^sub>1.cases)
 
 lemma WTs\<^sub>1_same_size: "\<And>Ts. P,E \<turnstile>\<^sub>1 es [::] Ts \<Longrightarrow> size es = size Ts"

@@ -1,13 +1,11 @@
-(*  Title:      HOL/MicroJava/BV/Correct.thy
+(*  Title:      JinjaDCI/BV/BVConform.thy
 
-    Author:     Cornelia Pusch, Gerwin Klein
-    Copyright   1999 Technische Universitaet Muenchen
+    Author:     Cornelia Pusch, Gerwin Klein, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory BV/BVConform.thy by Cornelia Pusch and Gerwin Klein
 
 The invariant for the type safety proof.
-*)
-(*
-    Expanded to include statics and class initialization by Susannah Mansky
-    2018, UIUC
 *)
 
 section \<open> BV Type Safety Invariant \<close>
@@ -16,6 +14,7 @@ theory BVConform
 imports BVSpec "../JVM/JVMExec" "../Common/Conform"
 begin
 
+subsection \<open> @{text "correct_state"} definitions \<close>
 
 definition confT :: "'c prog \<Rightarrow> heap \<Rightarrow> val \<Rightarrow> ty err \<Rightarrow> bool" 
     ("_,_ \<turnstile> _ :\<le>\<^sub>\<top> _" [51,51,51,51] 50)
@@ -283,7 +282,7 @@ using assms proof(induct frs arbitrary: C\<^sub>0 C M n T sfs i sfs')
   from conf' confs' ty meth f' Cons.prems show ?case by(fastforce dest: sees_method_fun)
 qed(simp)
 
-subsection \<open> correctness wrt clinit use \<close>
+subsection \<open> correctness wrt @{term clinit} use \<close>
 
 lemma conf_clinit_Cons:
 assumes "conf_clinit P sh (f#frs)"

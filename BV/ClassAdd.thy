@@ -1,8 +1,9 @@
 (*  Title: JinjaDCI/BV/ClassAdd.thy
     Author:     Susannah Mansky
-    2018, UIUC
+    2019-20, UIUC
 *)
-(* Preservation of various properties when adding a class to a program *)
+
+section \<open> Property preservation under @{text "class_add"} \<close>
 
 theory ClassAdd
 imports BVConform
@@ -26,10 +27,12 @@ qed
 
 (****************************************************************)
 
+\<comment> \<open> adding a class in the simplest way \<close>
 abbreviation class_add :: "jvm_prog \<Rightarrow> jvm_method cdecl \<Rightarrow> jvm_prog" where
 "class_add P cd \<equiv> cd#P"
 
-(*** Fields ***)
+
+subsection "Fields"
 
 lemma class_add_has_fields:
 assumes fs: "P \<turnstile> D has_fields FDTs" and nc: "\<not>is_class P C"
@@ -91,7 +94,7 @@ assumes fd: "P \<turnstile> C\<^sub>0 sees F,b:T in D" and "\<not> is_class P C"
 shows "field P C\<^sub>0 F = field (class_add P (C, cdec)) C\<^sub>0 F"
 using class_add_sees_field[OF assms, of cdec] fd by simp
 
-(*** Methods ***)
+subsection "Methods"
 
 lemma class_add_sees_methods:
 assumes ms: "P \<turnstile> D sees_methods Mm" and nc: "\<not>is_class P C"
@@ -184,7 +187,7 @@ lemma class_add_sees_method_rev_Obj:
   \<Longrightarrow> P \<turnstile> Object sees M\<^sub>0, b : Ts\<rightarrow>T = m in D"
  by(auto simp: Method_def dest!: class_add_sees_methods_rev_Obj[where P=P])
 
-(*** Types/states ***)
+subsection "Types and states"
 
 lemma class_add_is_type:
  "is_type P T \<Longrightarrow> is_type (class_add P (C, cdec)) T"
@@ -207,6 +210,8 @@ qed
 lemma class_add_check_types:
  "check_types P mxs mxl \<tau>s \<Longrightarrow> check_types (class_add P (C, cdec)) mxs mxl \<tau>s"
 using class_add_states by(fastforce simp: check_types_def)
+
+subsection "Subclasses and subtypes"
 
 lemma class_add_subcls:
  "\<lbrakk> P \<turnstile> D \<preceq>\<^sup>* D'; \<not> is_class P C \<rbrakk>
@@ -266,7 +271,7 @@ lemma class_add_sup_state_opt:
  by(auto simp: sup_state_opt_def Opt.le_def lesub_def class_add_widens
                class_add_sup_ty_opt list_all2_mono)
 
-(*** Effect ***)
+subsection "Effect"
 
 lemma class_add_is_relevant_class:
  "\<lbrakk> is_relevant_class i P C\<^sub>0; \<not> is_class P C \<rbrakk>
@@ -424,7 +429,7 @@ proof(cases t)
   ultimately show ?thesis by(simp add: app_def)
 qed(simp)
 
-(*** well-formedness/typedness ***)
+subsection "Well-formedness and well-typedness"
 
 lemma class_add_wf_mdecl:
   "\<lbrakk> wf_mdecl wf_md P C\<^sub>0 md;
@@ -598,14 +603,14 @@ lemma class_add_wt_method':
             (class_add P (C, cdec)) C\<^sub>0 md"
  by(clarsimp simp: class_add_wt_method)
 
-(*** distinct_fst ***)
+subsection \<open> @{text "distinct_fst"} \<close>
 
 lemma class_add_distinct_fst:
 "\<lbrakk> distinct_fst P; \<not> is_class P C \<rbrakk>
   \<Longrightarrow> distinct_fst (class_add P (C, cdec))"
  by(clarsimp simp: distinct_fst_def is_class_def class_def)
 
-(*** conformance ***)
+subsection "Conformance"
 
 lemma class_add_conf:
  "\<lbrakk> P,h \<turnstile> v :\<le> T; \<not> is_class P C \<rbrakk>

@@ -1,9 +1,9 @@
-(*  Title:      Jinja/Compiler/PCompiler.thy
+(*  Title:      JinjaDCI/Compiler/PCompiler.thy
 
-    Author:     Tobias Nipkow
-    Copyright   TUM 2003
-    Expanded to include statics and class initialization by Susannah Mansky
-    2018, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   TUM 2003, UIUC 2019-20
+
+    Based on the Jinja theory Common/PCompiler.thy by Tobias Nipkow
 *)
 
 section \<open> Program Compilation \<close>
@@ -24,7 +24,7 @@ definition compP :: "(staticb \<Rightarrow> 'a \<Rightarrow> 'b) \<Rightarrow> '
 where
   "compP f  \<equiv>  map (compC f)"
 
-text\<open> Compilation preserves the program structure.  Therfore lookup
+text\<open> Compilation preserves the program structure.  Therefore lookup
 functions either commute with compilation (like method lookup) or are
 preserved by it (like the subclass relation). \<close>
 

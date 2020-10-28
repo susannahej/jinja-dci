@@ -1,9 +1,9 @@
-(*  Title:      Jinja/J/SmallProgress.thy
+(*  Title:      JinjaDCI/J/Progress.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/Progress.thy by Tobias Nipkow
 *)
 
 section \<open> Progress of Small Step Semantics \<close>
@@ -80,12 +80,6 @@ where
     P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1;
     P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<longrightarrow> T = T\<^sub>2; P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<longrightarrow> T = T\<^sub>1 \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 :' T"
-(*
- "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2; P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<rbrakk>
-  \<Longrightarrow> P,E,h,sh \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 :' T\<^sub>2"
- "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> e\<^sub>1:' T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2:' T\<^sub>2; P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<rbrakk>
-  \<Longrightarrow> P,E,h,sh \<turnstile> if (e) e\<^sub>1 else e\<^sub>2 :' T\<^sub>1"
-*)
 | "\<lbrakk> P,E,h,sh \<turnstile> e :' Boolean;  P,E,h,sh \<turnstile> c:' T \<rbrakk>
   \<Longrightarrow>  P,E,h,sh \<turnstile> while(e) c :' Void"
 | "\<lbrakk> P,E,h,sh \<turnstile> e :' T\<^sub>r; is_refT T\<^sub>r \<rbrakk>  \<Longrightarrow>  P,E,h,sh \<turnstile> throw e :' T"

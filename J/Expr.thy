@@ -88,7 +88,19 @@ proof -
   then show ?thesis by fastforce
 qed
 
+lemma init_rhs_neq' [simp]: "INIT C (Cs,b) \<leftarrow> e \<noteq> e"
+proof -
+  have "size e \<noteq> size (INIT C (Cs,b) \<leftarrow> e)" by auto
+  then show ?thesis by fastforce
+qed
+
 lemma ri_rhs_neq [simp]: "e \<noteq> RI(C,e');Cs \<leftarrow> e"
+proof -
+  have "size e \<noteq> size (RI(C,e');Cs \<leftarrow> e)" by auto
+  then show ?thesis by fastforce
+qed
+
+lemma ri_rhs_neq' [simp]: "RI(C,e');Cs \<leftarrow> e \<noteq> e"
 proof -
   have "size e \<noteq> size (RI(C,e');Cs \<leftarrow> e)" by auto
   then show ?thesis by fastforce
@@ -224,6 +236,15 @@ fun throw_of :: "'a exp \<Rightarrow> 'a exp option" where
 
 lemma throw_of_spec: "throw_of e = Some e' \<Longrightarrow> e = throw e'"
 proof(cases e) qed(auto)
+
+fun init_exp_of :: "'a exp \<Rightarrow> 'a exp option" where
+"init_exp_of (INIT C (Cs,b) \<leftarrow> e) = Some e" |
+"init_exp_of (RI(C,e');Cs \<leftarrow> e) = Some e" |
+"init_exp_of _ = None"
+
+lemma init_exp_of_neq [simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e' \<noteq> e" by(cases e, auto)
+lemma init_exp_of_neq'[simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e \<noteq> e'" by(cases e, auto)
+
 
 subsection\<open>Class initialization\<close>
 

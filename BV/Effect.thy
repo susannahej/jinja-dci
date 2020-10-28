@@ -1,8 +1,8 @@
-(*  Title:      HOL/MicroJava/BV/Effect.thy
-    Author:     Gerwin Klein
-    Copyright   2000 Technische Universitaet Muenchen
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+(*  Title:      JinjaDCI/BV/Effect.thy
+    Author:     Gerwin Klein, Susannah Mansky
+    Copyright   2000 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory BV/Effect.thy by Gerwin Klein
 *)
 
 section \<open>Effect of Instructions on the State Type\<close>

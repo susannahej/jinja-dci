@@ -1,11 +1,9 @@
-(*  Title:      Jinja/Compiler/Compiler.thy
+(*  Title:      JinjaDCI/Compiler/Compiler.thy
 
-    Author:     Tobias Nipkow
-    Copyright   TUM 2003
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   TUM 2003, UIUC 2019-20
 
-    Expanded to include statics, class initialization, and method theory
-    Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory Compiler/Compiler.thy by Tobias Nipkow
 *)
 
 section \<open> Combining Stages 1 and 2 \<close>

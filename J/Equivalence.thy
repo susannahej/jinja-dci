@@ -1,8 +1,8 @@
-(*  Title:      Jinja/J/Equivalence.thy
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+(*  Title:      JinjaDCI/J/Equivalence.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/Equivalence.thy by Tobias Nipkow
 *)
 
 section \<open> Equivalence of Big Step and Small Step Semantics \<close>
@@ -13,15 +13,13 @@ subsection\<open>Small steps simulate big step\<close>
 
 subsubsection "Init"
 
-fun init_exp_of :: "'a exp \<Rightarrow> 'a exp option" where
-"init_exp_of (INIT C (Cs,b) \<leftarrow> e) = Some e" |
-"init_exp_of (RI(C,e');Cs \<leftarrow> e) = Some e" |
-"init_exp_of _ = None"
-
-lemma init_exp_of_neq [simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e' \<noteq> e" by(cases e, auto)
-lemma init_exp_of_neq'[simp]: "init_exp_of e = \<lfloor>e'\<rfloor> \<Longrightarrow> e \<noteq> e'"
- apply(cases e, auto)
-  by(drule sym, simp)+
+text "The reduction of initialization expressions doesn't touch or use
+ their on-hold expressions (the subexpression to the right of @{text \<leftarrow>})
+ until the initialization operation completes. This function is used to prove
+ this and related properties. It is then used for general reduction of
+ initialization expressions separately from their on-hold expressions by
+ using the on-hold expression @{term unit}, then putting the real on-hold
+ expression back in at the end."
 
 fun init_switch :: "'a exp \<Rightarrow> 'a exp \<Rightarrow> 'a exp" where
 "init_switch (INIT C (Cs,b) \<leftarrow> e\<^sub>i) e = (INIT C (Cs,b) \<leftarrow> e)" |
@@ -133,7 +131,7 @@ assumes "P \<turnstile> \<langle>e\<^sub>0,s\<^sub>0,b\<^sub>0\<rangle> \<righta
 shows "P \<turnstile> \<langle>init_switch e\<^sub>0 e',s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>throw a,s\<^sub>1,b\<^sub>1\<rangle>"
 using init_reds_sync_unit_throw'[OF assms] by clarsimp
 
-(* init reds lemmas *)
+\<comment> \<open> init reds lemmas \<close>
 
 lemma InitSeqReds:
 assumes "P \<turnstile> \<langle>INIT C ([C],b) \<leftarrow> unit,s\<^sub>0,b\<^sub>0\<rangle> \<rightarrow>* \<langle>Val v',s\<^sub>1,b\<^sub>1\<rangle>"
@@ -597,11 +595,11 @@ lemma SFAccInitDoneReds:
  \<Longrightarrow> P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D}, s,b\<rangle> \<rightarrow>* \<langle>Val v, s,False\<rangle>"
 (*<*)
 apply(cases b)
-(* case True  *)
+\<comment> \<open> case True \<close>
  apply(rule r_into_rtrancl)
  apply(cases s, simp)
  apply(erule (2) RedSFAcc)
-(* case False *)
+\<comment> \<open> case False \<close>
 apply(rule_tac b = "(C\<bullet>\<^sub>sF{D},s,True)" in converse_rtrancl_into_rtrancl)
  apply(cases s, simp)
  apply(drule (2) SFAccInitDoneRed)
@@ -758,10 +756,10 @@ lemma SFAssRedsVal:
 apply(rule rtrancl_trans)
  apply(erule SFAssReds)
 apply(cases b\<^sub>2)
- (* case True *)
+\<comment> \<open> case True \<close>
  apply(rule r_into_rtrancl)
  apply(drule_tac l = l\<^sub>2 in RedSFAss, simp_all)
- (* case False *)
+\<comment> \<open> case False \<close>
 apply(rule converse_rtrancl_into_rtrancl)
  apply(drule_tac sh = sh\<^sub>2 in SFAssInitDoneRed, simp_all)
 apply(rule r_into_rtrancl)
@@ -1244,16 +1242,6 @@ done
 
 text\<open> Now a few lemmas on the behaviour of blocks during reduction. \<close>
 
-(* If you want to avoid the premise "distinct" further down \<dots>
-consts upd_vals :: "locals \<Rightarrow> vname list \<Rightarrow> val list \<Rightarrow> val list"
-primrec
-"upd_vals l [] vs = []"
-"upd_vals l (V#Vs) vs = (if V \<in> set Vs then hd vs else the(l V)) #
-                        upd_vals l Vs (tl vs)"
-
-lemma [simp]: "\<And>vs. length(upd_vals l Vs vs) = length Vs"
-by(induct Vs, auto)
-*)
 lemma override_on_upd_lemma:
   "(override_on f (g(a\<mapsto>b)) A)(a := g a) = override_on f g (insert a A)"
 (*<*)
@@ -2472,7 +2460,6 @@ next
 next
   case CondThrow thus ?case by(auto dest!:eval_final dest:CondRedsThrow)
 next
-thm bconf_Cond
   case (WhileF e s\<^sub>0 s\<^sub>1 c)
   then have iconf: "iconf (shp s\<^sub>0) e" using nsub_RI_iconf by auto
   then have bconf: "P,shp s\<^sub>0 \<turnstile>\<^sub>b (e,b) \<surd>" using WhileF.prems(2) by(simp add: bconf_def)
@@ -2757,44 +2744,6 @@ next
     using Ts vs by auto
 qed
 (*>*)
-(* FIXME exercise: show precise relationship between l' and l'':
-lemma blocksEval:
-  "\<And> Ts vs l l'. \<lbrakk>length ps = length Ts; length ps = length vs; 
-        P\<turnstile> \<langle>blocks(ps,Ts,vs,e),(h,l)\<rangle> \<Rightarrow> \<langle>e',(h',l')\<rangle> \<rbrakk>
-    \<Longrightarrow> \<exists> l''. P \<turnstile> \<langle>e,(h,l(ps[\<mapsto>]vs))\<rangle> \<Rightarrow> \<langle>e',(h',l'')\<rangle> \<and> l'=l''(l|set ps)"
-proof (induct ps)
-  case Nil then show ?case by simp
-next
-  case (Cons p ps')
-  have length_eqs: "length (p # ps') = length Ts" 
-                   "length (p # ps') = length vs" .
-  then obtain T Ts' where Ts: "Ts=T#Ts'" by (cases "Ts") simp
-  obtain v vs' where vs: "vs=v#vs'" using length_eqs by (cases "vs") simp
-  have "P \<turnstile> \<langle>blocks (p # ps', Ts, vs, e),(h,l)\<rangle> \<Rightarrow> \<langle>e',(h', l')\<rangle>".
-  with Ts vs 
-  have "P \<turnstile> \<langle>{p:T := Val v; blocks (ps', Ts', vs', e)},(h,l)\<rangle> \<Rightarrow> \<langle>e',(h', l')\<rangle>"
-    by simp
-  then obtain l''' where
-    eval_ps': "P \<turnstile> \<langle>blocks (ps', Ts', vs', e),(h, l(p\<mapsto>v))\<rangle> \<Rightarrow> \<langle>e',(h', l''')\<rangle>"
-    and l''': "l'=l'''(p:=l p)"
-    by (cases) (auto elim: eval_cases)
- 
-  then obtain l'' where 
-    hyp: "P \<turnstile> \<langle>e,(h, l(p\<mapsto>v)(ps'[\<mapsto>]vs'))\<rangle> \<Rightarrow> \<langle>e',(h', l'')\<rangle>" and
-    l'': "l''' = l''(l(p\<mapsto>v)|set ps')"
-    using length_eqs Ts vs Cons.hyps [OF _ _ eval_ps'] by auto
-  have "l' = l''(l|set (p # ps'))"
-  proof -
-    have "(l''(l(p\<mapsto>v)|set ps'))(p := l p) = l''(l|insert p (set ps'))"
-      by (induct ps') (auto intro: ext simp add: fun_upd_def override_on_def)
-    with l''' l'' show ?thesis  by simp
-  qed
-  with hyp
-  show "\<exists>l''. P \<turnstile> \<langle>e,(h, l(p # ps'[\<mapsto>]vs))\<rangle> \<Rightarrow> \<langle>e',(h', l'')\<rangle> \<and>
-        l' = l''(l|set (p # ps'))"
-    using Ts vs by auto
-qed
-*)
 
 lemma
 assumes wf: "wwf_J_prog P"
@@ -3144,26 +3093,13 @@ proof -
     by simp
 qed
 (*>*)
-(* Hiermit kann man die ganze pair-Splitterei in den automatischen Taktiken
-abschalten. Wieder anschalten siehe nach dem Beweis. *)
-(*<*)
-declare split_paired_All [simp del] split_paired_Ex [simp del]
-(*>*)
-(* FIXME
- exercise 1: define a big step semantics where the body of a procedure can
- access not juts this and pns but all of the enclosing l. What exactly is fed
- in? What exactly is returned at the end? Notion: "dynamic binding"
 
-  excercise 2: the semantics of exercise 1 is closer to the small step
-  semantics. Reformulate equivalence proof by modifying call lemmas.
-*)
-
-(* separate evaluation of first subexp of a sequence *)
+\<comment> \<open> separate evaluation of first subexp of a sequence \<close>
 lemma seq_ext:
 assumes IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
  and seq: "P \<turnstile> \<langle>e'' ;; e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "P \<turnstile> \<langle>e ;; e\<^sub>0,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-proof(rule eval_cases(14)[OF seq]) (* Seq *)
+proof(rule eval_cases(14)[OF seq]) \<comment> \<open> Seq \<close>
   fix v' s\<^sub>1 assume e'': "P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>" and estep: "P \<turnstile> \<langle>e\<^sub>0,s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
   have "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>" using e'' IH by simp
   then show ?thesis using estep Seq by simp
@@ -3173,12 +3109,12 @@ next
   then show ?thesis using eval_evals.SeqThrow e' by simp
 qed
 
-(* separate evaluation of RI subexp, val case *)
+\<comment> \<open> separate evaluation of @{text RI} subexp, val case \<close>
 lemma rinit_Val_ext:
 assumes ri: "P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
  and IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "P \<turnstile> \<langle>RI (C,e) ; Cs \<leftarrow> e\<^sub>0,s\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
-proof(rule eval_cases(20)[OF ri]) (* RI *)
+proof(rule eval_cases(20)[OF ri]) \<comment> \<open> RI \<close>
   fix v'' h' l' sh' sfs i
   assume e''step: "P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>Val v'',(h', l', sh')\<rangle>"
      and shC: "sh' C = \<lfloor>(sfs, i)\<rfloor>"
@@ -3194,12 +3130,12 @@ next
   then show ?thesis using riD rinit_throwE by blast
 qed(simp)
 
-(* separate evaluation of RI subexp, throw case *)
+\<comment> \<open> separate evaluation of @{text RI} subexp, throw case \<close>
 lemma rinit_throw_ext:
 assumes ri: "P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>throw e\<^sub>t,s'\<rangle>"
  and IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "P \<turnstile> \<langle>RI (C,e) ; Cs \<leftarrow> e\<^sub>0,s\<rangle> \<Rightarrow> \<langle>throw e\<^sub>t,s'\<rangle>"
-proof(rule eval_cases(20)[OF ri]) (* RI *)
+proof(rule eval_cases(20)[OF ri]) \<comment> \<open> RI \<close>
   fix v h' l' sh' sfs i
   assume e''step: "P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>Val v,(h', l', sh')\<rangle>"
      and shC: "sh' C = \<lfloor>(sfs, i)\<rfloor>"
@@ -3225,7 +3161,7 @@ next
   then show ?thesis using RInitFailFinal IH by auto
 qed
 
-(* separate evaluation of RI subexp *)
+\<comment> \<open> separate evaluation of @{text RI} subexp \<close>
 lemma rinit_ext:
 assumes IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
 shows "\<And>e' s'. P \<turnstile> \<langle>RI (C,e'') ; Cs \<leftarrow> e\<^sub>0,s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
@@ -3241,7 +3177,8 @@ proof -
   qed
 qed
 
-(* INIT/RI return either Val+Done/Proc flag or Throw+Error flag *)
+\<comment> \<open> @{text INIT} and @{text RI} return either @{text Val} with @{text Done} or
+ @{text Processing} flag or @{text Throw} with @{text Error} flag \<close>
 lemma
 shows eval_init_return: "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
   \<Longrightarrow> iconf (shp s) e
@@ -3368,6 +3305,14 @@ apply(drule_tac C' = C' and a = a in eval_init_return, simp_all)
 apply (metis append_butlast_last_id)
 done
 
+\<comment> \<open> combining the above to get evaluation of @{text INIT} in a sequence \<close>
+
+(* Hiermit kann man die ganze pair-Splitterei in den automatischen Taktiken
+abschalten. Wieder anschalten siehe nach dem Beweis. *)
+(*<*)
+declare split_paired_All [simp del] split_paired_Ex [simp del]
+(*>*)
+
 lemma eval_init_seq': "P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i) \<or> (\<exists>C e\<^sub>0 Cs e\<^sub>i. e = RI(C,e\<^sub>0);Cs \<leftarrow> e\<^sub>i)
   \<Longrightarrow> (\<exists>C Cs b e\<^sub>i. e = INIT C (Cs,b) \<leftarrow> e\<^sub>i \<and> P \<turnstile> \<langle>(INIT C (Cs,b) \<leftarrow> unit);; e\<^sub>i,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>)
@@ -3414,6 +3359,7 @@ lemma eval_init_seq: "P \<turnstile> \<langle>INIT C (Cs,b) \<leftarrow> e,(h, l
  \<Longrightarrow> P \<turnstile> \<langle>(INIT C (Cs,b) \<leftarrow> unit);; e,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
  by(auto dest: eval_init_seq')
 
+
 text \<open> The key lemma: \<close>
 lemma
 assumes wf: "wwf_J_prog P"
@@ -3422,46 +3368,102 @@ shows extend_1_eval: "P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<lan
 and extend_1_evals: "P \<turnstile> \<langle>es,s,b\<rangle> [\<rightarrow>] \<langle>es'',s'',b''\<rangle> \<Longrightarrow> P,shp s \<turnstile>\<^sub>b (es,b) \<surd>
    \<Longrightarrow> (\<And>s' es'. P \<turnstile> \<langle>es'',s''\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>es,s\<rangle> [\<Rightarrow>] \<langle>es',s'\<rangle>)"
 proof (induct rule: red_reds.inducts)
-  case (RedCall h a C fs M Ts T pns body D vs l sh b)
-  have "P \<turnstile> \<langle>addr a,(h,l,sh)\<rangle> \<Rightarrow> \<langle>addr a,(h,l,sh)\<rangle>" by (rule eval_evals.intros)
-  moreover
-  have finals: "finals(map Val vs)" by simp
-  with finals have "P \<turnstile> \<langle>map Val vs,(h,l,sh)\<rangle> [\<Rightarrow>] \<langle>map Val vs,(h,l,sh)\<rangle>"
-    by (iprover intro: eval_finalsId)
-  moreover have "h a = Some (C, fs)" using RedCall by simp
-  moreover have "method": "P \<turnstile> C sees M,NonStatic: Ts\<rightarrow>T = (pns, body) in D" by fact
-  moreover have same_len\<^sub>1: "length Ts = length pns"
-   and this_distinct: "this \<notin> set pns" and fv: "fv (body) \<subseteq> {this} \<union> set pns"
-    using "method" wf by (fastforce dest!:sees_wf_mdecl simp:wf_mdecl_def)+
-  have same_len: "length vs = length pns" by fact
-  moreover
-  obtain l\<^sub>2' where l\<^sub>2': "l\<^sub>2' = [this\<mapsto>Addr a,pns[\<mapsto>]vs]" by simp
-  moreover
-  obtain h\<^sub>3 l\<^sub>3 sh\<^sub>3 where s': "s' = (h\<^sub>3,l\<^sub>3,sh\<^sub>3)" by (cases s')
-  have eval_blocks:
-    "P \<turnstile> \<langle>(blocks (this # pns, Class D # Ts, Addr a # vs, body)),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by fact
-  hence id: "l\<^sub>3 = l" using fv s' same_len\<^sub>1 same_len
-    by(fastforce elim: eval_closed_lcl_unchanged)
-  from eval_blocks obtain l\<^sub>3' where "P \<turnstile> \<langle>body,(h,l\<^sub>2',sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l\<^sub>3',sh\<^sub>3)\<rangle>"
-  proof -
-    from same_len\<^sub>1 have "length(this#pns) = length(Class D#Ts)" by simp
-    moreover from same_len\<^sub>1 same_len
-    have same_len\<^sub>2: "length (this#pns) = length (Addr a#vs)" by simp
-    moreover from eval_blocks
-    have "P \<turnstile> \<langle>blocks (this#pns,Class D#Ts,Addr a#vs,body),(h,l,sh)\<rangle>
-              \<Rightarrow>\<langle>e',(h\<^sub>3,l\<^sub>3,sh\<^sub>3)\<rangle>" using s' same_len\<^sub>1 same_len\<^sub>2 by simp
-    ultimately obtain l''
-      where "P \<turnstile> \<langle>body,(h,l(this # pns[\<mapsto>]Addr a # vs),sh)\<rangle>\<Rightarrow>\<langle>e',(h\<^sub>3, l'',sh\<^sub>3)\<rangle>"
-      by (blast dest:blocksEval)
-    from eval_restrict_lcl[OF wf this fv] this_distinct same_len\<^sub>1 same_len
-    have "P \<turnstile> \<langle>body,(h,[this # pns[\<mapsto>]Addr a # vs],sh)\<rangle> \<Rightarrow>
-               \<langle>e',(h\<^sub>3, l''|`(set(this#pns)),sh\<^sub>3)\<rangle>" using wf method
-      by(simp add:subset_insert_iff insert_Diff_if)
-    thus ?thesis by(fastforce intro!:that simp add: l\<^sub>2')
+  case (RedNew h a C FDTs h' l sh)
+  then have e':"e' = addr a" and s':"s' = (h(a \<mapsto> blank P C), l, sh)"
+    using eval_cases(3) by fastforce+
+  obtain sfs i where shC: "sh C = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
+   using RedNew by (clarsimp simp: bconf_def initPD_def)
+  then show ?case
+  proof(cases i)
+    case Done then show ?thesis using RedNew shC e' s' New by simp
+  next
+    case Processing
+    then have shC': "\<nexists>sfs. sh C = Some(sfs,Done)" and shP: "sh C = Some(sfs,Processing)"
+      using shC by simp+
+    then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
+      by(simp add: InitFinal InitProcessing Val)
+    have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>addr a,(h(a \<mapsto> blank P C),l,sh)\<rangle>"
+      using RedNew shC' by(auto intro: NewInit[OF _ init])
+    then show ?thesis using e' s' by simp
+  qed(auto)
+next
+  case (RedNewFail h C l sh)
+  then have e':"e' = THROW OutOfMemory" and s':"s' = (h, l, sh)"
+    using eval_final_same final_def by fastforce+
+  obtain sfs i where shC: "sh C = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
+   using RedNewFail by (clarsimp simp: bconf_def initPD_def)
+  then show ?case
+  proof(cases i)
+    case Done then show ?thesis using RedNewFail shC e' s' NewFail by simp
+  next
+    case Processing
+    then have shC': "\<nexists>sfs. sh C = Some(sfs,Done)" and shP: "sh C = Some(sfs,Processing)"
+      using shC by simp+
+    then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
+      by(simp add: InitFinal InitProcessing Val)
+    have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>THROW OutOfMemory,(h,l,sh)\<rangle>"
+      using RedNewFail shC' by(auto intro: NewInitOOM[OF _ init])
+    then show ?thesis using e' s' by simp
+  qed(auto)
+next
+  case (NewInitRed sh C h l)
+  then have seq: "P \<turnstile> \<langle>(INIT C ([C],False) \<leftarrow> unit);; new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    using eval_init_seq by simp
+  then show ?case
+  proof(rule eval_cases(14)) \<comment> \<open> Seq \<close>
+    fix v s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,s\<^sub>1\<rangle>"
+      and new: "P \<turnstile> \<langle>new C,s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
+    then obtain sfs i where shC: "sh\<^sub>1 C = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
+      using init_Val_PD[OF init] by auto
+    show ?thesis
+    proof(rule eval_cases(1)[OF new]) \<comment> \<open> New \<close>
+      fix sha ha a FDTs la
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = addr a"
+         and s': "s' = (ha(a \<mapsto> blank P C), la, sha)"
+         and addr: "new_Addr ha = \<lfloor>a\<rfloor>" and fields: "P \<turnstile> C has_fields FDTs"
+      then show ?thesis using NewInit[OF _ _ addr fields] NewInitRed.hyps init by simp
+    next
+      fix sha ha la
+      assume "s\<^sub>1 = (ha, la, sha)" and "e' = THROW OutOfMemory"
+         and "s' = (ha, la, sha)" and "new_Addr ha = None"
+      then show ?thesis using NewInitOOM NewInitRed.hyps init by simp
+    next
+      fix sha ha la v' h' l' sh' a FDTs
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = addr a"
+         and s': "s' = (h'(a \<mapsto> blank P C), l', sh')"
+         and shaC: "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
+         and addr: "new_Addr h' = \<lfloor>a\<rfloor>" and fields: "P \<turnstile> C has_fields FDTs"
+      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
+      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
+      then show ?thesis using NewInit NewInitRed.hyps s\<^sub>1a addr fields init shaC e' s' by auto
+    next
+      fix sha ha la v' h' l' sh'
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = THROW OutOfMemory"
+         and s': "s' = (h', l', sh')" and "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
+         and addr: "new_Addr h' = None"
+      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
+      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
+      then show ?thesis
+        using NewInitOOM NewInitRed.hyps e' addr s' s\<^sub>1a init by auto
+    next
+      fix sha ha la a
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)"
+         and "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
+      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
+      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
+    qed
+  next
+    fix e assume e': "e' = throw e"
+      and init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
+    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
+    then obtain sfs i where shC: "sh' C = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
+      using init_throw_PD[OF init] by auto
+    then show ?thesis by (simp add: NewInitRed.hyps NewInitThrow e' init)
   qed
-  ultimately
-  have "P \<turnstile> \<langle>(addr a)\<bullet>M(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>" by (rule Call)
-  with s' id show ?case by simp
 next
   case CastRed then show ?case
     by(fastforce elim!: eval_cases intro: eval_evals.intros intro!: CastFail)
@@ -3515,6 +3517,75 @@ next
   case RedFAccStatic thus ?case
     by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
+  case (RedSFAcc C F t D sh sfs i v h l)
+  then have e':"e' = Val v" and s':"s' = (h, l, sh)"
+    using eval_cases(3) by fastforce+
+  have "i = Done \<or> i = Processing" using RedSFAcc by (clarsimp simp: bconf_def initPD_def)
+  then show ?case
+  proof(cases i)
+    case Done then show ?thesis using RedSFAcc e' s' SFAcc by simp
+  next
+    case Processing
+    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
+      using RedSFAcc by simp+
+    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
+      by(simp add: InitFinal InitProcessing Val)
+    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,(h,l,sh)\<rangle>"
+      by(rule SFAccInit[OF RedSFAcc.hyps(1) shC' init shP RedSFAcc.hyps(3)])
+    then show ?thesis using e' s' by simp
+  qed(auto)
+next
+  case (SFAccInitRed C F t D sh h l)
+  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sF{D},(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    using eval_init_seq by simp
+  then show ?case
+  proof(rule eval_cases(14)) \<comment> \<open> Seq \<close>
+    fix v s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,s\<^sub>1\<rangle>"
+      and acc: "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
+    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
+      using init_Val_PD[OF init] by auto
+    show ?thesis
+    proof(rule eval_cases(8)[OF acc]) \<comment> \<open> SFAcc \<close>
+      fix t sha sfs v ha la
+      assume "s\<^sub>1 = (ha, la, sha)" and "e' = Val v"
+         and "s' = (ha, la, sha)" and "P \<turnstile> C has F,Static:t in D"
+         and "sha D = \<lfloor>(sfs, Done)\<rfloor>" and "sfs F = \<lfloor>v\<rfloor>"
+      then show ?thesis using SFAccInit SFAccInitRed.hyps(2) init by auto
+    next
+      fix t sha ha la v' h' l' sh' sfs i' v
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = Val v"
+         and s': "s' = (h', l', sh')" and field: "P \<turnstile> C has F,Static:t in D"
+         and "\<forall>sfs. sha D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
+         and shD': "sh' D = \<lfloor>(sfs, i')\<rfloor>" and sfsF: "sfs F = \<lfloor>v\<rfloor>"
+      then have i: "i = Processing" using iDP shD s\<^sub>1 by simp
+      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+      then show ?thesis using SFAccInit SFAccInitRed.hyps(2) e' s' field init s\<^sub>1a sfsF shD' by auto
+    next
+      fix t sha ha la a
+      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and "e' = throw a"
+         and "P \<turnstile> C has F,Static:t in D" and "\<forall>sfs. sha D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
+      then have i: "i = Processing" using iDP shD s\<^sub>1 by simp
+      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+    next
+      assume "\<forall>b t. \<not> P \<turnstile> C has F,b:t in D"
+      then show ?thesis using SFAccInitRed.hyps(1) by blast
+    next
+      fix t assume field: "P \<turnstile> C has F,NonStatic:t in D"
+      then show ?thesis using has_field_fun[OF SFAccInitRed.hyps(1) field] by simp
+    qed
+  next
+    fix e assume e': "e' = throw e"
+     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
+    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
+    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
+      using init_throw_PD[OF init] by auto
+    then show ?thesis
+      using SFAccInitRed.hyps(1) SFAccInitRed.hyps(2) SFAccInitThrow e' init by auto
+  qed
+next
   case RedSFAccNone thus ?case
     by(fastforce elim: eval_cases intro: eval_evals.intros)
 next
@@ -3561,6 +3632,85 @@ next
     case 3 with SFAssRed bconf show ?thesis by(auto intro!: SFAssInitThrow)
   qed(auto intro: eval_evals.intros intro!: SFAss SFAssInit SFAssNone SFAssNonStatic)
 next
+  case (RedSFAss C F t D sh sfs i sfs' v sh' h l)
+  let ?sfs' = "sfs(F \<mapsto> v)"
+  have e':"e' = unit" and s':"s' = (h, l, sh(D \<mapsto> (?sfs', i)))"
+    using RedSFAss eval_cases(3) by fastforce+
+  have "i = Done \<or> i = Processing" using RedSFAss by(clarsimp simp: bconf_def initPD_def)
+  then show ?case
+  proof(cases i)
+    case Done then show ?thesis using RedSFAss e' s' SFAss Val by auto
+  next
+    case Processing
+    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
+      using RedSFAss by simp+
+    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
+      by(simp add: InitFinal InitProcessing Val)
+    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D} := Val v,(h, l, sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh(D \<mapsto> (?sfs', i)))\<rangle>"
+      using Processing by(auto intro: SFAssInit[OF Val RedSFAss.hyps(1) shC' init shP])
+    then show ?thesis using e' s' by simp
+  qed(auto)
+next
+  case (SFAssInitRed C F t D sh v h l)
+  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sF{D} := Val v,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    using eval_init_seq by simp
+  then show ?case
+  proof(rule eval_cases(14)) \<comment> \<open> Seq \<close>
+    fix v' s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
+      and acc: "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D} := Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
+    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
+      using init_Val_PD[OF init] by auto
+    show ?thesis
+    proof(rule eval_cases(10)[OF acc]) \<comment> \<open> SFAss \<close>
+      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t sfs
+      assume e': "e' = unit" and s': "s' = (h\<^sub>1, l\<^sub>1, sh\<^sub>1(D \<mapsto> (sfs(F \<mapsto> va), Done)))"
+         and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
+         and field: "P \<turnstile> C has F,Static:t in D" and shD': "sh\<^sub>1 D = \<lfloor>(sfs, Done)\<rfloor>"
+      have "v = va" and "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
+      then show ?thesis using SFAssInit field SFAssInitRed.hyps(2) shD' e' s' init val
+        by (metis eval_final eval_finalId)
+    next
+      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t v' h' l' sh' sfs i'
+      assume e': "e' = unit" and s': "s' = (h', l', sh'(D \<mapsto> (sfs(F \<mapsto> va), i')))"
+         and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
+         and field: "P \<turnstile> C has F,Static:t in D" and nDone: "\<forall>sfs. sh\<^sub>1 D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
+         and shD': "sh' D = \<lfloor>(sfs, i')\<rfloor>"
+      have v: "v = va" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
+      then have i: "i = Processing" using iDP shD s\<^sub>1 nDone by simp
+      then have "(h\<^sub>1, l\<^sub>1, sh\<^sub>1) = (h', l', sh')" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+      then show ?thesis using SFAssInit SFAssInitRed.hyps(2) e' s' field init v s\<^sub>1a shD' val
+        by (metis eval_final eval_finalId)
+    next
+      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t a
+      assume "e' = throw a" and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
+         and "P \<turnstile> C has F,Static:t in D" and nDone: "\<forall>sfs. sh\<^sub>1 D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
+      have v: "v = va" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
+      then have i: "i = Processing" using iDP shD s\<^sub>1 nDone by simp
+      then have "(h\<^sub>1, l\<^sub>1, sh\<^sub>1) = s'" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD i by blast
+    next
+      fix e'' assume val:"P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>throw e'',s'\<rangle>"
+      then show ?thesis using eval_final_same[OF val] by simp
+    next
+      assume "\<forall>b t. \<not> P \<turnstile> C has F,b:t in D"
+      then show ?thesis using SFAssInitRed.hyps(1) by blast
+    next
+      fix t assume field: "P \<turnstile> C has F,NonStatic:t in D"
+      then show ?thesis using has_field_fun[OF SFAssInitRed.hyps(1) field] by simp
+    qed
+  next
+    fix e assume e': "e' = throw e"
+     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
+    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
+    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
+      using init_throw_PD[OF init] by auto
+    then show ?thesis using SFAssInitRed.hyps(1) SFAssInitRed.hyps(2) SFAssInitThrow Val
+      by (metis e' init)
+  qed
+next
   case (RedSFAssNone C F D v s b) then show ?case
     by(cases s) (auto elim!: eval_cases intro: eval_evals.intros eval_finalId)
 next
@@ -3585,6 +3735,47 @@ next
   with CallParams show ?case
    by(auto elim!: eval_cases intro!: CallNone eval_finalId CallStatic Val)
      (auto intro!: CallParamsThrow CallNull Call Val)
+next
+  case (RedCall h a C fs M Ts T pns body D vs l sh b)
+  have "P \<turnstile> \<langle>addr a,(h,l,sh)\<rangle> \<Rightarrow> \<langle>addr a,(h,l,sh)\<rangle>" by (rule eval_evals.intros)
+  moreover
+  have finals: "finals(map Val vs)" by simp
+  with finals have "P \<turnstile> \<langle>map Val vs,(h,l,sh)\<rangle> [\<Rightarrow>] \<langle>map Val vs,(h,l,sh)\<rangle>"
+    by (iprover intro: eval_finalsId)
+  moreover have "h a = Some (C, fs)" using RedCall by simp
+  moreover have "method": "P \<turnstile> C sees M,NonStatic: Ts\<rightarrow>T = (pns, body) in D" by fact
+  moreover have same_len\<^sub>1: "length Ts = length pns"
+   and this_distinct: "this \<notin> set pns" and fv: "fv (body) \<subseteq> {this} \<union> set pns"
+    using "method" wf by (fastforce dest!:sees_wf_mdecl simp:wf_mdecl_def)+
+  have same_len: "length vs = length pns" by fact
+  moreover
+  obtain l\<^sub>2' where l\<^sub>2': "l\<^sub>2' = [this\<mapsto>Addr a,pns[\<mapsto>]vs]" by simp
+  moreover
+  obtain h\<^sub>3 l\<^sub>3 sh\<^sub>3 where s': "s' = (h\<^sub>3,l\<^sub>3,sh\<^sub>3)" by (cases s')
+  have eval_blocks:
+    "P \<turnstile> \<langle>(blocks (this # pns, Class D # Ts, Addr a # vs, body)),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by fact
+  hence id: "l\<^sub>3 = l" using fv s' same_len\<^sub>1 same_len
+    by(fastforce elim: eval_closed_lcl_unchanged)
+  from eval_blocks obtain l\<^sub>3' where "P \<turnstile> \<langle>body,(h,l\<^sub>2',sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l\<^sub>3',sh\<^sub>3)\<rangle>"
+  proof -
+    from same_len\<^sub>1 have "length(this#pns) = length(Class D#Ts)" by simp
+    moreover from same_len\<^sub>1 same_len
+    have same_len\<^sub>2: "length (this#pns) = length (Addr a#vs)" by simp
+    moreover from eval_blocks
+    have "P \<turnstile> \<langle>blocks (this#pns,Class D#Ts,Addr a#vs,body),(h,l,sh)\<rangle>
+              \<Rightarrow>\<langle>e',(h\<^sub>3,l\<^sub>3,sh\<^sub>3)\<rangle>" using s' same_len\<^sub>1 same_len\<^sub>2 by simp
+    ultimately obtain l''
+      where "P \<turnstile> \<langle>body,(h,l(this # pns[\<mapsto>]Addr a # vs),sh)\<rangle>\<Rightarrow>\<langle>e',(h\<^sub>3, l'',sh\<^sub>3)\<rangle>"
+      by (blast dest:blocksEval)
+    from eval_restrict_lcl[OF wf this fv] this_distinct same_len\<^sub>1 same_len
+    have "P \<turnstile> \<langle>body,(h,[this # pns[\<mapsto>]Addr a # vs],sh)\<rangle> \<Rightarrow>
+               \<langle>e',(h\<^sub>3, l''|`(set(this#pns)),sh\<^sub>3)\<rangle>" using wf method
+      by(simp add:subset_insert_iff insert_Diff_if)
+    thus ?thesis by(fastforce intro!:that simp add: l\<^sub>2')
+  qed
+  ultimately
+  have "P \<turnstile> \<langle>(addr a)\<bullet>M(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>" by (rule Call)
+  with s' id show ?case by simp
 next
   case RedCallNull
   thus ?case
@@ -3619,6 +3810,143 @@ next
   next
     case 5 with SCallParams bconf show ?thesis by(auto intro!: SCallInit)
   qed(auto intro!: SCallParamsThrow SCall)
+next
+  case (RedSCall C M Ts T pns body D vs s)
+  then obtain h l sh where s:"s = (h,l,sh)" by(cases s)
+  then obtain sfs i where shC: "sh D = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
+   using RedSCall by(auto simp: bconf_def initPD_def dest: sees_method_fun)
+  have finals: "finals(map Val vs)" by simp
+  with finals have mVs: "P \<turnstile> \<langle>map Val vs,(h,l,sh)\<rangle> [\<Rightarrow>] \<langle>map Val vs,(h,l,sh)\<rangle>"
+    by (iprover intro: eval_finalsId)
+  obtain sfs i where shC: "sh D = \<lfloor>(sfs, i)\<rfloor>"
+   using RedSCall s by(auto simp: bconf_def initPD_def dest: sees_method_fun)
+  then have iDP: "i = Done \<or> i = Processing" using RedSCall s
+    by (auto simp: bconf_def initPD_def dest: sees_method_fun[OF RedSCall.hyps(1)])
+  have "method": "P \<turnstile> C sees M,Static: Ts\<rightarrow>T = (pns, body) in D" by fact
+  have same_len\<^sub>1: "length Ts = length pns" and fv: "fv (body) \<subseteq> set pns"
+    using "method" wf by (fastforce dest!:sees_wf_mdecl simp:wf_mdecl_def)+
+  have same_len: "length vs = length pns" by fact
+  obtain l\<^sub>2' where l\<^sub>2': "l\<^sub>2' = [pns[\<mapsto>]vs]" by simp
+  obtain h\<^sub>3 l\<^sub>3 sh\<^sub>3 where s': "s' = (h\<^sub>3,l\<^sub>3,sh\<^sub>3)" by (cases s')
+  have eval_blocks:
+    "P \<turnstile> \<langle>(blocks (pns, Ts, vs, body)),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" using RedSCall.prems(2) s by simp
+  hence id: "l\<^sub>3 = l" using fv s' same_len\<^sub>1 same_len
+    by(fastforce elim: eval_closed_lcl_unchanged)
+  from eval_blocks obtain l\<^sub>3' where body: "P \<turnstile> \<langle>body,(h,l\<^sub>2',sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l\<^sub>3',sh\<^sub>3)\<rangle>"
+  proof -
+    from eval_blocks
+    have "P \<turnstile> \<langle>blocks (pns,Ts,vs,body),(h,l,sh)\<rangle>
+              \<Rightarrow>\<langle>e',(h\<^sub>3,l\<^sub>3,sh\<^sub>3)\<rangle>" using s' same_len same_len\<^sub>1 by simp
+    then obtain l''
+      where "P \<turnstile> \<langle>body,(h,l(pns[\<mapsto>]vs),sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l'',sh\<^sub>3)\<rangle>"
+      by (blast dest:blocksEval[OF same_len\<^sub>1[THEN sym] same_len[THEN sym]])
+    from eval_restrict_lcl[OF wf this fv] same_len\<^sub>1 same_len
+    have "P \<turnstile> \<langle>body,(h,[pns[\<mapsto>]vs],sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l''|`(set(pns)),sh\<^sub>3)\<rangle>" using wf method
+      by(simp add:subset_insert_iff insert_Diff_if)
+    thus ?thesis by(fastforce intro!:that simp add: l\<^sub>2')
+  qed
+  show ?case using iDP
+  proof(cases i)
+    case Done
+    then have shC': "sh D = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh D = \<lfloor>(sfs, Processing)\<rfloor>"
+      using shC by simp
+    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
+     by (rule SCall[OF mVs method shC' same_len l\<^sub>2' body])
+    with s s' id show ?thesis by simp
+  next
+    case Processing
+    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
+      using shC by simp+
+    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
+      by(simp add: InitFinal InitProcessing Val)
+    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
+    proof(cases "M = clinit")
+      case False show ?thesis by(rule SCallInit[OF mVs method shC' False init same_len l\<^sub>2' body])
+    next
+      case True
+      then have shC': "sh D = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh D = \<lfloor>(sfs, Processing)\<rfloor>"
+        using shC Processing by simp
+      have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
+       by (rule SCall[OF mVs method shC' same_len l\<^sub>2' body])
+      with s s' id show ?thesis by simp
+    qed
+    with s s' id show ?thesis by simp
+  qed(auto)
+next
+  case (SCallInitRed C M Ts T pns body D sh vs h l)
+  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sM(map Val vs),(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    using eval_init_seq by simp
+  then show ?case
+  proof(rule eval_cases(14)) \<comment> \<open> Seq \<close>
+    fix v' s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
+      and call: "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
+    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
+    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
+      using init_Val_PD[OF init] by auto
+    show ?thesis
+    proof(rule eval_cases(12)[OF call]) \<comment> \<open> SCall \<close>
+      fix vsa ex es' assume "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa @ throw ex # es',s'\<rangle>"
+      then show ?thesis using evals_finals_same by (meson finals_def map_Val_nthrow_neq)
+    next
+      assume "\<forall>b Ts T a ba x. \<not> P \<turnstile> C sees M, b :  Ts\<rightarrow>T = (a, ba) in x"
+      then show ?thesis using SCallInitRed.hyps(1) by auto
+    next
+      fix Ts T m D assume "P \<turnstile> C sees M, NonStatic :  Ts\<rightarrow>T = m in D"
+      then show ?thesis using sees_method_fun[OF SCallInitRed.hyps(1)] by blast
+    next
+      fix vsa h1 l1 sh1 Ts T pns body D' a
+      assume "e' = throw a" and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h1, l1, sh1)\<rangle>"
+         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns, body) in D'"
+         and nDone: "\<forall>sfs. sh1 D' \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D' ([D'],False) \<leftarrow> unit,(h1, l1, sh1)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
+      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h1, l1, sh1)"
+        using evals_finals_same[OF _ vals] map_Val_eq by auto
+      have D: "D = D'" using sees_method_fun[OF SCallInitRed.hyps(1) method] by simp
+      then have i: "i = Processing" using iDP shD s\<^sub>1 s\<^sub>1a nDone by simp
+      then show ?thesis using D init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+    next
+      fix vsa h1 l1 sh1 Ts T pns' body' D' v' h\<^sub>2 l\<^sub>2 sh\<^sub>2 h\<^sub>3 l\<^sub>3 sh\<^sub>3
+      assume s': "s' = (h\<^sub>3, l\<^sub>2, sh\<^sub>3)"
+         and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h1, l1, sh1)\<rangle>"
+         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns', body') in D'"
+         and nDone: "\<forall>sfs. sh1 D' \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
+         and init': "P \<turnstile> \<langle>INIT D' ([D'],False) \<leftarrow> unit,(h1, l1, sh1)\<rangle> \<Rightarrow> \<langle>Val v',(h\<^sub>2, l\<^sub>2, sh\<^sub>2)\<rangle>"
+         and len: "length vsa = length pns'"
+         and bstep: "P \<turnstile> \<langle>body',(h\<^sub>2, [pns' [\<mapsto>] vsa], sh\<^sub>2)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3)\<rangle>"
+      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h1, l1, sh1)"
+        using evals_finals_same[OF _ vals] map_Val_eq by auto
+      have D: "D = D'" and pns: "pns = pns'" and body: "body = body'"
+        using sees_method_fun[OF SCallInitRed.hyps(1) method] by auto
+      then have i: "i = Processing" using iDP shD s\<^sub>1 s\<^sub>1a nDone by simp
+      then have s2: "(h\<^sub>2, l\<^sub>2, sh\<^sub>2) = s\<^sub>1" using D init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
+      then show ?thesis
+        using eval_finalId SCallInit[OF eval_finalsId[of "map Val vs" P "(h,l,sh)"]
+          SCallInitRed.hyps(1)] init init' len bstep nDone D pns body s' s\<^sub>1 s\<^sub>1a shD vals vs
+          SCallInitRed.hyps(2-3) s2 by auto
+    next
+      fix vsa h\<^sub>2 l\<^sub>2 sh\<^sub>2 Ts T pns' body' D' sfs h\<^sub>3 l\<^sub>3 sh\<^sub>3
+      assume s': "s' = (h\<^sub>3, l\<^sub>2, sh\<^sub>3)" and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h\<^sub>2, l\<^sub>2, sh\<^sub>2)\<rangle>"
+         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns', body') in D'"
+         and "sh\<^sub>2 D' = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh\<^sub>2 D' = \<lfloor>(sfs, Processing)\<rfloor>"
+         and len: "length vsa = length pns'"
+         and bstep: "P \<turnstile> \<langle>body',(h\<^sub>2, [pns' [\<mapsto>] vsa], sh\<^sub>2)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3)\<rangle>"
+      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>2, l\<^sub>2, sh\<^sub>2)"
+        using evals_finals_same[OF _ vals] map_Val_eq by auto
+      have D: "D = D'" and pns: "pns = pns'" and body: "body = body'"
+        using sees_method_fun[OF SCallInitRed.hyps(1) method] by auto
+      then show ?thesis using SCallInit[OF eval_finalsId[of "map Val vs" P "(h,l,sh)"]
+        SCallInitRed.hyps(1)] bstep SCallInitRed.hyps(2-3) len s' s\<^sub>1a vals vs init by auto
+    qed
+  next
+    fix e assume e': "e' = throw e"
+     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
+    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
+    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
+      using init_throw_PD[OF init] by auto
+    then show ?thesis using SCallInitRed.hyps(2-3) init e'
+      SCallInitThrow[OF eval_finalsId[of "map Val vs" _] SCallInitRed.hyps(1)]
+     by auto
+  qed
 next
   case (RedSCallNone C M vs s b)
   then have tes: "THROW NoSuchMethodError = e' \<and> s = s'"
@@ -3711,6 +4039,8 @@ next
   thus ?case
     by (auto simp add: unfold_while intro:eval_evals.intros elim:eval_cases)
 next
+  case ThrowRed then show ?case by(fastforce elim: eval_cases simp: eval_evals.intros)
+next
   case RedThrowNull
   thus ?case
     by (fastforce elim: eval_cases intro: eval_evals.intros)
@@ -3734,6 +4064,28 @@ next
   thus ?case
     by (fastforce elim!: evals_cases eval_cases 
                  intro: eval_evals.intros eval_finalId)
+next
+  case (RedInit e1 C b s1 b') then show ?case using InitFinal by simp
+next
+  case (InitNoneRed sh C C' Cs e h l b)
+  show ?case using InitNone InitNoneRed.hyps InitNoneRed.prems(2) by auto
+next
+  case (RedInitDone sh C sfs C' Cs e h l b)
+  show ?case using InitDone RedInitDone.hyps RedInitDone.prems(2) by auto
+next
+  case (RedInitProcessing sh C sfs C' Cs e h l b)
+  show ?case using InitProcessing RedInitProcessing.hyps RedInitProcessing.prems(2) by auto
+next
+  case (RedInitError sh C sfs C' Cs e h l b)
+  show ?case using InitError RedInitError.hyps RedInitError.prems(2) by auto
+next
+  case (InitObjectRed sh C sfs sh' C' Cs e h l b) show ?case using InitObject InitObjectRed by auto
+next
+  case (InitNonObjectSuperRed sh C sfs D r sh' C' Cs e h l b)
+  show ?case using InitNonObject InitNonObjectSuperRed by auto
+next
+  case (RedInitRInit C' C Cs e h l sh b)
+  show ?case using InitRInit RedInitRInit by auto
 next
   case (RInitRed e s b e'' s'' b'' C Cs e\<^sub>0)
   then have IH: "\<And>e' s'. P \<turnstile> \<langle>e'',s''\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow> P \<turnstile> \<langle>e,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by simp
@@ -3776,16 +4128,6 @@ next
     by (rule eval_evals.SCallParamsThrow)
   thus ?case using e' by simp
 next
-  case (InitBlockThrow V T v a s b)
-  then have "P \<turnstile> \<langle>Throw a,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by simp
-  then obtain s': "s' = s" and e': "e' = Throw a"
-    by cases (auto elim!:eval_cases)
-  obtain h l sh where s: "s = (h,l,sh)" by (cases s)
-  have "P \<turnstile> \<langle>{V:T :=Val v; Throw a},(h,l,sh)\<rangle> \<Rightarrow> \<langle>Throw a, (h, (l(V\<mapsto>v))(V:=l V),sh)\<rangle>"
-    by(fastforce intro:eval_evals.intros)
-  then have "P \<turnstile> \<langle>{V:T := Val v; Throw a},s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" using s s' e' by simp
-  then show ?case by simp
-next
   case (BlockThrow V T a s b)
   then have "P \<turnstile> \<langle>Throw a, s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by simp
   then obtain s': "s' = s" and e': "e' = Throw a"
@@ -3798,275 +4140,15 @@ next
   then have "P \<turnstile> \<langle>{V:T; Throw a},s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" using s s' e' by simp
   then show ?case by simp
 next
-(*************************************************************************)
-  case (NewInitRed sh C h l)
-  then have seq: "P \<turnstile> \<langle>(INIT C ([C],False) \<leftarrow> unit);; new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    using eval_init_seq by simp
-  then show ?case
-  proof(rule eval_cases(14)) (* Seq *)
-    fix v s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,s\<^sub>1\<rangle>"
-      and new: "P \<turnstile> \<langle>new C,s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
-    then obtain sfs i where shC: "sh\<^sub>1 C = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
-      using init_Val_PD[OF init] by auto
-    show ?thesis
-    proof(rule eval_cases(1)[OF new]) (* New *)
-      fix sha ha a FDTs la
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = addr a"
-         and s': "s' = (ha(a \<mapsto> blank P C), la, sha)"
-         and addr: "new_Addr ha = \<lfloor>a\<rfloor>" and fields: "P \<turnstile> C has_fields FDTs"
-      then show ?thesis using NewInit[OF _ _ addr fields] NewInitRed.hyps init by simp
-    next
-      fix sha ha la
-      assume "s\<^sub>1 = (ha, la, sha)" and "e' = THROW OutOfMemory"
-         and "s' = (ha, la, sha)" and "new_Addr ha = None"
-      then show ?thesis using NewInitOOM NewInitRed.hyps init by simp
-    next
-      fix sha ha la v' h' l' sh' a FDTs
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = addr a"
-         and s': "s' = (h'(a \<mapsto> blank P C), l', sh')"
-         and shaC: "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
-         and addr: "new_Addr h' = \<lfloor>a\<rfloor>" and fields: "P \<turnstile> C has_fields FDTs"
-      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
-      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
-      then show ?thesis using NewInit NewInitRed.hyps s\<^sub>1a addr fields init shaC e' s' by auto
-    next
-      fix sha ha la v' h' l' sh'
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = THROW OutOfMemory"
-         and s': "s' = (h', l', sh')" and "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
-         and addr: "new_Addr h' = None"
-      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
-      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
-      then show ?thesis
-        using NewInitOOM NewInitRed.hyps e' addr s' s\<^sub>1a init by auto
-    next
-      fix sha ha la a
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)"
-         and "\<forall>sfs. sha C \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
-      then have i: "i = Processing" using iDP shC s\<^sub>1 by simp
-      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shC by blast
-    qed
-  next
-    fix e assume e': "e' = throw e"
-      and init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
-    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
-    then obtain sfs i where shC: "sh' C = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
-      using init_throw_PD[OF init] by auto
-    then show ?thesis by (simp add: NewInitRed.hyps NewInitThrow e' init)
-  qed
-next
-  case (SFAccInitRed C F t D sh h l)
-  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sF{D},(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    using eval_init_seq by simp
-  then show ?case
-  proof(rule eval_cases(14)) (* Seq *)
-    fix v s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,s\<^sub>1\<rangle>"
-      and acc: "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
-    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
-      using init_Val_PD[OF init] by auto
-    show ?thesis
-    proof(rule eval_cases(8)[OF acc]) (* SFAcc *)
-      fix t sha sfs v ha la
-      assume "s\<^sub>1 = (ha, la, sha)" and "e' = Val v"
-         and "s' = (ha, la, sha)" and "P \<turnstile> C has F,Static:t in D"
-         and "sha D = \<lfloor>(sfs, Done)\<rfloor>" and "sfs F = \<lfloor>v\<rfloor>"
-      then show ?thesis using SFAccInit SFAccInitRed.hyps(2) init by auto
-    next
-      fix t sha ha la v' h' l' sh' sfs i' v
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and e': "e' = Val v"
-         and s': "s' = (h', l', sh')" and field: "P \<turnstile> C has F,Static:t in D"
-         and "\<forall>sfs. sha D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
-         and shD': "sh' D = \<lfloor>(sfs, i')\<rfloor>" and sfsF: "sfs F = \<lfloor>v\<rfloor>"
-      then have i: "i = Processing" using iDP shD s\<^sub>1 by simp
-      then have "(h', l', sh') = (ha, la, sha)" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-      then show ?thesis using SFAccInit SFAccInitRed.hyps(2) e' s' field init s\<^sub>1a sfsF shD' by auto
-    next
-      fix t sha ha la a
-      assume s\<^sub>1a: "s\<^sub>1 = (ha, la, sha)" and "e' = throw a"
-         and "P \<turnstile> C has F,Static:t in D" and "\<forall>sfs. sha D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(ha, la, sha)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
-      then have i: "i = Processing" using iDP shD s\<^sub>1 by simp
-      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-    next
-      assume "\<forall>b t. \<not> P \<turnstile> C has F,b:t in D"
-      then show ?thesis using SFAccInitRed.hyps(1) by blast
-    next
-      fix t assume field: "P \<turnstile> C has F,NonStatic:t in D"
-      then show ?thesis using has_field_fun[OF SFAccInitRed.hyps(1) field] by simp
-    qed
-  next
-    fix e assume e': "e' = throw e"
-     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
-    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
-    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
-      using init_throw_PD[OF init] by auto
-    then show ?thesis
-      using SFAccInitRed.hyps(1) SFAccInitRed.hyps(2) SFAccInitThrow e' init by auto
-  qed
-next
-  case (SFAssInitRed C F t D sh v h l)
-  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sF{D} := Val v,(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    using eval_init_seq by simp
-  then show ?case
-  proof(rule eval_cases(14)) (* Seq *)
-    fix v' s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
-      and acc: "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D} := Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
-    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
-      using init_Val_PD[OF init] by auto
-    show ?thesis
-    proof(rule eval_cases(10)[OF acc]) (* SFAss *)
-      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t sfs
-      assume e': "e' = unit" and s': "s' = (h\<^sub>1, l\<^sub>1, sh\<^sub>1(D \<mapsto> (sfs(F \<mapsto> va), Done)))"
-         and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
-         and field: "P \<turnstile> C has F,Static:t in D" and shD': "sh\<^sub>1 D = \<lfloor>(sfs, Done)\<rfloor>"
-      have "v = va" and "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
-      then show ?thesis using SFAssInit field SFAssInitRed.hyps(2) shD' e' s' init val
-        by (metis eval_final eval_finalId)
-    next
-      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t v' h' l' sh' sfs i'
-      assume e': "e' = unit" and s': "s' = (h', l', sh'(D \<mapsto> (sfs(F \<mapsto> va), i')))"
-         and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
-         and field: "P \<turnstile> C has F,Static:t in D" and nDone: "\<forall>sfs. sh\<^sub>1 D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle> \<Rightarrow> \<langle>Val v',(h', l', sh')\<rangle>"
-         and shD': "sh' D = \<lfloor>(sfs, i')\<rfloor>"
-      have v: "v = va" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
-      then have i: "i = Processing" using iDP shD s\<^sub>1 nDone by simp
-      then have "(h\<^sub>1, l\<^sub>1, sh\<^sub>1) = (h', l', sh')" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-      then show ?thesis using SFAssInit SFAssInitRed.hyps(2) e' s' field init v s\<^sub>1a shD' val
-        by (metis eval_final eval_finalId)
-    next
-      fix va h\<^sub>1 l\<^sub>1 sh\<^sub>1 t a
-      assume "e' = throw a" and val: "P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>Val va,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle>"
-         and "P \<turnstile> C has F,Static:t in D" and nDone: "\<forall>sfs. sh\<^sub>1 D \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h\<^sub>1, l\<^sub>1, sh\<^sub>1)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
-      have v: "v = va" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>1, l\<^sub>1, sh\<^sub>1)" using eval_final_same[OF val] by auto
-      then have i: "i = Processing" using iDP shD s\<^sub>1 nDone by simp
-      then have "(h\<^sub>1, l\<^sub>1, sh\<^sub>1) = s'" using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-      then show ?thesis using init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD i by blast
-    next
-      fix e'' assume val:"P \<turnstile> \<langle>Val v,s\<^sub>1\<rangle> \<Rightarrow> \<langle>throw e'',s'\<rangle>"
-      then show ?thesis using eval_final_same[OF val] by simp
-    next
-      assume "\<forall>b t. \<not> P \<turnstile> C has F,b:t in D"
-      then show ?thesis using SFAssInitRed.hyps(1) by blast
-    next
-      fix t assume field: "P \<turnstile> C has F,NonStatic:t in D"
-      then show ?thesis using has_field_fun[OF SFAssInitRed.hyps(1) field] by simp
-    qed
-  next
-    fix e assume e': "e' = throw e"
-     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
-    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
-    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
-      using init_throw_PD[OF init] by auto
-    then show ?thesis using SFAssInitRed.hyps(1) SFAssInitRed.hyps(2) SFAssInitThrow Val
-      by (metis e' init)
-  qed
-next
-  case (SCallInitRed C M Ts T pns body D sh vs h l)
-  then have seq: "P \<turnstile> \<langle>(INIT D ([D],False) \<leftarrow> unit);; C\<bullet>\<^sub>sM(map Val vs),(h, l, sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    using eval_init_seq by simp
-  then show ?case
-  proof(rule eval_cases(14)) (* Seq *)
-    fix v' s\<^sub>1 assume init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v',s\<^sub>1\<rangle>"
-      and call: "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),s\<^sub>1\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>"
-    obtain h\<^sub>1 l\<^sub>1 sh\<^sub>1 where s\<^sub>1: "s\<^sub>1 = (h\<^sub>1,l\<^sub>1,sh\<^sub>1)" by(cases s\<^sub>1)
-    then obtain sfs i where shD: "sh\<^sub>1 D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Done \<or> i = Processing"
-      using init_Val_PD[OF init] by auto
-    show ?thesis
-    proof(rule eval_cases(12)[OF call]) (* SCall *)
-      fix vsa ex es' assume "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa @ throw ex # es',s'\<rangle>"
-      then show ?thesis using evals_finals_same by (meson finals_def map_Val_nthrow_neq)
-    next
-      assume "\<forall>b Ts T a ba x. \<not> P \<turnstile> C sees M, b :  Ts\<rightarrow>T = (a, ba) in x"
-      then show ?thesis using SCallInitRed.hyps(1) by auto
-    next
-      fix Ts T m D assume "P \<turnstile> C sees M, NonStatic :  Ts\<rightarrow>T = m in D"
-      then show ?thesis using sees_method_fun[OF SCallInitRed.hyps(1)] by blast
-    next
-      fix vsa h1 l1 sh1 Ts T pns body D' a
-      assume "e' = throw a" and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h1, l1, sh1)\<rangle>"
-         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns, body) in D'"
-         and nDone: "\<forall>sfs. sh1 D' \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D' ([D'],False) \<leftarrow> unit,(h1, l1, sh1)\<rangle> \<Rightarrow> \<langle>throw a,s'\<rangle>"
-      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h1, l1, sh1)"
-        using evals_finals_same[OF _ vals] map_Val_eq by auto
-      have D: "D = D'" using sees_method_fun[OF SCallInitRed.hyps(1) method] by simp
-      then have i: "i = Processing" using iDP shD s\<^sub>1 s\<^sub>1a nDone by simp
-      then show ?thesis using D init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-    next
-      fix vsa h1 l1 sh1 Ts T pns' body' D' v' h\<^sub>2 l\<^sub>2 sh\<^sub>2 h\<^sub>3 l\<^sub>3 sh\<^sub>3
-      assume s': "s' = (h\<^sub>3, l\<^sub>2, sh\<^sub>3)"
-         and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h1, l1, sh1)\<rangle>"
-         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns', body') in D'"
-         and nDone: "\<forall>sfs. sh1 D' \<noteq> \<lfloor>(sfs, Done)\<rfloor>"
-         and init': "P \<turnstile> \<langle>INIT D' ([D'],False) \<leftarrow> unit,(h1, l1, sh1)\<rangle> \<Rightarrow> \<langle>Val v',(h\<^sub>2, l\<^sub>2, sh\<^sub>2)\<rangle>"
-         and len: "length vsa = length pns'"
-         and bstep: "P \<turnstile> \<langle>body',(h\<^sub>2, [pns' [\<mapsto>] vsa], sh\<^sub>2)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3)\<rangle>"
-      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h1, l1, sh1)"
-        using evals_finals_same[OF _ vals] map_Val_eq by auto
-      have D: "D = D'" and pns: "pns = pns'" and body: "body = body'"
-        using sees_method_fun[OF SCallInitRed.hyps(1) method] by auto
-      then have i: "i = Processing" using iDP shD s\<^sub>1 s\<^sub>1a nDone by simp
-      then have s2: "(h\<^sub>2, l\<^sub>2, sh\<^sub>2) = s\<^sub>1" using D init' init_ProcessingE s\<^sub>1 s\<^sub>1a shD by blast
-      then show ?thesis
-        using eval_finalId SCallInit[OF eval_finalsId[of "map Val vs" P "(h,l,sh)"]
-          SCallInitRed.hyps(1)] init init' len bstep nDone D pns body s' s\<^sub>1 s\<^sub>1a shD vals vs
-          SCallInitRed.hyps(2-3) s2 by auto
-    next
-      fix vsa h\<^sub>2 l\<^sub>2 sh\<^sub>2 Ts T pns' body' D' sfs h\<^sub>3 l\<^sub>3 sh\<^sub>3
-      assume s': "s' = (h\<^sub>3, l\<^sub>2, sh\<^sub>3)" and vals: "P \<turnstile> \<langle>map Val vs,s\<^sub>1\<rangle> [\<Rightarrow>] \<langle>map Val vsa,(h\<^sub>2, l\<^sub>2, sh\<^sub>2)\<rangle>"
-         and method: "P \<turnstile> C sees M, Static :  Ts\<rightarrow>T = (pns', body') in D'"
-         and "sh\<^sub>2 D' = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh\<^sub>2 D' = \<lfloor>(sfs, Processing)\<rfloor>"
-         and len: "length vsa = length pns'"
-         and bstep: "P \<turnstile> \<langle>body',(h\<^sub>2, [pns' [\<mapsto>] vsa], sh\<^sub>2)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l\<^sub>3, sh\<^sub>3)\<rangle>"
-      have vs: "vs = vsa" and s\<^sub>1a: "s\<^sub>1 = (h\<^sub>2, l\<^sub>2, sh\<^sub>2)"
-        using evals_finals_same[OF _ vals] map_Val_eq by auto
-      have D: "D = D'" and pns: "pns = pns'" and body: "body = body'"
-        using sees_method_fun[OF SCallInitRed.hyps(1) method] by auto
-      then show ?thesis using SCallInit[OF eval_finalsId[of "map Val vs" P "(h,l,sh)"]
-        SCallInitRed.hyps(1)] bstep SCallInitRed.hyps(2-3) len s' s\<^sub>1a vals vs init by auto
-    qed
-  next
-    fix e assume e': "e' = throw e"
-     and init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h, l, sh)\<rangle> \<Rightarrow> \<langle>throw e,s'\<rangle>"
-    obtain h' l' sh' where s': "s' = (h',l',sh')" by(cases s')
-    then obtain sfs i where shC: "sh' D = \<lfloor>(sfs, i)\<rfloor>" and iDP: "i = Error"
-      using init_throw_PD[OF init] by auto
-    then show ?thesis using SCallInitRed.hyps(2-3) init e'
-      SCallInitThrow[OF eval_finalsId[of "map Val vs" _] SCallInitRed.hyps(1)]
-     by auto
-  qed
-next
-  case ThrowRed then show ?case by(fastforce elim: eval_cases simp: eval_evals.intros)
-next
-  case (RedInit e1 C b s1 b') then show ?case using InitFinal by simp
-next
-  case (InitNoneRed sh C C' Cs e h l b)
-  show ?case using InitNone InitNoneRed.hyps InitNoneRed.prems(2) by auto
-next
-  case (RedInitDone sh C sfs C' Cs e h l b)
-  show ?case using InitDone RedInitDone.hyps RedInitDone.prems(2) by auto
-next
-  case (RedInitProcessing sh C sfs C' Cs e h l b)
-  show ?case using InitProcessing RedInitProcessing.hyps RedInitProcessing.prems(2) by auto
-next
-  case (RedInitError sh C sfs C' Cs e h l b)
-  show ?case using InitError RedInitError.hyps RedInitError.prems(2) by auto
-next
-  case (InitObjectRed sh C sfs sh' C' Cs e h l b) show ?case using InitObject InitObjectRed by auto
-next
-  case (InitNonObjectSuperRed sh C sfs D r sh' C' Cs e h l b)
-  show ?case using InitNonObject InitNonObjectSuperRed by auto
-next
-  case (RedInitRInit C' C Cs e h l sh b)
-  show ?case using InitRInit RedInitRInit by auto
+  case (InitBlockThrow V T v a s b)
+  then have "P \<turnstile> \<langle>Throw a,s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" by simp
+  then obtain s': "s' = s" and e': "e' = Throw a"
+    by cases (auto elim!:eval_cases)
+  obtain h l sh where s: "s = (h,l,sh)" by (cases s)
+  have "P \<turnstile> \<langle>{V:T :=Val v; Throw a},(h,l,sh)\<rangle> \<Rightarrow> \<langle>Throw a, (h, (l(V\<mapsto>v))(V:=l V),sh)\<rangle>"
+    by(fastforce intro:eval_evals.intros)
+  then have "P \<turnstile> \<langle>{V:T := Val v; Throw a},s\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" using s s' e' by simp
+  then show ?case by simp
 next
   case (RInitInitThrow sh C sfs i sh' a D Cs e h l b)
   have IH: "\<And>e' s'. P \<turnstile> \<langle>RI (D,Throw a) ; Cs \<leftarrow> e,(h, l, sh(C \<mapsto> (sfs, Error)))\<rangle> \<Rightarrow> \<langle>e',s'\<rangle> \<Longrightarrow>
@@ -4078,144 +4160,6 @@ next
   then have e': "e' = Throw a" and s': "s' = (h,l,sh')"
     using eval_final_same final_def by fastforce+
   show ?case using RInitFailFinal RInitThrow.hyps(1) RInitThrow.hyps(2) e' eval_finalId s' by auto
-next
-(*************)
-  case (RedNew h a C FDTs h' l sh)
-  then have e':"e' = addr a" and s':"s' = (h(a \<mapsto> blank P C), l, sh)"
-    using eval_cases(3) by fastforce+
-  obtain sfs i where shC: "sh C = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
-   using RedNew by (clarsimp simp: bconf_def initPD_def)
-  then show ?case
-  proof(cases i)
-    case Done then show ?thesis using RedNew shC e' s' New by simp
-  next
-    case Processing
-    then have shC': "\<nexists>sfs. sh C = Some(sfs,Done)" and shP: "sh C = Some(sfs,Processing)"
-      using shC by simp+
-    then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
-      by(simp add: InitFinal InitProcessing Val)
-    have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>addr a,(h(a \<mapsto> blank P C),l,sh)\<rangle>"
-      using RedNew shC' by(auto intro: NewInit[OF _ init])
-    then show ?thesis using e' s' by simp
-  qed(auto)
-next
-  case (RedNewFail h C l sh)
-  then have e':"e' = THROW OutOfMemory" and s':"s' = (h, l, sh)"
-    using eval_final_same final_def by fastforce+
-  obtain sfs i where shC: "sh C = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
-   using RedNewFail by (clarsimp simp: bconf_def initPD_def)
-  then show ?case
-  proof(cases i)
-    case Done then show ?thesis using RedNewFail shC e' s' NewFail by simp
-  next
-    case Processing
-    then have shC': "\<nexists>sfs. sh C = Some(sfs,Done)" and shP: "sh C = Some(sfs,Processing)"
-      using shC by simp+
-    then have init: "P \<turnstile> \<langle>INIT C ([C],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
-      by(simp add: InitFinal InitProcessing Val)
-    have "P \<turnstile> \<langle>new C,(h, l, sh)\<rangle> \<Rightarrow> \<langle>THROW OutOfMemory,(h,l,sh)\<rangle>"
-      using RedNewFail shC' by(auto intro: NewInitOOM[OF _ init])
-    then show ?thesis using e' s' by simp
-  qed(auto)
-next
-  case (RedSFAcc C F t D sh sfs i v h l)
-  then have e':"e' = Val v" and s':"s' = (h, l, sh)"
-    using eval_cases(3) by fastforce+
-  have "i = Done \<or> i = Processing" using RedSFAcc by (clarsimp simp: bconf_def initPD_def)
-  then show ?case
-  proof(cases i)
-    case Done then show ?thesis using RedSFAcc e' s' SFAcc by simp
-  next
-    case Processing
-    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
-      using RedSFAcc by simp+
-    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
-      by(simp add: InitFinal InitProcessing Val)
-    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D},(h, l, sh)\<rangle> \<Rightarrow> \<langle>Val v,(h,l,sh)\<rangle>"
-      by(rule SFAccInit[OF RedSFAcc.hyps(1) shC' init shP RedSFAcc.hyps(3)])
-    then show ?thesis using e' s' by simp
-  qed(auto)
-next
-  case (RedSFAss C F t D sh sfs i sfs' v sh' h l)
-  let ?sfs' = "sfs(F \<mapsto> v)"
-  have e':"e' = unit" and s':"s' = (h, l, sh(D \<mapsto> (?sfs', i)))"
-    using RedSFAss eval_cases(3) by fastforce+
-  have "i = Done \<or> i = Processing" using RedSFAss by(clarsimp simp: bconf_def initPD_def)
-  then show ?case
-  proof(cases i)
-    case Done then show ?thesis using RedSFAss e' s' SFAss Val by auto
-  next
-    case Processing
-    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
-      using RedSFAss by simp+
-    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
-      by(simp add: InitFinal InitProcessing Val)
-    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sF{D} := Val v,(h, l, sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh(D \<mapsto> (?sfs', i)))\<rangle>"
-      using Processing by(auto intro: SFAssInit[OF Val RedSFAss.hyps(1) shC' init shP])
-    then show ?thesis using e' s' by simp
-  qed(auto)
-next
-  case (RedSCall C M Ts T pns body D vs s)
-  then obtain h l sh where s:"s = (h,l,sh)" by(cases s)
-  then obtain sfs i where shC: "sh D = \<lfloor>(sfs, i)\<rfloor>" and "i = Done \<or> i = Processing"
-   using RedSCall by(auto simp: bconf_def initPD_def dest: sees_method_fun)
-  have finals: "finals(map Val vs)" by simp
-  with finals have mVs: "P \<turnstile> \<langle>map Val vs,(h,l,sh)\<rangle> [\<Rightarrow>] \<langle>map Val vs,(h,l,sh)\<rangle>"
-    by (iprover intro: eval_finalsId)
-  obtain sfs i where shC: "sh D = \<lfloor>(sfs, i)\<rfloor>"
-   using RedSCall s by(auto simp: bconf_def initPD_def dest: sees_method_fun)
-  then have iDP: "i = Done \<or> i = Processing" using RedSCall s
-    by (auto simp: bconf_def initPD_def dest: sees_method_fun[OF RedSCall.hyps(1)])
-  have "method": "P \<turnstile> C sees M,Static: Ts\<rightarrow>T = (pns, body) in D" by fact
-  have same_len\<^sub>1: "length Ts = length pns" and fv: "fv (body) \<subseteq> set pns"
-    using "method" wf by (fastforce dest!:sees_wf_mdecl simp:wf_mdecl_def)+
-  have same_len: "length vs = length pns" by fact
-  obtain l\<^sub>2' where l\<^sub>2': "l\<^sub>2' = [pns[\<mapsto>]vs]" by simp
-  obtain h\<^sub>3 l\<^sub>3 sh\<^sub>3 where s': "s' = (h\<^sub>3,l\<^sub>3,sh\<^sub>3)" by (cases s')
-  have eval_blocks:
-    "P \<turnstile> \<langle>(blocks (pns, Ts, vs, body)),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',s'\<rangle>" using RedSCall.prems(2) s by simp
-  hence id: "l\<^sub>3 = l" using fv s' same_len\<^sub>1 same_len
-    by(fastforce elim: eval_closed_lcl_unchanged)
-  from eval_blocks obtain l\<^sub>3' where body: "P \<turnstile> \<langle>body,(h,l\<^sub>2',sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l\<^sub>3',sh\<^sub>3)\<rangle>"
-  proof -
-    from eval_blocks
-    have "P \<turnstile> \<langle>blocks (pns,Ts,vs,body),(h,l,sh)\<rangle>
-              \<Rightarrow>\<langle>e',(h\<^sub>3,l\<^sub>3,sh\<^sub>3)\<rangle>" using s' same_len same_len\<^sub>1 by simp
-    then obtain l''
-      where "P \<turnstile> \<langle>body,(h,l(pns[\<mapsto>]vs),sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l'',sh\<^sub>3)\<rangle>"
-      by (blast dest:blocksEval[OF same_len\<^sub>1[THEN sym] same_len[THEN sym]])
-    from eval_restrict_lcl[OF wf this fv] same_len\<^sub>1 same_len
-    have "P \<turnstile> \<langle>body,(h,[pns[\<mapsto>]vs],sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3, l''|`(set(pns)),sh\<^sub>3)\<rangle>" using wf method
-      by(simp add:subset_insert_iff insert_Diff_if)
-    thus ?thesis by(fastforce intro!:that simp add: l\<^sub>2')
-  qed
-  show ?case using iDP
-  proof(cases i)
-    case Done
-    then have shC': "sh D = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh D = \<lfloor>(sfs, Processing)\<rfloor>"
-      using shC by simp
-    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
-     by (rule SCall[OF mVs method shC' same_len l\<^sub>2' body])
-    with s s' id show ?thesis by simp
-  next
-    case Processing
-    then have shC': "\<nexists>sfs. sh D = Some(sfs,Done)" and shP: "sh D = Some(sfs,Processing)"
-      using shC by simp+
-    then have init: "P \<turnstile> \<langle>INIT D ([D],False) \<leftarrow> unit,(h,l,sh)\<rangle> \<Rightarrow> \<langle>unit,(h,l,sh)\<rangle>"
-      by(simp add: InitFinal InitProcessing Val)
-    have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
-    proof(cases "M = clinit")
-      case False show ?thesis by(rule SCallInit[OF mVs method shC' False init same_len l\<^sub>2' body])
-    next
-      case True
-      then have shC': "sh D = \<lfloor>(sfs, Done)\<rfloor> \<or> M = clinit \<and> sh D = \<lfloor>(sfs, Processing)\<rfloor>"
-        using shC Processing by simp
-      have "P \<turnstile> \<langle>C\<bullet>\<^sub>sM(map Val vs),(h,l,sh)\<rangle> \<Rightarrow> \<langle>e',(h\<^sub>3,l,sh\<^sub>3)\<rangle>"
-       by (rule SCall[OF mVs method shC' same_len l\<^sub>2' body])
-      with s s' id show ?thesis by simp
-    qed
-    with s s' id show ?thesis by simp
-  qed(auto)
 qed(auto elim: eval_cases simp: eval_evals.intros)
 (*>*)
 

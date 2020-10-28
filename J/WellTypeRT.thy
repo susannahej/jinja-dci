@@ -1,12 +1,9 @@
-(*  Title:      Jinja/J/WellTypeRT.thy
+(*  Title:      JinjaDCI/J/WellTypeRT.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-*)
-(*
-  Expanded to include support for static fields and methods and dynamic class initialization.
-  Susannah Mansky
-  2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/WellTypeRT.thy by Tobias Nipkow
 *)
 
 section \<open> Runtime Well-typedness \<close>
@@ -43,13 +40,7 @@ where
 | WTrtVar:
   "E V = Some T  \<Longrightarrow>
   P,E,h,sh \<turnstile> Var V : T"
-(*
-WTrtBinOp:
-  "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1 : T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2 : T\<^sub>2;
-    case bop of Eq \<Rightarrow> T = Boolean
-              | Add \<Rightarrow> T\<^sub>1 = Integer \<and> T\<^sub>2 = Integer \<and> T = Integer \<rbrakk>
-   \<Longrightarrow> P,E,h,sh \<turnstile> e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2 : T"
-*)
+
 | WTrtBinOpEq:
   "\<lbrakk> P,E,h,sh \<turnstile> e\<^sub>1 : T\<^sub>1;  P,E,h,sh \<turnstile> e\<^sub>2 : T\<^sub>2 \<rbrakk>
   \<Longrightarrow> P,E,h,sh \<turnstile> e\<^sub>1 \<guillemotleft>Eq\<guillemotright> e\<^sub>2 : Boolean"
@@ -318,34 +309,8 @@ done
 lemma WTrt_shext_mono: "P,E,h,sh \<turnstile> e : T \<Longrightarrow> sh \<unlhd>\<^sub>s sh' \<Longrightarrow> \<not>sub_RI e \<Longrightarrow> P,E,h,sh' \<turnstile> e : T"
 and WTrts_shext_mono: "P,E,h,sh \<turnstile> es [:] Ts \<Longrightarrow> sh \<unlhd>\<^sub>s sh' \<Longrightarrow> \<not>sub_RIs es \<Longrightarrow> P,E,h,sh' \<turnstile> es [:] Ts"
 (*<*)
-apply(induct rule: WTrt_inducts)
-apply(simp add: WTrtNew)
-apply(fastforce simp: WTrtCast)
-apply(fastforce simp: WTrtVal)
-apply(simp add: WTrtVar)
-apply(fastforce simp add: WTrtBinOpEq)
-apply(fastforce simp add: WTrtBinOpAdd)
-apply(fastforce simp add: WTrtLAss)
-apply(fastforce intro: WTrtFAcc)
-apply(simp add: WTrtFAccNT)
-apply(fast intro: WTrtSFAcc)
-apply(fastforce simp: WTrtFAss)
-apply(fastforce simp: WTrtFAssNT)
-apply(fastforce simp: WTrtSFAss)
-apply(fastforce simp: WTrtCall)
-apply(fastforce simp: WTrtCallNT)
-apply(fastforce simp: WTrtSCall)
-apply(fastforce)
-apply(fastforce simp add: WTrtSeq)
-apply (simp add: WTrtCond)
-apply(fastforce simp add: WTrtWhile)
-apply(fastforce simp add: WTrtThrow)
-apply(fastforce simp: WTrtTry)
-apply(simp add: WTrtInit)
-apply(simp add: WTrtRI)
-apply(simp add: WTrtNil)
-apply(simp add: WTrtCons)
-done
+by(induct rule: WTrt_inducts)
+  (auto simp add: WTrt_WTrts.intros)
 (*>*)
 
 lemma WTrt_hext_shext_mono: "P,E,h,sh \<turnstile> e : T

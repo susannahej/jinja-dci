@@ -1,10 +1,9 @@
-(*  Title:      HOL/MicroJava/BV/BVSpec.thy
+(*  Title:      JinjaDCI/BV/BVSpec.thy
 
-    Author:     Cornelia Pusch, Gerwin Klein
-    Copyright   1999 Technische Universitaet Muenchen
+    Author:     Cornelia Pusch, Gerwin Klein, Susannah Mansky
+    Copyright   1999 Technische Universitaet Muenchen, 2019-20 UIUC
 
-    Expanded to include statics by Susannah Mansky
-    2018, UIUC
+    Based on the Jinja theory BV/BVSpec.thy by Tobias Nipkow
 *)
 
 section \<open> The Bytecode Verifier \label{sec:BVSpec} \<close>

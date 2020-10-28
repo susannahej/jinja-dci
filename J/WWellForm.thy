@@ -1,9 +1,9 @@
-(*  Title:      Jinja/J/WWellForm.thy
+(*  Title:      JinjaDCI/J/WWellForm.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/WWellForm.thy by Tobias Nipkow
 *)
 
 section \<open> Weak well-formedness of Jinja programs \<close>

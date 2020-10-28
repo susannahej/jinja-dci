@@ -1,9 +1,9 @@
-(*  Title:      Jinja/J/WellType.thy
+(*  Title:      JinjaDCI/J/WellType.thy
 
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/WellType.thy by Tobias Nipkow
 *)
 
 section \<open> Well-typedness of Jinja expressions \<close>
@@ -38,13 +38,7 @@ where
 | WTVar:
   "E V = Some T \<Longrightarrow>
   P,E \<turnstile> Var V :: T"
-(*
-WTBinOp:
-  "\<lbrakk> P,E \<turnstile> e\<^sub>1 :: T\<^sub>1;  P,E \<turnstile> e\<^sub>2 :: T\<^sub>2;
-     case bop of Eq \<Rightarrow> (P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1) \<and> T = Boolean
-               | Add \<Rightarrow> T\<^sub>1 = Integer \<and> T\<^sub>2 = Integer \<and> T = Integer \<rbrakk>
-  \<Longrightarrow> P,E \<turnstile> e\<^sub>1 \<guillemotleft>bop\<guillemotright> e\<^sub>2 :: T"
-*)
+
 | WTBinOpEq:
   "\<lbrakk> P,E \<turnstile> e\<^sub>1 :: T\<^sub>1;  P,E \<turnstile> e\<^sub>2 :: T\<^sub>2; P \<turnstile> T\<^sub>1 \<le> T\<^sub>2 \<or> P \<turnstile> T\<^sub>2 \<le> T\<^sub>1 \<rbrakk>
   \<Longrightarrow> P,E \<turnstile> e\<^sub>1 \<guillemotleft>Eq\<guillemotright> e\<^sub>2 :: Boolean"
@@ -118,11 +112,6 @@ WTBinOp:
   \<Longrightarrow>  P,E \<turnstile> e#es [::] T#Ts"
 
 (*<*)
-(*
-lemmas [intro!] = WTNew WTCast WTVal WTVar WTBinOp WTLAss WTFAcc WTFAss WTCall WTBlock WTSeq
-                  WTWhile WTThrow WTTry WTNil WTCons
-lemmas [intro]  = WTCond1 WTCond2
-*)
 declare WT_WTs.intros[intro!] (* WTNil[iff] *)
 
 lemmas WT_WTs_induct = WT_WTs.induct [split_format (complete)]

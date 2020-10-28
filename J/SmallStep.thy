@@ -1,8 +1,8 @@
-(*  Title:      Jinja/J/SmallStep.thy
-    Author:     Tobias Nipkow
-    Copyright   2003 Technische Universitaet Muenchen
-    Expanded to include statics and dynamic class initialization by Susannah Mansky
-    2017, UIUC
+(*  Title:      JinjaDCI/J/SmallStep.thy
+    Author:     Tobias Nipkow, Susannah Mansky
+    Copyright   2003 Technische Universitaet Muenchen, 2019-20 UIUC
+
+    Based on the Jinja theory J/SmallStep.thy by Tobias Nipkow
 *)
 
 section \<open> Small Step Semantics \<close>
@@ -38,8 +38,9 @@ definition assigned :: "'a \<Rightarrow> 'a exp \<Rightarrow> bool"
 where
   "assigned V e  \<equiv>  \<exists>v e'. e = (V := Val v;; e')"
 
-(* expression is okay to go the right side of INIT or RI \<leftarrow> or to have bool = True (in latter
-  case, given that class is also verified initialized) *)
+\<comment> \<open> expression is okay to go the right side of @{text INIT} or @{text "RI \<leftarrow>"}
+ or to have indicator Boolean be True (in latter case, given that class is
+ also verified initialized) \<close>
 fun icheck :: "'m prog \<Rightarrow> cname \<Rightarrow> 'a exp \<Rightarrow> bool" where
 "icheck P C' (new C) = (C' = C)" |
 "icheck P D' (C\<bullet>\<^sub>sF{D}) = ((D' = D) \<and> (\<exists>T. P \<turnstile> C has F,Static:T in D))" |
@@ -487,6 +488,12 @@ apply(erule reds.cases, auto)
 done
 (*>*)
 
+lemma lass_val_of_red:
+ "\<lbrakk> lass_val_of e = \<lfloor>a\<rfloor>; P \<turnstile> \<langle>e,(h, l, sh),b\<rangle> \<rightarrow> \<langle>e',(h', l', sh'),b'\<rangle> \<rbrakk>
+  \<Longrightarrow> e' = unit \<and> h' = h \<and> l' = l(fst a\<mapsto>snd a) \<and> sh' = sh \<and> b = b'"
+(*<*)by(drule lass_val_of_spec, auto)(*>*)
+
+
 lemma final_no_step [iff]: "final e \<Longrightarrow> \<not> P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow> \<langle>e',s',b'\<rangle>"
 (*<*)by(erule finalE, simp+)(*>*)
 
@@ -506,11 +513,14 @@ next
   qed
 qed
 
-lemma lass_val_of_red:
- "\<lbrakk> lass_val_of e = \<lfloor>a\<rfloor>; P \<turnstile> \<langle>e,(h, l, sh),b\<rangle> \<rightarrow> \<langle>e',(h', l', sh'),b'\<rangle> \<rbrakk>
-  \<Longrightarrow> e' = unit \<and> h' = h \<and> l' = l(fst a\<mapsto>snd a) \<and> sh' = sh \<and> b = b'"
- by(drule lass_val_of_spec, auto)
-
+lemma reds_throw:
+"P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle> \<Longrightarrow> (\<And>e\<^sub>t. throw_of e = \<lfloor>e\<^sub>t\<rfloor> \<Longrightarrow> \<exists>e\<^sub>t'. throw_of e' = \<lfloor>e\<^sub>t'\<rfloor>)"
+proof(induct rule:converse_rtrancl_induct3)
+  case refl then show ?case by simp
+next
+  case (step e0 s0 b0 e1 s1 b1)
+  then show ?case by(auto elim: red.cases)
+qed
 
 lemma red_hext_incr: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>  \<Longrightarrow> h \<unlhd> h'"
   and reds_hext_incr: "P \<turnstile> \<langle>es,(h,l,sh),b\<rangle> [\<rightarrow>] \<langle>es',(h',l',sh'),b'\<rangle>  \<Longrightarrow> h \<unlhd> h'"
@@ -591,15 +601,6 @@ next
     by (blast dest: red_lcl_add intro: converse_rtrancl_into_rtrancl)
 qed
 (*>*)
-
-lemma reds_throw:
-"P \<turnstile> \<langle>e,s,b\<rangle> \<rightarrow>* \<langle>e',s',b'\<rangle> \<Longrightarrow> (\<And>e\<^sub>t. throw_of e = \<lfloor>e\<^sub>t\<rfloor> \<Longrightarrow> \<exists>e\<^sub>t'. throw_of e' = \<lfloor>e\<^sub>t'\<rfloor>)"
-proof(induct rule:converse_rtrancl_induct3)
-  case refl then show ?case by simp
-next
-  case (step e0 s0 b0 e1 s1 b1)
-  then show ?case by(auto elim: red.cases)
-qed
 
 lemma assumes wf: "wwf_J_prog P"
 shows red_proc_pres: "P \<turnstile> \<langle>e,(h,l,sh),b\<rangle> \<rightarrow> \<langle>e',(h',l',sh'),b'\<rangle>
