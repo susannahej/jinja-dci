@@ -43,7 +43,7 @@ locale start_context = JVM_sl +
   defines [simp]: 
   "first \<equiv> Some ([],(case b of Static \<Rightarrow> [] | NonStatic \<Rightarrow> [OK (Class C)]) @ map OK Ts @ replicate mxl\<^sub>0 Err)"
   defines [simp]:
-  "start \<equiv> (case b of Static \<Rightarrow> [] | NonStatic \<Rightarrow> [OK first]) @  replicate (size is - 1) (OK None)"
+  "start \<equiv> (OK first) #  replicate (size is - 1) (OK None)"
 
 
 
@@ -271,8 +271,8 @@ theorem (in JVM_sl) step_mono:
 (*>*)
 
 
-lemma (in start_context) first_in_A [iff]: "b = NonStatic \<Longrightarrow> OK first \<in> A"
-  using Ts C by (force intro!: list_appendI simp add: JVM_states_unfold)
+lemma (in start_context) first_in_A [iff]: "OK first \<in> A"
+  using Ts C by (cases b; force intro!: list_appendI simp add: JVM_states_unfold)
 
 
 lemma (in JVM_sl) wt_method_def2:

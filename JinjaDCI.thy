@@ -3,7 +3,8 @@ imports
   "J/Equivalence"
   "J/Annotate"
   "JVM/JVMDefensive"
-  "BV/TF_JVM"
+  "BV/BVExec"
+  "BV/LBVJVM"
   "BV/BVNoTypeError"
   "Compiler/TypeComp"
 begin
