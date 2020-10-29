@@ -56,7 +56,7 @@ done
 
 lemma distinct_fst_appendD:
  "distinct_fst(kxs @ kxs') \<Longrightarrow> distinct_fst kxs \<and> distinct_fst kxs'"
-by(induct kxs, auto)
+(*<*)by(induct kxs, auto)(*>*)
 
 lemma map_of_SomeI:
   "\<lbrakk> distinct_fst kxs; (k,x) \<in> set kxs \<rbrakk> \<Longrightarrow> map_of kxs k = Some x"
@@ -118,11 +118,10 @@ lemma rel_list_all2I:
 
 (*<*)declare fun_of_def [simp del](*>*)
 
-section \<open> Auxiliary properties of @{text "map_of"} function \<close>
-
+subsection \<open> Auxiliary properties of @{text "map_of"} function \<close>
 
 lemma map_of_set_pcs_notin: "C \<notin> (\<lambda>t. snd (fst t)) ` set FDTs \<Longrightarrow> map_of FDTs (F, C) = None"
-  by (metis image_eqI image_image map_of_eq_None_iff snd_conv)
+(*<*)by (metis image_eqI image_image map_of_eq_None_iff snd_conv)(*>*)
 
 lemma map_of_insertmap_SomeD':
   "map_of fs F = Some y \<Longrightarrow> map_of (map (\<lambda>(F, y). (F, D, y)) fs) F = Some(D,y)"
@@ -159,6 +158,7 @@ lemma map_of_remove_filtered_SomeD:
 lemma map_of_Some_None_split:
 assumes "t = map (\<lambda>(F, y). ((F, C), y)) fs @ t'" "map_of t' (F, C) = None" "map_of t (F, C) = Some y"
 shows "map_of (map (\<lambda>((F, D), b, T). (F, D, b, T)) t) F = Some (C, y)"
+(*<*)
 proof -
   have "map_of (map (\<lambda>(F, y). ((F, C), y)) fs) (F, C) = Some y" using assms by auto
   then have "\<forall>p. map_of fs F = Some p \<or> Some y \<noteq> Some p"
@@ -174,5 +174,6 @@ proof -
     by (simp add: map_of_remap_insertmap)
   then show ?thesis using assms by auto
 qed
+(*>*)
 
 end

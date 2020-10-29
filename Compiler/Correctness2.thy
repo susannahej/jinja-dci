@@ -406,7 +406,7 @@ fun Jcc_pieces :: "J\<^sub>1_prog \<Rightarrow> ty list \<Rightarrow> cname \<Ri
       Jcc_rhs P E C M vs ls pc ics frs h' ls' sh' v e,
       Jcc_err (compP\<^sub>2 P) C M h vs ls pc ics frs sh I h' ls' sh' xa e)"
 
-\<comment> \<open> Jcc_pieces lemmas \<close>
+\<comment> \<open> @{text Jcc_pieces} lemmas \<close>
 
 lemma nsub_RI_Jcc_pieces:
 assumes [simp]: "P \<equiv> compP\<^sub>2 P\<^sub>1"
